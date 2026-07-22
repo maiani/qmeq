@@ -24,7 +24,7 @@ def elph_construct_Vbbp(baths, velph, Vbbp_=None):
         velph[(bath, i, j)] = Vij, where i, j are the state labels.
     Vbbp_ : None or ndarray
         nbaths by nmany by nmany numpy array containing old values of Vbbp.
-        The values in velph are added to Vbbp_.
+        The values in velph are added to ``Vbbp_``.
 
     Returns
     -------
@@ -164,7 +164,7 @@ def make_velph_dict(velph, si, add_zeros=False):
     else:
         velph_dict = {}
     #
-    if si.symmetry is 'spin':
+    if si.symmetry == 'spin':
         velph_dict_spin = dict(velph_dict)
         for j0 in velph_dict:
             j1, j2, j3 = j0

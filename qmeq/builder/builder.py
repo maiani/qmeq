@@ -56,9 +56,6 @@ class Builder(BuilderBase):
         String determining type of the indexing. Possible values are 'Lin', 'charge', 'sz', 'ssq'.
         Note that 'sz' indexing for Fock states is used for 'ssq' indexing, with
         additional specification of eigenstates in Fock basis.
-    symmetry : str
-        String determining that the states will be augmented by the symmetry.
-        Possible value is 'spin'.
     kpnt : int
         Number of energy grid points on which 2vN approach equations are solved.
     kerntype : string, Approach class

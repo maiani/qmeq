@@ -13,6 +13,29 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.napoleon'
              ]
 
+# The Cython extensions are optional at runtime and are not built when the
+# documentation is generated directly from a source checkout.  Mock only those
+# extension modules so autodoc can still import and document the Python API.
+autodoc_mock_imports = [
+    'qmeq.approach.c_aprclass',
+    'qmeq.approach.c_kernel_handler',
+    'qmeq.approach.base.c_RTD',
+    'qmeq.approach.base.c_lindblad',
+    'qmeq.approach.base.c_neumann1',
+    'qmeq.approach.base.c_neumann2',
+    'qmeq.approach.base.c_pauli',
+    'qmeq.approach.base.c_redfield',
+    'qmeq.approach.elph.c_lindblad',
+    'qmeq.approach.elph.c_neumann1',
+    'qmeq.approach.elph.c_pauli',
+    'qmeq.approach.elph.c_redfield',
+    'qmeq.specfunc.c_specfunc',
+    'qmeq.specfunc.c_specfunc_elph',
+    'qmeq.wrappers.c_lapack',
+    'qmeq.wrappers.c_mytypes',
+]
+suppress_warnings = ['autodoc.mocked_object']
+
 templates_path = ['_templates']
 #source_suffix = ['.rst', '.md']
 source_suffix = '.rst'
@@ -26,7 +49,7 @@ author = u'Gediminas Kirsanskas'
 version = u'1.1'
 release = u'1.1'
 
-language = None
+language = 'en'
 #today = ''
 #today_fmt = '%B %d, %Y'
 exclude_patterns = []
