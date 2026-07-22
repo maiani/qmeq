@@ -1,5 +1,5 @@
 qmeq.wrappers.mytypes module
-================
+==============================
 
 .. automodule:: qmeq.wrappers.mytypes
     :members:

@@ -24,7 +24,7 @@ def elph_construct_Vbbp(baths, velph, Vbbp_=None):
         velph[(bath, i, j)] = Vij, where i, j are the state labels.
     Vbbp_ : None or ndarray
         nbaths by nmany by nmany numpy array containing old values of Vbbp.
-        The values in velph are added to Vbbp_.
+        The values in velph are added to ``Vbbp_``.
 
     Returns
     -------

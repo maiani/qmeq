@@ -27,7 +27,7 @@ def construct_Tba(leads, tleads, Tba_=None):
         tleads[(lead, state)] = tunneling amplitude.
     Tba_ : None or ndarray
         nbaths by nmany by nmany numpy array containing old values of Tba.
-        The values in tleads are added to Tba_.
+        The values in tleads are added to ``Tba_``.
 
     Returns
     -------

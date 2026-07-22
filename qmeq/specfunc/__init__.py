@@ -40,6 +40,17 @@ try:
 except ImportError:
     print("WARNING: Cannot import Cython compiled modules for the special functions (specfunc.__init__.py).")
     c_fermi_func = fermi_func
+    c_diff_fermi = diff_fermi
+    c_phi = phi
+    c_delta_phi = delta_phi
+    c_diff_phi = diff_phi
+    c_diff2_phi = diff2_phi
+    c_bose = bose
+    c_polygamma = polygamma
+    c_digamma = digamma
+    c_integralD = integralD
+    c_integralX = integralX
+    c_BW_Ozaki = BW_Ozaki
     c_func_pauli = func_pauli
     c_func_1vN = func_1vN
     Func = pyFunc

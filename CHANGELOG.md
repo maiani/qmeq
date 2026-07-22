@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+### Added
+
+- Add a prioritized maintenance roadmap in `TODO.md`.
+
+### Changed
+
+- Use NumPy for `pi` and `exp` constants removed from the public SciPy API.
+- Allow the Sphinx documentation to build without optional Cython extensions.
+
+### Fixed
+
+- Define all compiled special-function names through pure-Python fallbacks when
+  the Cython extensions are unavailable.
+- Fix string comparisons used when expanding spin-symmetric input data.
+- Fix Sphinx configuration, duplicate API metadata, malformed docstring
+  references, and wrapper-page headings so documentation builds cleanly.
+
 ## [1.1] - 2021-06-04
 
 ### Added
