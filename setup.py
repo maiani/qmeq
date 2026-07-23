@@ -62,6 +62,7 @@ def get_ext_modules():
             Extension(
                 module_name,
                 [file_name],
+                include_dirs=[np.get_include()],
                 extra_compile_args=[openmp_flag],
                 extra_link_args=[openmp_flag],
             )
@@ -71,44 +72,6 @@ def get_ext_modules():
     return cext
 
 
-long_description = open('README.rst').read()
-
-classifiers = ['Development Status :: 5 - Production/Stable',
-               'Intended Audience :: Science/Research',
-               'License :: OSI Approved :: BSD License',
-               'Operating System :: MacOS',
-               'Operating System :: Microsoft :: Windows',
-               'Operating System :: POSIX',
-               'Operating System :: Unix',
-               'Programming Language :: Cython',
-               'Programming Language :: Python :: 3',
-               'Topic :: Scientific/Engineering :: Physics']
-
-setup(name='qmeq',
-      version='1.1',
-      python_requires='>=3.6',
-      description=('Package for transport calculations in quantum dots ' +
-                   'using approximate quantum master equations'),
-      long_description=long_description,
-      url='http://github.com/gedaskir/qmeq',
-      author='Gediminas Kirsanskas',
-      author_email='qmeq.package@gmail.com',
-      license='BSD 2-Clause',
-      classifiers=classifiers,
-      packages=['qmeq',
-                'qmeq/approach',
-                'qmeq/approach/base',
-                'qmeq/approach/elph',
-                'qmeq/builder',
-                'qmeq/specfunc',
-                'qmeq/tests',
-                'qmeq/wrappers',],
-      package_data={'qmeq/approach':      ['*.pyx', '*.c', '*.pyd', '*.o', '*.so'],
-                    'qmeq/approach/base': ['*.pyx', '*.c', '*.pyd', '*.o', '*.so'],
-                    'qmeq/approach/elph': ['*.pyx', '*.c', '*.pyd', '*.o', '*.so'],
-                    'qmeq/specfunc':      ['*.pyx', '*.c', '*.pyd', '*.o', '*.so'],
-                    'qmeq/wrappers':      ['*.pyx', '*.c', '*.pyd', '*.o', '*.so'], },
-      zip_safe=False,
-      install_requires=['numpy', 'scipy'],
-      include_dirs=[np.get_include()],
-      ext_modules=get_ext_modules())
+# Static project metadata lives in pyproject.toml; setup.py only builds the
+# Cython/C extension modules.
+setup(ext_modules=get_ext_modules())

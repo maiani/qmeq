@@ -10,6 +10,23 @@
 
 - Use NumPy for `pi` and `exp` constants removed from the public SciPy API.
 - Allow the Sphinx documentation to build without optional Cython extensions.
+- Modernize packaging: move static project metadata to `pyproject.toml`,
+  derive the version dynamically from `qmeq.__version__`, use automatic package
+  discovery, declare a supported-Python range of `>=3.10`, and reduce `setup.py`
+  to building the Cython extensions.
+- Configure pytest `testpaths` in `pyproject.toml` so `pytest` discovers the
+  suite from the project root.
+- Add optional-dependency extras (`test`, `docs`, `dev`) so tooling can be
+  installed on demand, e.g. `pip install qmeq[test]` or `pip install -e .[dev]`.
+- Refresh `INSTALL.md`: replace the deprecated `python setup.py install` command
+  with `pip install .`, document validating an installed build via
+  `pytest --pyargs qmeq.tests`, correct the generated documentation path, and
+  update stale toolchain guidance and links.
+
+### Removed
+
+- Remove the outdated `README.rst`; `README.md` is now the canonical README and
+  is used as the package long description.
 
 ### Fixed
 

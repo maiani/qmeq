@@ -4,23 +4,21 @@ Installation of QmeQ
 QmeQ can be installed through [pip][pip] or by building it from source.
 To be able to use and build QmeQ you need to have:
 
-* [Python][Python] 3 with [setuptools][setuptools] installed,
+* [Python][Python] 3.10 or newer,
 * [Cython][Cython] and a C compiler compatible with it,
 * [NumPy][NumPy] package,
-* [SciPy][Scipy] package.
+* [SciPy][SciPy] package.
 
-The indicated versions are the minimal required versions. Optionally, such
-packages are used:
+Building from source additionally requires [setuptools][setuptools]; these
+build dependencies are declared in `pyproject.toml` and are installed
+automatically by `pip`.
 
-* [Matplotlib][Matplotlib] for plotting,
-* [Jupyter][Jupyter] for the tutorials.
-
-An easy way to obtain the above packages is by using Python package manager
-[pip][pip]. After [setting up pip][setpip] the above packages can be obtained
-by using the following command
+The [tutorial and examples][examples] are distributed separately in the
+[qmeq-examples][examples] repository. Running them requires
+[Matplotlib][Matplotlib] and [Jupyter][Jupyter], which can be installed with
 
 ```bash
-$ pip install cython numpy scipy matplotlib jupyter
+$ pip install matplotlib jupyter
 ```
 
 To install QmeQ through pip run
@@ -32,7 +30,22 @@ $ pip install qmeq
 or by going into the [downloaded source][qmeqsrc] directory and running
 
 ```bash
-$ python setup.py install
+$ pip install .
+```
+
+To work on QmeQ itself, install it in editable mode instead
+
+```bash
+$ pip install -e .
+```
+
+Optional feature sets are available as extras and can be requested in brackets;
+they combine with any of the commands above (e.g. `pip install -e .[dev]`):
+
+```bash
+$ pip install qmeq[test]   # pytest for running the test suite
+$ pip install qmeq[docs]   # sphinx and the theme for building the docs
+$ pip install qmeq[dev]    # everything above plus cython, build, and twine
 ```
 
 We note that the binaries **pip** and **python** have to be in the system path.
@@ -46,11 +59,13 @@ For **Linux** and **Mac** we recommend to use the C compiler in the conventional
 instructions how to setup these compilers to work with Cython are available
 [here][cext].
 
-NumPy and ATLAS/OpenBLAS/MKL
-----------------------------
+NumPy and OpenBLAS/MKL
+----------------------
 
-For a good performance of the calculations NumPy needs to be linked to
-so-called ATLAS, OpenBLAS, or MKL libraries. To check if NumPy is linked go to
+For a good performance of the calculations NumPy needs to be linked to an
+optimized BLAS/LAPACK library such as OpenBLAS or MKL. The NumPy and SciPy
+wheels installed by `pip` already bundle OpenBLAS on all major platforms, so
+in most cases no extra setup is needed. To inspect the linked library open a
 Python interpreter and write
 
 ```python
@@ -58,31 +73,32 @@ import numpy
 numpy.show_config()
 ```
 
-If all of the entries like **atlas\_info**, **openblas\_info**, or **mkl\_info**
-says **NOT AVAILABLE** then it is likely that your NumPy does not perform well.
-
-For Windows the NumPy and SciPy libraries linked to MKL can be obtained from
-[Unofficial Windows Binaries for Python Extension Packages][cgohlke] by
-Christoph Gohlke.
+and check the reported **blas** / **lapack** backend.
 
 Tests
 -----
 
 To run the [tests][qmeqtest] included with QmeQ we use
 
-* [py.test][pytest] testing framework.
+* [pytest][pytest] testing framework.
 
-To install it run
+To install it, use the `test` extra
 
 ```bash
-$ pip install pytest
+$ pip install qmeq[test]
 ```
 
-Then the tests can be performed by calling
+From the source directory the tests can be performed by calling
 
 ```bash
-$ cd 'path to qmeq source'/qmeq
-$ pytest tests
+$ pytest
+```
+
+The tests are also shipped inside the installed package, so a compiled,
+installed build can be validated from any directory with
+
+```bash
+$ pytest --pyargs qmeq.tests
 ```
 
 Documentation
@@ -95,10 +111,10 @@ source code. This documentation can be generated in
 * [Sphinx][Sphinx] package,
 * [sphinx-rtd-theme][srtdt] Read the Docs Sphinx theme.
 
-To install the above packages run
+To install the above packages, use the `docs` extra
 
 ```bash
-$ pip install sphinx sphinx-rtd-theme
+$ pip install qmeq[docs]
 ```
 
 For example, to generate the documentation in **html** format run
@@ -109,26 +125,23 @@ $ make html
 ```
 
 The generated documentation should be in
-*'path to qmeq source'/docs/build/index.html*
+*'path to qmeq source'/docs/build/html/index.html*
 
-[Python]: http://www.python.org
-[Cython]: http://cython.org
-[NumPy]: http://www.numpy.org
-[SciPy]: http://www.scipy.org
-[Matplotlib]: http://matplotlib.org
-[Jupyter]: http://jupyter.org
-[Sphinx]: http://www.sphinx-doc.org
-[pytest]: http://doc.pytest.org
+[Python]: https://www.python.org
+[Cython]: https://cython.org
+[NumPy]: https://numpy.org
+[SciPy]: https://scipy.org
+[Matplotlib]: https://matplotlib.org
+[Jupyter]: https://jupyter.org
+[Sphinx]: https://www.sphinx-doc.org
+[pytest]: https://docs.pytest.org
 
-[setuptools]: http://setuptools.readthedocs.io
-[pip]: http://pip.pypa.io
-[setpip]: http://pip.pypa.io/en/stable/installing
-[gcc]: http://gcc.gnu.org
+[setuptools]: https://setuptools.pypa.io
+[pip]: https://pip.pypa.io
+[gcc]: https://gcc.gnu.org
 [cext]: https://github.com/cython/cython/wiki/CythonExtensionsOnWindows
-[mingw]: http://www.mingw.org
-[mingwpy]: https://mingwpy.github.io
-[cgohlke]: http://www.lfd.uci.edu/~gohlke/pythonlibs
-[srtdt]: https://github.com/snide/sphinx_rtd_theme
+[srtdt]: https://github.com/readthedocs/sphinx_rtd_theme
+[examples]: https://github.com/gedaskir/qmeq-examples
 
 [qmeqdocs]: http://github.com/gedaskir/qmeq/tree/master/docs
 [qmeqsrc]: http://github.com/gedaskir/qmeq/archive/master.zip
