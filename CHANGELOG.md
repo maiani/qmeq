@@ -49,6 +49,8 @@
 
 ### Fixed
 
+- Use `expm1` in the pure-Python and Cython Bose functions for accuracy near
+  zero, and guard the electron-phonon forms against large positive arguments.
 - Define all compiled special-function names through pure-Python fallbacks when
   the Cython extensions are unavailable.
 - Fix string comparisons used when expanding spin-symmetric input data.

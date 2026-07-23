@@ -1,7 +1,9 @@
 name: Build
 
 on:
-  workflow_dispatch:
+  push:
+    tags:
+      - '*'
 
 jobs:
   build_wheels:
@@ -9,41 +11,30 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest,  macos-12]
+        os: [ubuntu-20.04, windows-2019, macos-10.15]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v2
 
-      - uses: actions/setup-python@v5
-      - name: Install cibuildwheel
-        run: python -m pip install cibuildwheel==2.21.3
-
-      - if: runner.os == 'Linux'  # https://github.com/scipy/scipy/issues/16308#issuecomment-1140477372
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install --yes libopenblas-dev
-          
       - name: Build wheels
-        run: python -m cibuildwheel --output-dir wheelhouse
+        uses: pypa/cibuildwheel@v1.11.1.post1
         # to supply options, put them in 'env', like:
         env:
           CIBW_BEFORE_ALL_MACOS: bash scripts/cibw_before_all_macos.sh
-          CIBW_BUILD: cp312-* cp313-*
-          CIBW_SKIP: "*-win32 *i686 *aarch64 *ppc64le *s390x *universal2 *arm64"
+          CIBW_BUILD: cp36-* cp37-* cp38-* cp39-*
+          CIBW_SKIP: "*-win32 *-manylinux_i686 *aarch64 *ppc64le *s390x *universal2 *arm64"
           CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: pytest --pyargs qmeq
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v2
         with:
-          name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
-
 
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./wheelhouse/*.whl
-          tag: wheels
+          tag: ${{ github.ref }}
           overwrite: true
           file_glob: true

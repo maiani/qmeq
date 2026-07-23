@@ -14,6 +14,8 @@ from libc.math cimport exp
 from libc.math cimport expm1
 from libc.math cimport log
 
+cdef double_t MAX_EXP_ARGUMENT = 709.77
+
 
 cdef class Func:
     cpdef double_t eval(self, double_t x):
@@ -24,6 +26,8 @@ cdef class Func:
 cdef class FuncBose:
     """Bose function."""
     cdef double_t eval(self, double_t x):
+        if x > MAX_EXP_ARGUMENT:
+            return 0.0
         return 1./(expm1(x))
 
 

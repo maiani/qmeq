@@ -44,7 +44,7 @@
 
 ## Runtime maintenance
 
-- [ ] Make the electron-phonon Bose function numerically stable for large
+- [x] Make the electron-phonon Bose function numerically stable for large
   positive arguments and add regression tests for its limiting behavior.
 
 - [ ] Replace mutable dictionary defaults in builder constructors with `None`

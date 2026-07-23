@@ -3,6 +3,12 @@ from numpy.linalg import norm
 from numpy import exp
 from scipy.integrate import quad
 from qmeq.specfunc import *
+from qmeq.specfunc.specfunc_elph import FuncPauliElPh as PyFuncPauliElPh
+
+try:
+    from qmeq.specfunc.c_specfunc_elph import FuncPauliElPh as CFuncPauliElPh
+except ImportError:
+    CFuncPauliElPh = PyFuncPauliElPh
 
 EPS = 1e-14
 EPS2 = 1e-11
@@ -115,6 +121,17 @@ def test_diff2_phi():
 def test_bose():
     for f in [bose, c_bose]:
         assert abs(f(0.2) - 4.516655566126994) < EPS
+
+
+def test_elph_bose_large_positive_argument():
+    tlst = np.array([1.0])
+    dlst = np.array([[0.0, 1001.0]])
+    for cls in [PyFuncPauliElPh, CFuncPauliElPh]:
+        func = cls(tlst, dlst, None, EPS)
+        with np.errstate(over='raise'):
+            func.eval(1000.0, 0)
+        assert func.val == 0.0
+
 
 def test_BW_Ozaki():
     for f in [BW_Ozaki, c_BW_Ozaki]:

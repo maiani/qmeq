@@ -5,6 +5,8 @@ from numpy import expm1
 from numpy import pi
 from scipy.integrate import quad
 
+_MAX_EXP_ARGUMENT = 709.77
+
 
 # -----------------------------------------------------------------------
 class Func(object):
@@ -19,6 +21,8 @@ class Func(object):
 class FuncBose(Func):
     """Bose function."""
     def eval(self, x):
+        if x > _MAX_EXP_ARGUMENT:
+            return 0.0
         return 1/(expm1(x))
 
 
