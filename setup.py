@@ -86,6 +86,7 @@ classifiers = ['Development Status :: 5 - Production/Stable',
 
 setup(name='qmeq',
       version='1.1',
+      python_requires='>=3.6',
       description=('Package for transport calculations in quantum dots ' +
                    'using approximate quantum master equations'),
       long_description=long_description,
