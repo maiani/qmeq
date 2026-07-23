@@ -14,7 +14,7 @@
   - Verify that source builds and wheels work on every supported Python version.
   - Ensure tests do not silently cover only the fallback implementations.
 
-- [ ] Modernize packaging metadata.
+- [x] Modernize packaging metadata.
   - Consolidate project metadata in `pyproject.toml` where practical.
   - Declare a realistic supported-Python range.
   - Review build requirements and remove unnecessary dependencies.
@@ -23,11 +23,12 @@
 
 ## Documentation and distribution
 
-- [ ] Choose one canonical README and use it for the package description.
-  - Synchronize or remove the outdated `README.rst`.
+- [x] Choose one canonical README and use it for the package description.
+  - Removed the outdated `README.rst`; `README.md` is now canonical and is used
+    as the package long description.
   - Keep installation, feature, citation, and physics-disclaimer text aligned.
 
-- [ ] Refresh `INSTALL.md`.
+- [x] Refresh `INSTALL.md`.
   - Replace the deprecated `python setup.py install` instructions.
   - Correct the generated HTML path to `docs/build/html/index.html`.
   - Update stale links and supported-toolchain guidance.

@@ -1,9 +1,69 @@
 [build-system]
 requires = [
-    "setuptools>=42",
-    "wheel",
+    "setuptools>=77",
     "cython",
     "numpy",
-    "scipy"
 ]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "qmeq"
+dynamic = ["version"]
+description = "Package for transport calculations in quantum dots using approximate quantum master equations"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "BSD-2-Clause"
+license-files = ["LICENSE.md"]
+authors = [
+    {name = "Gediminas Kirsanskas", email = "qmeq.package@gmail.com"},
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Programming Language :: Cython",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+    "numpy",
+    "scipy",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+docs = ["sphinx", "sphinx-rtd-theme"]
+dev = [
+    "qmeq[test,docs]",
+    "cython",
+    "build",
+    "twine",
+]
+
+[project.urls]
+Homepage = "https://github.com/gedaskir/qmeq"
+Source = "https://github.com/gedaskir/qmeq"
+Documentation = "https://github.com/gedaskir/qmeq/tree/master/docs"
+
+[tool.setuptools]
+zip-safe = false
+
+[tool.setuptools.dynamic]
+version = {attr = "qmeq.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["qmeq*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.pyx", "*.pxd", "*.c", "*.pyd", "*.o", "*.so"]
+
+[tool.pytest.ini_options]
+testpaths = ["qmeq/tests"]
