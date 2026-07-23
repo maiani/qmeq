@@ -54,7 +54,7 @@ def plot_omega_vg(mtr, olst, vglst, U, gam, kerntype, itype, num):
                                 olst[0]/gam, olst[-1]/gam)
     p = plt.subplot(2, 2, num)
     p.set_xlabel('$V_{g}/U$', fontsize=20)
-    p.set_ylabel('$\Omega/\Gamma$', fontsize=20)
+    p.set_ylabel(r'$\Omega/\Gamma$', fontsize=20)
     p.set_title(kerntype+', itype='+str(itype), fontsize=20)
     p_im = plt.imshow(mtr/gam, extent=[xmin, xmax, ymin, ymax],
                                vmin=0, vmax= 0.023,
@@ -62,7 +62,7 @@ def plot_omega_vg(mtr, olst, vglst, U, gam, kerntype, itype, num):
                                origin='lower',
                                cmap=plt.get_cmap('Spectral'))
     cbar = plt.colorbar(p_im)
-    cbar.set_label('Current [$\Gamma$]', fontsize=20)
+    cbar.set_label(r'Current [$\Gamma$]', fontsize=20)
     cbar.set_ticks(np.linspace(0.0, 0.03, 4))
     plt.tight_layout()
 
@@ -84,4 +84,4 @@ for kerntype, itype, num in params:
                   kerntype, itype, num)
 
 plt.show()
-fig.savefig('o_vg.pdf', bbox_inches='tight', dpi=100, pad_inches=0.0)
+fig.savefig('o_vg.png', bbox_inches='tight', dpi=100, pad_inches=0.0)

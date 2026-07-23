@@ -10,8 +10,17 @@ needs_sphinx = '1.3'
 
 extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.mathjax',
-              'sphinx.ext.napoleon'
+              'sphinx.ext.napoleon',
+              'nbsphinx',
+              'nbsphinx_link',
              ]
+
+# The example notebooks live in the ``examples/`` directory and are pulled into
+# the documentation through nbsphinx-link (see ``examples/*.nblink``).  They are
+# rendered from their stored outputs rather than executed on every build, as the
+# second-order (2vN / RTD) calculations are far too expensive for a doc build;
+# execution is exercised separately by the test suite.
+nbsphinx_execute = 'never'
 
 # The Cython extensions are optional at runtime and are not built when the
 # documentation is generated directly from a source checkout.  Mock only those
@@ -36,6 +45,18 @@ autodoc_mock_imports = [
 ]
 suppress_warnings = ['autodoc.mocked_object']
 
+# Many classes exist both as a pure-Python implementation (e.g.
+# ``qmeq.approach.aprclass.Approach``) and a compiled Cython twin
+# (``qmeq.approach.c_aprclass.Approach``).  When the extensions are built both
+# are documented, so bare type names such as ``Approach`` in docstrings resolve
+# ambiguously.  Map them to the canonical public classes.
+napoleon_preprocess_types = True
+napoleon_type_aliases = {
+    'Approach': ':class:`~qmeq.approach.aprclass.Approach`',
+    'ApproachElPh': ':class:`~qmeq.approach.aprclass.ApproachElPh`',
+    'Approach2vN': ':class:`~qmeq.approach.aprclass.ApproachBase2vN`',
+}
+
 templates_path = ['_templates']
 #source_suffix = ['.rst', '.md']
 source_suffix = '.rst'
@@ -52,7 +73,7 @@ release = u'1.1'
 language = 'en'
 #today = ''
 #today_fmt = '%B %d, %Y'
-exclude_patterns = []
+exclude_patterns = ['**.ipynb_checkpoints']
 #default_role = None
 #add_function_parentheses = True
 #add_module_names = True

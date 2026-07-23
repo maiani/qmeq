@@ -78,7 +78,7 @@ np.savetxt('trace_2vN.dat', trace_2vN)
 fig = plt.figure()
 p = plt.subplot(1, 1, 1)
 p.set_xlabel('$V/U$', fontsize=20)
-p.set_ylabel('$\mathrm{d}I/\mathrm{d}V$', fontsize=20)
+p.set_ylabel(r'$\mathrm{d}I/\mathrm{d}V$', fontsize=20)
 plt.plot(vlst/U, trace_Pauli, label='Pauli',
                               color='blue',
                               lw=2)
@@ -88,6 +88,6 @@ plt.plot(vlst/U, trace_2vN, label='2vN',
                             linestyle='--')
 plt.legend(loc=2, fontsize=20)
 plt.show()
-fig.savefig('Pauli_vs_2vN.pdf', bbox_inches='tight',
+fig.savefig('Pauli_vs_2vN.png', bbox_inches='tight',
                                 dpi=100,
                                 pad_inches=0.0)

@@ -13,8 +13,8 @@ Building from source additionally requires [setuptools][setuptools]; these
 build dependencies are declared in `pyproject.toml` and are installed
 automatically by `pip`.
 
-The [tutorial and examples][examples] are distributed separately in the
-[qmeq-examples][examples] repository. Running them requires
+The tutorial and [examples][examples] are included in the `examples/` directory
+and are also rendered in the documentation. Running the notebooks requires
 [Matplotlib][Matplotlib] and [Jupyter][Jupyter], which can be installed with
 
 ```bash
@@ -141,7 +141,7 @@ The generated documentation should be in
 [gcc]: https://gcc.gnu.org
 [cext]: https://github.com/cython/cython/wiki/CythonExtensionsOnWindows
 [srtdt]: https://github.com/readthedocs/sphinx_rtd_theme
-[examples]: https://github.com/gedaskir/qmeq-examples
+[examples]: examples
 
 [qmeqdocs]: http://github.com/gedaskir/qmeq/tree/master/docs
 [qmeqsrc]: http://github.com/gedaskir/qmeq/archive/master.zip

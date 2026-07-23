@@ -87,7 +87,7 @@ np.savetxt('tr_e3_1vN_rm.dat', tr_e3_1vN_rm)
 fig = plt.figure()
 p = plt.subplot(1, 1, 1)
 p.set_xlabel('$E_{3}/T$', fontsize=20)
-p.set_ylabel('Current [$\Gamma$]', fontsize=20)
+p.set_ylabel(r'Current [$\Gamma$]', fontsize=20)
 plt.plot(e3lst/temp, tr_e3_Pauli/gam,
          label='Pauli', color='blue', lw=2)
 plt.plot(e3lst/temp, tr_e3_Pauli_rm/gam,
@@ -98,6 +98,6 @@ plt.plot(e3lst/temp, tr_e3_1vN_rm/gam,
          label='1vN  (reduced)', color='black', lw=1, linestyle='--')
 plt.legend(loc=1, fontsize=20)
 plt.show()
-fig.savefig('Pauli_vs_1vN.pdf', bbox_inches='tight',
+fig.savefig('Pauli_vs_1vN.png', bbox_inches='tight',
                                 dpi=100,
                                 pad_inches=0.0)

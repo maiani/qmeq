@@ -32,6 +32,10 @@ qmeq/approach/elph/c_neumann1.c
 qmeq/wrappers/c_lapack.c
 qmeq/wrappers/c_mytypes.c
 
+# Output produced by running the example scripts (figures and data dumps).
+*.png
+*.dat
+
 ### Directories
 
 # Build directories
@@ -39,6 +43,8 @@ qmeq/wrappers/c_mytypes.c
 build/
 dist/
 docs/build
+# Media copied into the source tree by nbsphinx-link at build time
+docs/source/examples/images/
 qmeq.egg-info/
 qmeq/build
 qmeq/tests/__pycache__
