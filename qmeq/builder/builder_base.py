@@ -3,6 +3,7 @@
 import copy
 import numpy as np
 
+from .._backend import load_compiled_modules
 from ..wrappers.mytypes import longnp
 
 from ..approach.aprclass import Approach
@@ -37,21 +38,31 @@ from ..approach.base.RTD import ApproachPyRTD as ApproachPyRTD
 
 # Cython compiled modules
 
-try:
-    from ..approach.base.c_pauli import ApproachPauli
-    from ..approach.base.c_lindblad import ApproachLindblad
-    from ..approach.base.c_redfield import ApproachRedfield
-    from ..approach.base.c_neumann1 import Approach1vN
-    from ..approach.base.c_neumann2 import Approach2vN
-    from ..approach.base.c_RTD import ApproachRTD
-except ImportError as ie:
-    print("WARNING: Cannot import Cython compiled modules for the approaches (builder_base.py).")
+_compiled = load_compiled_modules(
+    'core-approaches',
+    (
+        'qmeq.approach.base.c_pauli',
+        'qmeq.approach.base.c_lindblad',
+        'qmeq.approach.base.c_redfield',
+        'qmeq.approach.base.c_neumann1',
+        'qmeq.approach.base.c_neumann2',
+        'qmeq.approach.base.c_RTD',
+    ),
+)
+if _compiled is None:
     ApproachPauli = ApproachPyPauli
     ApproachLindblad = ApproachPyLindblad
     ApproachRedfield = ApproachPyRedfield
     Approach1vN = ApproachPy1vN
     Approach2vN = ApproachPy2vN
     ApproachRTD = ApproachPyRTD
+else:
+    ApproachPauli = _compiled['qmeq.approach.base.c_pauli'].ApproachPauli
+    ApproachLindblad = _compiled['qmeq.approach.base.c_lindblad'].ApproachLindblad
+    ApproachRedfield = _compiled['qmeq.approach.base.c_redfield'].ApproachRedfield
+    Approach1vN = _compiled['qmeq.approach.base.c_neumann1'].Approach1vN
+    Approach2vN = _compiled['qmeq.approach.base.c_neumann2'].Approach2vN
+    ApproachRTD = _compiled['qmeq.approach.base.c_RTD'].ApproachRTD
 # -----------------------------------------------------------
 
 attribute_map = dict(

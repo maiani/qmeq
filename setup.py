@@ -3,16 +3,44 @@ import sys
 import numpy as np
 
 from setuptools import setup, Extension
+from setuptools.command.build import build as _build
+
+BACKEND_ENV = 'QMEQ_BACKEND'
+VALID_BACKENDS = {'auto', 'python', 'cython'}
+
+
+def get_requested_backend():
+    """Return and validate the build backend requested through the environment."""
+
+    value = os.environ.get(BACKEND_ENV, 'auto').strip().lower()
+    if value not in VALID_BACKENDS:
+        choices = ', '.join(sorted(VALID_BACKENDS))
+        raise RuntimeError(
+            f"Invalid {BACKEND_ENV}={value!r}; expected one of: {choices}."
+        )
+    return value
+
+
+class BackendBuild(_build):
+    """Keep build products from different backend modes isolated."""
+
+    def finalize_options(self):
+        self.build_base = os.path.join(
+            self.build_base, get_requested_backend()
+        )
+        super().finalize_options()
 
 
 def get_ext_modules():
-    """"
-    Generate C extensions
+    """Generate the optional C extensions.
 
-    1. By default already Cython generated *.c files are used.
-    2. If *.c files are not present Cython generates them.
-    3. If the option '--cython' is specified Cython generates new *.c files.
+    ``QMEQ_BACKEND=python`` produces a pure-Python installation. Otherwise,
+    already generated ``*.c`` files are reused when present; Cython generates
+    them when absent or when the custom ``--cython`` option is supplied.
     """
+
+    if get_requested_backend() == 'python':
+        return []
 
     # Check if *.c files are already there
     file_list = ['qmeq/approach/c_aprclass.c',
@@ -74,4 +102,7 @@ def get_ext_modules():
 
 # Static project metadata lives in pyproject.toml; setup.py only builds the
 # Cython/C extension modules.
-setup(ext_modules=get_ext_modules())
+setup(
+    cmdclass={'build': BackendBuild},
+    ext_modules=get_ext_modules(),
+)

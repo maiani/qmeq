@@ -2,6 +2,7 @@
 Package that contains modules for various special functions.
 """
 
+from .._backend import load_compiled_modules
 from .specfunc import fermi_func
 from .specfunc import diff_fermi
 from .specfunc import phi
@@ -20,25 +21,11 @@ from .specfunc import kernel_fredriksen
 from .specfunc import hilbert_fredriksen
 from .specfunc_elph import Func as pyFunc
 
-try:
-    from .c_specfunc import c_fermi_func
-    from .c_specfunc import c_diff_fermi
-    from .c_specfunc import c_phi
-    from .c_specfunc import c_delta_phi
-    from .c_specfunc import c_diff_phi
-    from .c_specfunc import c_diff2_phi
-    from .c_specfunc import c_bose
-    from .c_specfunc import c_polygamma
-    from .c_specfunc import c_digamma
-    from .c_specfunc import c_integralD
-    from .c_specfunc import c_integralX
-    from .c_specfunc import c_BW_Ozaki
-
-    from .c_specfunc import c_func_pauli
-    from .c_specfunc import c_func_1vN
-    from .c_specfunc_elph import Func
-except ImportError:
-    print("WARNING: Cannot import Cython compiled modules for the special functions (specfunc.__init__.py).")
+_compiled = load_compiled_modules(
+    'special-functions',
+    ('qmeq.specfunc.c_specfunc', 'qmeq.specfunc.c_specfunc_elph'),
+)
+if _compiled is None:
     c_fermi_func = fermi_func
     c_diff_fermi = diff_fermi
     c_phi = phi
@@ -54,3 +41,20 @@ except ImportError:
     c_func_pauli = func_pauli
     c_func_1vN = func_1vN
     Func = pyFunc
+else:
+    _c_specfunc = _compiled['qmeq.specfunc.c_specfunc']
+    c_fermi_func = _c_specfunc.c_fermi_func
+    c_diff_fermi = _c_specfunc.c_diff_fermi
+    c_phi = _c_specfunc.c_phi
+    c_delta_phi = _c_specfunc.c_delta_phi
+    c_diff_phi = _c_specfunc.c_diff_phi
+    c_diff2_phi = _c_specfunc.c_diff2_phi
+    c_bose = _c_specfunc.c_bose
+    c_polygamma = _c_specfunc.c_polygamma
+    c_digamma = _c_specfunc.c_digamma
+    c_integralD = _c_specfunc.c_integralD
+    c_integralX = _c_specfunc.c_integralX
+    c_BW_Ozaki = _c_specfunc.c_BW_Ozaki
+    c_func_pauli = _c_specfunc.c_func_pauli
+    c_func_1vN = _c_specfunc.c_func_1vN
+    Func = _compiled['qmeq.specfunc.c_specfunc_elph'].Func

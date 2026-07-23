@@ -1,5 +1,6 @@
 """Module containing Builder_elph and Builder_many_body_elph classes."""
 
+from .._backend import load_compiled_modules
 from .builder_base import BuilderBase
 from .builder_base import attribute_map
 from .builder_base import BuilderManyBody
@@ -20,19 +21,28 @@ from ..approach.base.neumann2 import Approach2vN as ApproachPy2vN
 
 # Cython compiled modules
 
-try:
-    from ..approach.elph.c_pauli import ApproachPauli
-    from ..approach.elph.c_lindblad import ApproachLindblad
-    from ..approach.elph.c_redfield import ApproachRedfield
-    from ..approach.elph.c_neumann1 import Approach1vN
-    from ..approach.base.c_neumann2 import Approach2vN
-except ImportError:
-    print("WARNING: Cannot import Cython compiled modules for the approaches (builder_elph.py).")
+_compiled = load_compiled_modules(
+    'electron-phonon-approaches',
+    (
+        'qmeq.approach.elph.c_pauli',
+        'qmeq.approach.elph.c_lindblad',
+        'qmeq.approach.elph.c_redfield',
+        'qmeq.approach.elph.c_neumann1',
+        'qmeq.approach.base.c_neumann2',
+    ),
+)
+if _compiled is None:
     ApproachPauli = ApproachPyPauli
     ApproachLindblad = ApproachPyLindblad
     ApproachRedfield = ApproachPyRedfield
     Approach1vN = ApproachPy1vN
     Approach2vN = ApproachPy2vN
+else:
+    ApproachPauli = _compiled['qmeq.approach.elph.c_pauli'].ApproachPauli
+    ApproachLindblad = _compiled['qmeq.approach.elph.c_lindblad'].ApproachLindblad
+    ApproachRedfield = _compiled['qmeq.approach.elph.c_redfield'].ApproachRedfield
+    Approach1vN = _compiled['qmeq.approach.elph.c_neumann1'].Approach1vN
+    Approach2vN = _compiled['qmeq.approach.base.c_neumann2'].Approach2vN
 # -----------------------------------------------------------
 
 attribute_map_elph = dict(

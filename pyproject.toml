@@ -55,6 +55,7 @@ Documentation = "https://github.com/gedaskir/qmeq/tree/master/docs"
 
 [tool.setuptools]
 zip-safe = false
+include-package-data = false
 
 [tool.setuptools.dynamic]
 version = {attr = "qmeq.__version__"}
@@ -63,7 +64,7 @@ version = {attr = "qmeq.__version__"}
 include = ["qmeq*"]
 
 [tool.setuptools.package-data]
-"*" = ["*.pyx", "*.pxd", "*.c", "*.pyd", "*.o", "*.so"]
+"*" = ["*.pyx", "*.pxd", "*.c"]
 
 [tool.pytest.ini_options]
 testpaths = ["qmeq/tests"]

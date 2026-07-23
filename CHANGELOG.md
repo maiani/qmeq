@@ -5,6 +5,8 @@
 ### Added
 
 - Add a prioritized maintenance roadmap in `TODO.md`.
+- Add explicit backend selection through `QMEQ_BACKEND=auto|python|cython` and
+  expose `qmeq.get_backend_status()` for diagnostics and test assertions.
 - Vendor the tutorials, example scripts, and appendix notebooks (previously in
   the separate `qmeq-examples` repository) under `examples/`.
 - Render the example notebooks in the Sphinx documentation via `nbsphinx` and

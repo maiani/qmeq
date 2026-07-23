@@ -5,12 +5,12 @@ QmeQ can be installed through [pip][pip] or by building it from source.
 To be able to use and build QmeQ you need to have:
 
 * [Python][Python] 3.10 or newer,
-* [Cython][Cython] and a C compiler compatible with it,
 * [NumPy][NumPy] package,
 * [SciPy][SciPy] package.
 
-Building from source additionally requires [setuptools][setuptools]; these
-build dependencies are declared in `pyproject.toml` and are installed
+Building the compiled backend from source additionally requires
+[Cython][Cython], [setuptools][setuptools], and a compatible C compiler. The
+Python build dependencies are declared in `pyproject.toml` and are installed
 automatically by `pip`.
 
 The tutorial and [examples][examples] are included in the `examples/` directory
@@ -49,6 +49,42 @@ $ pip install qmeq[dev]    # everything above plus cython, build, and twine
 ```
 
 We note that the binaries **pip** and **python** have to be in the system path.
+
+Backend selection
+-----------------
+
+QmeQ supports pure-Python and compiled Cython implementations. Set the
+`QMEQ_BACKEND` environment variable before installing or importing QmeQ:
+
+* `auto` (default) uses Cython when the complete extension set is available and
+  otherwise uses Python.
+* `python` forces the pure-Python implementation and skips extension builds.
+* `cython` requires compiled extensions and fails clearly when they cannot be
+  built or imported.
+
+For example, on Linux or macOS:
+
+```bash
+$ QMEQ_BACKEND=python pip install .
+$ QMEQ_BACKEND=python python calculation.py
+$ QMEQ_BACKEND=cython python calculation.py
+```
+
+In PowerShell, set the variable with
+`$env:QMEQ_BACKEND = "python"` before running the corresponding command.
+The value is read when QmeQ is first imported and cannot be changed for an
+already imported process.
+
+The selected backend and its component groups can be included in bug reports:
+
+```python
+import qmeq
+print(qmeq.get_backend_status())
+```
+
+In `auto` mode QmeQ falls back only when extensions are absent. A broken or
+partially installed extension set is reported as an error rather than hidden
+by the fallback.
 
 C compiler
 ----------

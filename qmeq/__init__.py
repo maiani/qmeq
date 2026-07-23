@@ -34,6 +34,12 @@ duplicate existing calculations, check applicability of different methods, or
 simply discover new kind of physics using different approximate master equations.
 """
 
+from ._backend import BACKEND_ENV
+from ._backend import BackendConfigurationError
+from ._backend import BackendUnavailableError
+from ._backend import get_backend
+from ._backend import get_backend_status
+from ._backend import get_requested_backend
 from .approach.aprclass import Approach
 from .approach.aprclass import ApproachElPh
 from .approach.aprclass import ApproachBase2vN
