@@ -16,6 +16,12 @@ Contents:
    Kernel Handler class <approach/qmeq.approach.kernel_handler.rst>
    Special functions <specfunc/qmeq.specfunc.rst>
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Tutorials and examples
+
+   examples/index
+
 
 Indices and tables
 ==================

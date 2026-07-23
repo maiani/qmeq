@@ -6,7 +6,7 @@ import qmeq
 
 #---------------------------------------------------
 
-def stab_calc(system, bfield, vlst, vglst, dV=0.0001):
+def stab_calc(system, bfield, vlst, vglst, dV=0.0001, niter=7):
     vpnt, vgpnt = vlst.shape[0], vglst.shape[0]
     stab = np.zeros((vpnt, vgpnt))
     stab_cond = np.zeros((vpnt, vgpnt))
@@ -18,20 +18,20 @@ def stab_calc(system, bfield, vlst, vglst, dV=0.0001):
         for j2 in range(vpnt):
             system.change(mulst={0: vlst[j2]/2, 1: -vlst[j2]/2,
                                  2: vlst[j2]/2, 3: -vlst[j2]/2})
-            system.solve(qdq=False)
+            system.solve(qdq=False, niter=niter)
             stab[j1, j2] = (system.current[0]
                           + system.current[2])
             #
             system.add(mulst={0: dV/2, 1: -dV/2,
                               2: dV/2, 3: -dV/2})
-            system.solve(qdq=False)
+            system.solve(qdq=False, niter=niter)
             stab_cond[j1, j2] = (system.current[0]
                                + system.current[2]
                                - stab[j1, j2])/dV
     #
     return stab, stab_cond
 
-def stab_plot(stab_cond, vlst, vglst, U, gam, title, fname='fig.pdf'):
+def stab_plot(stab_cond, vlst, vglst, U, gam, title, fname='fig.png'):
     (xmin, xmax, ymin, ymax) = np.array([vglst[0], vglst[-1],
                                          vlst[0], vlst[-1]])/U
     fig = plt.figure(figsize=(6,4.2))
@@ -44,7 +44,7 @@ def stab_plot(stab_cond, vlst, vglst, U, gam, title, fname='fig.pdf'):
                                    origin='lower',
                                    cmap=plt.get_cmap('Spectral'))
     cbar = plt.colorbar(p_im)
-    cbar.set_label('Conductance $\mathrm{d}I/\mathrm{d}V$', fontsize=20)
+    cbar.set_label(r'Conductance $\mathrm{d}I/\mathrm{d}V$', fontsize=20)
     fig.savefig(fname, bbox_inches='tight', dpi=100, pad_inches=0.0)
     plt.show()
 
@@ -88,4 +88,4 @@ vpnt, vgpnt = 201, 201
 vlst = np.linspace(-2*U, 2*U, vpnt)
 vglst = np.linspace(-2.5*U, 1.5*U, vgpnt)
 stab_b_2vN, stab_cond_b_2vN = stab_calc(system2vN, 7.5, vlst, vglst)
-stab_plot(stab_cond_b_2vN, vlst, vglst, U, gam, '2vN, $B=0.375U$', 'stab2vN.pdf')
+stab_plot(stab_cond_b_2vN, vlst, vglst, U, gam, '2vN, $B=0.375U$', 'stab2vN.png')

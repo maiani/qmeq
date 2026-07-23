@@ -99,7 +99,7 @@ def stab_calc(system, bfield, vlst, vglst, dV=0.0001):
     #
     return stab, stab_cond
 
-def stab_plot(stab_cond, vlst, vglst, U, gam, title, fname='fig.pdf'):
+def stab_plot(stab_cond, vlst, vglst, U, gam, title, fname='fig.png'):
     (xmin, xmax, ymin, ymax) = np.array([vglst[0], vglst[-1],
                                          vlst[0], vlst[-1]])/U
     fig = plt.figure(figsize=(6,4.2))
@@ -112,7 +112,7 @@ def stab_plot(stab_cond, vlst, vglst, U, gam, title, fname='fig.pdf'):
                                    origin='lower',
                                    cmap=plt.get_cmap('Spectral'))
     cbar = plt.colorbar(p_im)
-    cbar.set_label('Conductance $\mathrm{d}I/\mathrm{d}V$', fontsize=20)
+    cbar.set_label(r'Conductance $\mathrm{d}I/\mathrm{d}V$', fontsize=20)
     fig.savefig(fname, bbox_inches='tight', dpi=100, pad_inches=0.0)
     plt.show()
 
@@ -121,7 +121,7 @@ vpnt, vgpnt = 201, 201
 vlst = np.linspace(-2*U, 2*U, vpnt)
 vglst = np.linspace(-2.5*U, 1.5*U, vgpnt)
 stab, stab_cond = stab_calc(system, bfield, vlst, vglst)
-stab_plot(stab_cond, vlst, vglst, U, gam, 'Pauli, $B=0$', 'stab1.pdf')
+stab_plot(stab_cond, vlst, vglst, U, gam, 'Pauli, $B=0$', 'stab1.png')
 
 stab_b, stab_cond_b = stab_calc(system, 7.5, vlst, vglst)
-stab_plot(stab_cond_b, vlst, vglst, U, gam, 'Pauli, $B=0.375U$', 'stab2.pdf')
+stab_plot(stab_cond_b, vlst, vglst, U, gam, 'Pauli, $B=0.375U$', 'stab2.png')

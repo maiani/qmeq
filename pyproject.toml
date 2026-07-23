@@ -39,8 +39,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest"]
-docs = ["sphinx", "sphinx-rtd-theme"]
+test = ["pytest", "matplotlib", "nbclient", "ipykernel"]
+docs = ["sphinx", "sphinx-rtd-theme", "nbsphinx", "nbsphinx-link"]
 dev = [
     "qmeq[test,docs]",
     "cython",

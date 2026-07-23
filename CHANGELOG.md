@@ -5,6 +5,15 @@
 ### Added
 
 - Add a prioritized maintenance roadmap in `TODO.md`.
+- Vendor the tutorials, example scripts, and appendix notebooks (previously in
+  the separate `qmeq-examples` repository) under `examples/`.
+- Render the example notebooks in the Sphinx documentation via `nbsphinx` and
+  `nbsphinx-link`, keeping the notebooks in `examples/` as the single source.
+- Run the example scripts and notebooks as tests (`qmeq/tests/test_examples.py`):
+  the quick examples run with the normal suite, while the long-running 2vN / RTD
+  ones are marked `slow` and run only with `pytest --runslow`.
+- The example scripts now save figures as PNG (instead of PDF); the generated
+  figures and data files are gitignored.
 
 ### Changed
 
@@ -22,6 +31,16 @@
   with `pip install .`, document validating an installed build via
   `pytest --pyargs qmeq.tests`, correct the generated documentation path, and
   update stale toolchain guidance and links.
+- Point the `README.md` and `INSTALL.md` tutorial/example links at the vendored
+  `examples/` directory instead of the former external repository.
+
+### Fixed
+
+- Normalize the example notebooks to a Python 3 kernel and fix display-math
+  markup in the RTD tutorial so the documentation builds without warnings.
+- Resolve ambiguous ``Approach`` cross-references between the pure-Python and
+  Cython modules via ``napoleon_type_aliases`` so the documentation builds
+  cleanly with warnings treated as errors (``-W``).
 
 ### Removed
 
