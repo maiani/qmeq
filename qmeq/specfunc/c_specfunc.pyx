@@ -77,12 +77,12 @@ C[ 5 ][ 4 ] = -691
 cdef double_t TMIN = 1e-5
 
 
-cdef double_t cabs(complex_t z) nogil:
+cdef double_t cabs(complex_t z) noexcept nogil:
     return sqrt(z.real*z.real + z.imag*z.imag)
 
 
 @cython.cdivision(True)
-cdef complex_t clog(complex_t z) nogil:
+cdef complex_t clog(complex_t z) noexcept nogil:
     """Calculates log(z) where z is a complex number."""
     cdef double_t x = z.real
     cdef double_t y = z.imag
@@ -91,7 +91,7 @@ cdef complex_t clog(complex_t z) nogil:
 
 
 @cython.cdivision(True)
-cdef double_t fermi_func(double_t x) nogil:
+cdef double_t fermi_func(double_t x) noexcept nogil:
     """Fermi function."""
     if x > 709.77: # To avoid overflow in the denimonator.
         return 0.0
@@ -99,7 +99,7 @@ cdef double_t fermi_func(double_t x) nogil:
 
 
 @cython.cdivision(True)
-cdef double_t diff_fermi(double_t x, double_t sign=1) nogil:
+cdef double_t diff_fermi(double_t x, double_t sign=1) noexcept nogil:
     """Calculates the derivative of the Fermi function."""
     if x > 354.885:
         return 0.0
@@ -108,7 +108,7 @@ cdef double_t diff_fermi(double_t x, double_t sign=1) nogil:
 
 
 @cython.cdivision(True)
-cdef double_t bose(double_t x, double_t sign=1) nogil:
+cdef double_t bose(double_t x, double_t sign=1) noexcept nogil:
     """Calculates the Bose distribution function at x."""
     if x > 709.77: #To avoid overflow in the denominator.
         return 0.0
@@ -116,7 +116,7 @@ cdef double_t bose(double_t x, double_t sign=1) nogil:
 
 
 @cython.cdivision(True)
-cdef double_t phi(double_t x, double_t Dp, double_t Dm, double_t sign=1) nogil:
+cdef double_t phi(double_t x, double_t Dp, double_t Dm, double_t sign=1) noexcept nogil:
     """ Calculates the phi function in Leijnse & Wegevijs 2008. Assumes Dm
         and Dp are rescaled with temperature."""
     cdef complex_t Z = 0.5 + x/(2*pi)*1j
@@ -125,7 +125,7 @@ cdef double_t phi(double_t x, double_t Dp, double_t Dm, double_t sign=1) nogil:
 
 
 @cython.cdivision(True)
-cdef double_t diff_phi(double_t x, double_t sign=1) nogil:
+cdef double_t diff_phi(double_t x, double_t sign=1) noexcept nogil:
     """Calculates the derivative of the phi function."""
     cdef complex_t Z = 0.5 + x/(2.0*pi)*1j
     cdef double_t ret = sign* 1.0/(2.0*pi)*polygamma(Z, 1).imag
@@ -133,14 +133,14 @@ cdef double_t diff_phi(double_t x, double_t sign=1) nogil:
 
 
 @cython.cdivision(True)
-cdef double_t diff2_phi(double_t x, double_t sign=1) nogil:
+cdef double_t diff2_phi(double_t x, double_t sign=1) noexcept nogil:
     """Calculates the second derivative of the phi function."""
     cdef complex_t Z = 0.5 + x/(2.0*pi)*1j
     cdef double_t ret = sign* 1.0/(2.0*pi)**2*polygamma(Z, 2).real
     return ret
 
 
-cdef double_t delta_phi(double_t x1, double_t x2, double_t Dp, double_t Dm, double_t sign=1) nogil:
+cdef double_t delta_phi(double_t x1, double_t x2, double_t Dp, double_t Dm, double_t sign=1) noexcept nogil:
     """Calculates difference of phi functions with different arguments."""
     return phi( x1, Dp, Dm, sign=sign ) - phi( x2, Dp, Dm, sign=sign )
 
@@ -170,7 +170,11 @@ cdef int_t func_1vN(double_t Ecb, double_t mu, double_t T,
                     int_t itype, int_t limit,
                     complex_t [:] rez):
     cdef double_t alpha, Rm, Rp, err
-    cdef complex_t cur0, cur1, en0, en1, const0, const1
+    cdef complex_t cur0 = 0.0
+    cdef complex_t cur1 = 0.0
+    cdef complex_t en0 = 0.0
+    cdef complex_t en1 = 0.0
+    cdef complex_t const0, const1
     # -------------------------
     if itype == 0:
         alpha, Rm, Rp = (Ecb-mu)/T, (Dm-mu)/T, (Dp-mu)/T
@@ -215,7 +219,7 @@ cdef int_t func_1vN(double_t Ecb, double_t mu, double_t T,
 
 @cython.boundscheck(False)
 @cython.cdivision(True)
-cdef complex_t digamma(complex_t z) nogil:
+cdef complex_t digamma(complex_t z) noexcept nogil:
     """Returns the complex valued digamma function with argument Z. This
     can also be calculated using polygamma(z, 0), but this way is faster."""
     cdef double_t a, b, b_new, r, s, x, y
@@ -253,7 +257,7 @@ cdef complex_t digamma(complex_t z) nogil:
 
 @cython.boundscheck(False)
 @cython.cdivision(True)
-cdef complex_t polygamma( complex_t U, long_t K ) nogil:
+cdef complex_t polygamma( complex_t U, long_t K ) noexcept nogil:
     """Calculates the Kth derivative of the digamma function with argument U."""
     cdef complex_t hh1, hh2, hh3, V, H, R, P
     cdef double X, A, B, T, Y
@@ -319,7 +323,7 @@ cdef complex_t polygamma( complex_t U, long_t K ) nogil:
 
 @cython.cdivision(True)
 cdef complex_t integralD(double_t p1, double_t eta1, double_t E1, double_t E2, double_t E3, double_t T1,
-            double_t T2, double_t mu1, double_t mu2, double_t D, double_t[:,:] b_and_R, bint ImGamma) nogil:
+            double_t T2, double_t mu1, double_t mu2, double_t D, double_t[:,:] b_and_R, bint ImGamma) noexcept nogil:
     cdef complex_t ret
     cdef double_t lambda1, lambda2, lambda3
     if fabs(T2-T1) < TMIN and not ImGamma:
@@ -336,7 +340,7 @@ cdef complex_t integralD(double_t p1, double_t eta1, double_t E1, double_t E2, d
 @cython.cdivision(True)
 @cython.boundscheck(False)
 cdef complex_t integralX(double_t p1, double_t eta1, double_t E1, double_t E2, double_t E3, double_t T1,
-            double_t T2, double_t mu1, double_t mu2, double_t D, double_t[:,:] b_and_R, bint ImGamma) nogil:
+            double_t T2, double_t mu1, double_t mu2, double_t D, double_t[:,:] b_and_R, bint ImGamma) noexcept nogil:
     cdef complex_t ret
     cdef double_t lambda1, lambda2, lambda3
     if fabs(T2-T1) < TMIN and not ImGamma:
@@ -352,7 +356,7 @@ cdef complex_t integralX(double_t p1, double_t eta1, double_t E1, double_t E2, d
 
 @cython.cdivision(True)
 cdef double_t D_integral_equal_T(double_t p1, double_t p2, double_t E1, double_t deltaE, double_t E2,
-                                                                      double_t Dp, double_t Dm) nogil:
+                                                                      double_t Dp, double_t Dm) noexcept nogil:
     cdef double_t E_MIN = 1e-10
     cdef double_t  ret = 0.0
 
@@ -378,7 +382,7 @@ cdef double_t D_integral_equal_T(double_t p1, double_t p2, double_t E1, double_t
 
 @cython.cdivision(True)
 cdef double_t X_integral_equal_T(double_t p1, double_t p2, double_t E1, double_t deltaE, double_t E2,
-                                                                     double_t Dp, double_t Dm) nogil:
+                                                                     double_t Dp, double_t Dm) noexcept nogil:
     cdef double_t E_MIN = 1e-10
     cdef double_t ret = 0.0
 
@@ -402,7 +406,7 @@ cdef double_t X_integral_equal_T(double_t p1, double_t p2, double_t E1, double_t
 @cython.cdivision(True)
 @cython.boundscheck(False)
 cdef complex_t D_integral(double_t p1, double_t p2, double_t z1, double_t z2, double_t z3, double_t T1, double_t T2,
-                    double_t mu1, double_t mu2, double_t Dp, double_t Dm, double_t[:,:] b_and_R) nogil:
+                    double_t mu1, double_t mu2, double_t Dp, double_t Dm, double_t[:,:] b_and_R) noexcept nogil:
     cdef double_t BW, BWT, val, pi2T, x
     cdef complex_t temp_f1, temp_f2, ret, A, B, C
     cdef long_t i
@@ -438,7 +442,7 @@ cdef complex_t D_integral(double_t p1, double_t p2, double_t z1, double_t z2, do
 @cython.cdivision(True)
 @cython.boundscheck(False)
 cdef complex_t X_integral(double_t p1, double_t p2, double_t z1, double_t z2, double_t z3, double_t T1, double_t T2,
-                    double_t mu1, double_t mu2, double_t Dp, double_t Dm, double_t[:,:] b_and_R) nogil:
+                    double_t mu1, double_t mu2, double_t Dp, double_t Dm, double_t[:,:] b_and_R) noexcept nogil:
     cdef double_t pi2T, x, val
     cdef complex_t ret, A, B, C, D
     cdef long_t i

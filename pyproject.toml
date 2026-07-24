@@ -1,7 +1,7 @@
 [build-system]
 requires = [
     "setuptools>=77",
-    "cython",
+    "cython>=3.0,<4",
     "numpy",
 ]
 build-backend = "setuptools.build_meta"
@@ -43,7 +43,7 @@ test = ["pytest", "matplotlib", "nbclient", "ipykernel"]
 docs = ["sphinx", "sphinx-rtd-theme", "nbsphinx", "nbsphinx-link"]
 dev = [
     "qmeq[test,docs]",
-    "cython",
+    "cython>=3.0,<4",
     "build",
     "twine",
 ]

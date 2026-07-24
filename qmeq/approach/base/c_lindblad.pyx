@@ -79,7 +79,7 @@ cdef class ApproachLindblad(Approach):
 
     cdef void generate_coupling_terms(self,
                 long_t b, long_t bp, long_t bcharge,
-                KernelHandler kh) nogil:
+                KernelHandler kh) noexcept nogil:
 
         cdef long_t bpp, a, ap, c, cp
         cdef complex_t fct_aap, fct_bppbp, fct_bbpp, fct_ccp

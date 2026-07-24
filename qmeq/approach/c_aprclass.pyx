@@ -202,7 +202,7 @@ cdef class Approach:
 
     cdef void generate_coupling_terms(self,
             long_t b, long_t bp, long_t bcharge,
-            KernelHandler kh) nogil:
+            KernelHandler kh) noexcept nogil:
         pass
 
     cpdef void generate_current(self):

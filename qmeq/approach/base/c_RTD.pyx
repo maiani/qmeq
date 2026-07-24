@@ -320,7 +320,7 @@ cdef class ApproachRTD(Approach):
 
 
     cdef void generate_row_1st_order_kernel(self,
-        long_t b, long_t bcharge, KernelHandlerRTD kh) nogil:
+        long_t b, long_t bcharge, KernelHandlerRTD kh) noexcept nogil:
         cdef long_t a, c, aa, bb, cc, ba, cb, i, l, acharge, ccharge, acount, ccount, nleads
         cdef double_t fctm, fctp
         cdef long_t [:, :] statesdm
@@ -356,7 +356,7 @@ cdef class ApproachRTD(Approach):
                 kh.set_matrix_element_dd(l, fctm, fctp, bb, cc, 0)
 
 
-    cdef void generate_row_1st_energy_kernel(self, long_t b, long_t bcharge, KernelHandlerRTD kh) nogil:
+    cdef void generate_row_1st_energy_kernel(self, long_t b, long_t bcharge, KernelHandlerRTD kh) noexcept nogil:
         cdef long_t i, a, aa, l, lp, n1, c, cc, acount, ccount, acharge, ccharge, nleads, nsingle
         cdef long_t [:, :] statesdm
         cdef double_t mu, Tr, dE, temp, PI, maxTemp, t_cutoff
@@ -428,7 +428,7 @@ cdef class ApproachRTD(Approach):
                 kh.set_matrix_element_dd(l, temp, temp, bb, cc, 1)
 
 
-    cdef void generate_row_2nd_energy_kernel(self, long_t b, long_t bcharge, KernelHandlerRTD kh) nogil:
+    cdef void generate_row_2nd_energy_kernel(self, long_t b, long_t bcharge, KernelHandlerRTD kh) noexcept nogil:
 
         cdef long_t i, a, aa, l, lp, n1, c, cc, acount, ccount, acharge, ccharge, nleads, nsingle
         cdef long_t [:, :] statesdm
@@ -500,7 +500,7 @@ cdef class ApproachRTD(Approach):
                 kh.set_matrix_element_dd(l, temp, temp, bb, cc, 2)
 
 
-    cdef void generate_matrix_element_2nd_order(self, long_t a0, long_t charge, KernelHandlerRTD kh) nogil:
+    cdef void generate_matrix_element_2nd_order(self, long_t a0, long_t charge, KernelHandlerRTD kh) noexcept nogil:
         cdef long_t nleads, acharge, bcharge, ccharge, dcharge, acount, bcount, ccount, dcount
         cdef long_t indx0, indx1, r0, r1, a1p, a2p, a2m, a3p, a3m, i, j, k, t_id
         cdef long_t [:, :] statesdm
@@ -712,7 +712,7 @@ cdef class ApproachRTD(Approach):
                                 kh.add_element_2nd_order(t_id, r1, tempX.real, indx0, indx1, a1p, ccharge, a3m, dcharge)
 
 
-    cdef void generate_col_nondiag_kern_1st_order_dn(self, long_t a1, long_t b1, long_t charge, KernelHandlerRTD kh) nogil:
+    cdef void generate_col_nondiag_kern_1st_order_dn(self, long_t a1, long_t b1, long_t charge, KernelHandlerRTD kh) noexcept nogil:
         cdef long_t a2, c, i, j, l, acharge, bcharge, ccharge, acount, bcount, ccount, nleads
         cdef long_t[:,:] statesdm
         cdef double_t E1, E2, f, phi0, temp1, temp2, PI
@@ -826,7 +826,7 @@ cdef class ApproachRTD(Approach):
                             kh.add_matrix_element(temp2, l, a2, a2, bcharge, a1, b1, bcharge, 4)
 
 
-    cdef void generate_col_nondiag_kern_1st_order_nd(self, long_t a1, long_t charge, KernelHandlerRTD kh) nogil:
+    cdef void generate_col_nondiag_kern_1st_order_nd(self, long_t a1, long_t charge, KernelHandlerRTD kh) noexcept nogil:
         cdef long_t a2, b2, c, i, j, k, l, acharge, bcharge, ccharge, acount, bcount, ccount, nleads
         cdef long_t[:,:] statesdm
         cdef double_t E1, E2, f, phi0, temp1, temp2, PI
@@ -946,7 +946,7 @@ cdef class ApproachRTD(Approach):
                                 kh.add_matrix_element(temp2, l, a2, b2, bcharge, a1, a1, bcharge, 6)
 
 
-    cdef void generate_row_inverse_Liouvillian(self, long_t a1, long_t b1, long_t charge, KernelHandlerRTD kh) nogil:
+    cdef void generate_row_inverse_Liouvillian(self, long_t a1, long_t b1, long_t charge, KernelHandlerRTD kh) noexcept nogil:
         cdef double_t minE, E1
         cdef double_t [:] E = self._Ea
 

@@ -81,7 +81,7 @@ cdef class ApproachPauli(Approach):
 
     cdef void generate_coupling_terms(self,
             long_t b, long_t bp, long_t bcharge,
-            KernelHandler kh) nogil:
+            KernelHandler kh) noexcept nogil:
 
         cdef long_t a, c, aa, bb, cc, ba, cb
         cdef double_t fctm, fctp

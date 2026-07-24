@@ -96,7 +96,7 @@ cdef class Approach1vN(ApproachElPh):
 
     cdef void generate_coupling_terms(self,
                 long_t b, long_t bp, long_t bcharge,
-                KernelHandler kh) nogil:
+                KernelHandler kh) noexcept nogil:
 
         Approach1vNBase.generate_coupling_terms(self, b, bp, bcharge, kh)
 

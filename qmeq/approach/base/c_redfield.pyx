@@ -45,7 +45,7 @@ cdef class ApproachRedfield(Approach):
 
     cdef void generate_coupling_terms(self,
                 long_t b, long_t bp, long_t bcharge,
-                KernelHandler kh) nogil:
+                KernelHandler kh) noexcept nogil:
 
         cdef long_t a, ap, bpp, c, cp, \
                     ba, bpap, bppa, cb, cpbp, cbpp

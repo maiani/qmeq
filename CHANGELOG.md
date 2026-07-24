@@ -19,6 +19,9 @@
 
 ### Changed
 
+- Standardize extension generation on Cython 3 (`>=3.0,<4`), make the Python
+  language level and Cython 3 exception semantics explicit, and test compiled
+  builds against both Cython 3.0 and the current Cython 3 release.
 - Use NumPy for `pi` and `exp` constants removed from the public SciPy API.
 - Allow the Sphinx documentation to build without optional Cython extensions.
 - Modernize packaging: move static project metadata to `pyproject.toml`,

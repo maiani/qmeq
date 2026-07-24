@@ -7,6 +7,11 @@ from setuptools.command.build import build as _build
 
 BACKEND_ENV = 'QMEQ_BACKEND'
 VALID_BACKENDS = {'auto', 'python', 'cython'}
+CYTHON_COMPILER_DIRECTIVES = {
+    'binding': True,
+    'language_level': 3,
+    'legacy_implicit_noexcept': False,
+}
 
 
 def get_requested_backend():
@@ -96,7 +101,10 @@ def get_ext_modules():
             )
         )
 
-    cext = ext if cythonize is None else cythonize(ext)
+    cext = ext if cythonize is None else cythonize(
+        ext,
+        compiler_directives=CYTHON_COMPILER_DIRECTIVES,
+    )
     return cext
 
 

@@ -115,20 +115,20 @@ cdef class KernelHandler:
         if self.no_conjugates:
             self.phi0 = phi0
 
-    cdef bool_t is_included(self, long_t b, long_t bp, long_t bcharge) nogil:
+    cdef bool_t is_included(self, long_t b, long_t bp, long_t bcharge) noexcept nogil:
         cdef long_t bbp = self.get_ind_dm0(b, bp, bcharge)
         if bbp == -1:
             return False
 
         return True
 
-    cdef bool_t is_unique(self, long_t b, long_t bp, long_t bcharge) nogil:
+    cdef bool_t is_unique(self, long_t b, long_t bp, long_t bcharge) noexcept nogil:
         cdef bool_t bbp_bool = self.get_ind_dm0_bool(b, bp, bcharge)
         return bbp_bool
 
     cdef void set_energy(self,
                 double_t energy,
-                long_t b, long_t bp, long_t bcharge) nogil:
+                long_t b, long_t bp, long_t bcharge) noexcept nogil:
 
         if b == bp:
             return
@@ -142,7 +142,7 @@ cdef class KernelHandler:
     cdef void set_matrix_element(self,
                 complex_t fct,
                 long_t b, long_t bp, long_t bcharge,
-                long_t a, long_t ap, long_t acharge) nogil:
+                long_t a, long_t ap, long_t acharge) noexcept nogil:
 
         cdef long_t bbp = self.get_ind_dm0(b, bp, bcharge)
         cdef long_t bbpi = self.ndm0 + bbp - self.npauli
@@ -165,12 +165,12 @@ cdef class KernelHandler:
 
     cdef void set_matrix_element_pauli(self,
                 double_t fctm, double_t fctp,
-                long_t bb, long_t aa) nogil:
+                long_t bb, long_t aa) noexcept nogil:
 
         self.kern[bb, bb] += fctm
         self.kern[bb, aa] += fctp
 
-    cdef complex_t get_phi0_element(self, long_t b, long_t bp, long_t bcharge) nogil:
+    cdef complex_t get_phi0_element(self, long_t b, long_t bp, long_t bcharge) noexcept nogil:
 
         cdef long_t bbp = self.get_ind_dm0(b, bp, bcharge)
         if bbp == -1:
@@ -186,16 +186,16 @@ cdef class KernelHandler:
 
         return phi0_real + 1j*phi0_imag
 
-    cdef long_t get_ind_dm0(self, long_t b, long_t bp, long_t bcharge) nogil:
+    cdef long_t get_ind_dm0(self, long_t b, long_t bp, long_t bcharge) noexcept nogil:
         return self.mapdm0[self.lenlst[bcharge]*self.dictdm[b] + self.dictdm[bp] + self.shiftlst0[bcharge]]
 
-    cdef bool_t get_ind_dm0_conj(self, long_t b, long_t bp, long_t bcharge) nogil:
+    cdef bool_t get_ind_dm0_conj(self, long_t b, long_t bp, long_t bcharge) noexcept nogil:
         return self.conjdm0[self.lenlst[bcharge]*self.dictdm[b] + self.dictdm[bp] + self.shiftlst0[bcharge]]
 
-    cdef bool_t get_ind_dm0_bool(self, long_t b, long_t bp, long_t bcharge) nogil:
+    cdef bool_t get_ind_dm0_bool(self, long_t b, long_t bp, long_t bcharge) noexcept nogil:
         return self.booldm0[self.lenlst[bcharge]*self.dictdm[b] + self.dictdm[bp] + self.shiftlst0[bcharge]]
 
-    cdef long_t get_ind_dm1(self, long_t b, long_t a, long_t acharge) nogil:
+    cdef long_t get_ind_dm1(self, long_t b, long_t a, long_t acharge) noexcept nogil:
         return self.lenlst[acharge]*self.dictdm[b] + self.dictdm[a] + self.shiftlst1[acharge]
 
 
@@ -210,7 +210,7 @@ cdef class KernelHandlerMatrixFree(KernelHandler):
 
     cdef void set_energy(self,
                 double_t energy,
-                long_t b, long_t bp, long_t bcharge) nogil:
+                long_t b, long_t bp, long_t bcharge) noexcept nogil:
 
         if b == bp:
             return
@@ -227,7 +227,7 @@ cdef class KernelHandlerMatrixFree(KernelHandler):
     cdef void set_matrix_element(self,
                 complex_t fct,
                 long_t b, long_t bp, long_t bcharge,
-                long_t a, long_t ap, long_t acharge) nogil:
+                long_t a, long_t ap, long_t acharge) noexcept nogil:
 
         cdef long_t bbp = self.get_ind_dm0(b, bp, bcharge)
         cdef long_t bbpi = self.ndm0 + bbp - self.npauli
@@ -243,7 +243,7 @@ cdef class KernelHandlerMatrixFree(KernelHandler):
 
     cdef void set_matrix_element_pauli(self,
                 double_t fctm, double_t fctp,
-                long_t bb, long_t aa) nogil:
+                long_t bb, long_t aa) noexcept nogil:
 
         self.dphi0_dt[bb] = self.dphi0_dt[bb] + fctm*self.phi0[bb] + fctp*self.phi0[aa]
 
@@ -269,7 +269,7 @@ cdef class KernelHandlerRTD(KernelHandler):
         self.nsingle = si.nsingle
 
     cdef void add_matrix_element(self, double_t fct, long_t l, long_t b, long_t bp,
-                    long_t bcharge, long_t a, long_t ap, long_t acharge, int_t mi) nogil:
+                    long_t bcharge, long_t a, long_t ap, long_t acharge, int_t mi) noexcept nogil:
         cdef long_t indx1 = self.get_ind_dm0(b, bp, bcharge)
         cdef long_t indx2 = self.get_ind_dm0(a, ap, acharge)
         if b != bp:
@@ -293,7 +293,7 @@ cdef class KernelHandlerRTD(KernelHandler):
             self.Lnn[indx2] += fct
 
     cdef void set_matrix_element_dd(self, long_t l, double_t fctm,
-                        double_t fctp, long_t bb, long_t aa, long_t mi) nogil:
+                        double_t fctp, long_t bb, long_t aa, long_t mi) noexcept nogil:
         if mi == 0:
             self.Wdd[l, bb, bb] += fctm
             self.Wdd[l, bb, aa] += fctp
@@ -305,7 +305,7 @@ cdef class KernelHandlerRTD(KernelHandler):
             self.WE2[l, bb, aa] += fctp
 
     cdef void add_element_2nd_order(self, long_t t_id, long_t l, double_t fct, long_t indx0, long_t indx1,
-                            long_t a3, long_t charge3, long_t a4, long_t charge4) nogil:
+                            long_t a3, long_t charge3, long_t a4, long_t charge4) noexcept nogil:
         cdef long_t indx3 = self.get_ind_dm0(a3, a3, charge3)
         cdef long_t indx4 = self.get_ind_dm0(a4, a4, charge4)
         fct = 2 * fct

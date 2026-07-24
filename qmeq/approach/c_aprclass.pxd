@@ -56,7 +56,7 @@ cdef class Approach:
 
     cdef void generate_coupling_terms(self,
                 long_t b, long_t bp, long_t bcharge,
-                KernelHandler kh) nogil
+                KernelHandler kh) noexcept nogil
 
     cpdef void prepare_kern(self)
 

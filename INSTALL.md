@@ -8,9 +8,9 @@ To be able to use and build QmeQ you need to have:
 * [NumPy][NumPy] package,
 * [SciPy][SciPy] package.
 
-Building the compiled backend from source additionally requires
-[Cython][Cython], [setuptools][setuptools], and a compatible C compiler. The
-Python build dependencies are declared in `pyproject.toml` and are installed
+Building the compiled backend from source additionally requires Cython 3
+(`>=3.0,<4`), [setuptools][setuptools], and a compatible C compiler. The Python
+build dependencies are declared in `pyproject.toml` and are installed
 automatically by `pip`.
 
 The tutorial and [examples][examples] are included in the `examples/` directory

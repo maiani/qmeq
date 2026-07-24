@@ -55,30 +55,30 @@ cdef class KernelHandler:
 
     cdef void set_all_ba(self)
 
-    cdef bool_t is_included(self, long_t b, long_t bp, long_t bcharge) nogil
+    cdef bool_t is_included(self, long_t b, long_t bp, long_t bcharge) noexcept nogil
 
-    cdef bool_t is_unique(self, long_t b, long_t bp, long_t bcharge) nogil
+    cdef bool_t is_unique(self, long_t b, long_t bp, long_t bcharge) noexcept nogil
 
-    cdef void set_energy(self, double_t energy, long_t b, long_t bp, long_t bcharge) nogil
+    cdef void set_energy(self, double_t energy, long_t b, long_t bp, long_t bcharge) noexcept nogil
 
     cdef void set_matrix_element(self,
                 complex_t fct,
                 long_t b, long_t bp, long_t bcharge,
-                long_t a, long_t ap, long_t acharge) nogil
+                long_t a, long_t ap, long_t acharge) noexcept nogil
 
     cdef void set_matrix_element_pauli(self,
                 double_t fctm, double_t fctp,
-                long_t bb, long_t aa) nogil
+                long_t bb, long_t aa) noexcept nogil
 
-    cdef complex_t get_phi0_element(self, long_t b, long_t bp, long_t bcharge) nogil
+    cdef complex_t get_phi0_element(self, long_t b, long_t bp, long_t bcharge) noexcept nogil
 
-    cdef long_t get_ind_dm0(self, long_t b, long_t bp, long_t bcharge) nogil
+    cdef long_t get_ind_dm0(self, long_t b, long_t bp, long_t bcharge) noexcept nogil
 
-    cdef bool_t get_ind_dm0_conj(self, long_t b, long_t bp, long_t bcharge) nogil
+    cdef bool_t get_ind_dm0_conj(self, long_t b, long_t bp, long_t bcharge) noexcept nogil
 
-    cdef bool_t get_ind_dm0_bool(self, long_t b, long_t bp, long_t bcharge) nogil
+    cdef bool_t get_ind_dm0_bool(self, long_t b, long_t bp, long_t bcharge) noexcept nogil
 
-    cdef long_t get_ind_dm1(self, long_t b, long_t a, long_t acharge) nogil
+    cdef long_t get_ind_dm1(self, long_t b, long_t a, long_t acharge) noexcept nogil
 
 
 cdef class KernelHandlerMatrixFree(KernelHandler):
@@ -107,12 +107,12 @@ cdef class KernelHandlerRTD(KernelHandler):
     cdef double_t[:,:,:] LN
 
     cdef void add_matrix_element(self, double_t, long_t, long_t, long_t,
-        long_t, long_t, long_t, long_t, int_t) nogil
+        long_t, long_t, long_t, long_t, int_t) noexcept nogil
 
     cdef void set_matrix_element_dd(self, long_t, double_t, double_t, long_t, long_t,
-        long_t) nogil
+        long_t) noexcept nogil
 
     cdef void add_element_2nd_order(self, long_t, long_t, double_t, long_t, long_t, long_t,
-                             long_t, long_t, long_t) nogil
+                             long_t, long_t, long_t) noexcept nogil
 
     cdef void set_matrix_list(self)
