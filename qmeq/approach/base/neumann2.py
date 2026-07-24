@@ -13,6 +13,27 @@ from ...specfunc.specfunc import hilbert_fredriksen
 from ..aprclass import ApproachBase2vN
 
 
+_HILBERT_BATCH_SIZE = 128
+
+
+def _hilbert_fredriksen_batched(values, kernel):
+    """Hilbert-transform energy traces in memory-bounded FFT batches."""
+    energy_points = values.shape[0]
+    traces = values.reshape(energy_points, -1)
+    transformed = np.empty(traces.shape, dtype=complexnp)
+
+    for start in range(0, traces.shape[1], _HILBERT_BATCH_SIZE):
+        stop = min(start + _HILBERT_BATCH_SIZE, traces.shape[1])
+        padded_fft = np.fft.fft(
+            traces[:, start:stop], n=len(kernel), axis=0
+        )
+        transformed[:, start:stop] = np.fft.ifft(
+            padded_fft * kernel[:, np.newaxis], axis=0
+        )[:energy_points]
+
+    return transformed.reshape(values.shape)
+
+
 def get_htransf_phi1k(phi1k, funcp):
     """
     Performs Hilbert transform of phi1k.
@@ -48,11 +69,10 @@ def get_htransf_phi1k(phi1k, funcp):
     phi1k = np.concatenate((np.zeros((funcp.kpnt_left, nleads, ndm1, ndm0)),
                             phi1k,
                             np.zeros((funcp.kpnt_right, nleads, ndm1, ndm0))), axis=0)
-    # Make the Hilbert transformation
-    hphi1k = np.zeros(phi1k.shape, dtype=complexnp)
-    for l, cb, bbp in itertools.product(range(nleads), range(ndm1), range(ndm0)):
-        # print(l, cb, bbp)
-        hphi1k[:, l, cb, bbp] = hilbert_fredriksen(phi1k[:, l, cb, bbp], funcp.ht_ker)
+    # Transform independent energy traces in bounded batches. This avoids one
+    # Python-level FFT call per (lead, Phi[1], Phi[0]) index while keeping the
+    # temporary arrays small for large 2vN grids.
+    hphi1k = _hilbert_fredriksen_batched(phi1k, funcp.ht_ker)
     return phi1k, hphi1k
 
 

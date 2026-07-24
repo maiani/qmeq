@@ -19,6 +19,8 @@
 
 ### Changed
 
+- Batch the 2vN Hilbert transforms in memory-bounded chunks instead of
+  launching one FFT pair for every density-matrix trace.
 - Skip interpolation work for exactly zero tunnelling products in the compiled
   2vN iteration while preserving parity with the pure-Python implementation.
 - Standardize extension generation on Cython 3 (`>=3.0,<4`), make the Python

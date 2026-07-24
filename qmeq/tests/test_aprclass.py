@@ -1,6 +1,32 @@
+from types import SimpleNamespace
+
+import numpy as np
+
 from qmeq.approach.aprclass import *
 from qmeq.approach.base.neumann2 import *
 import qmeq
+
+
+def test_get_htransf_phi1k_matches_scalar_transforms():
+    rng = np.random.default_rng(3821)
+    phi1k = (
+        rng.standard_normal((5, 3, 7, 7))
+        + 1j*rng.standard_normal((5, 3, 7, 7))
+    )
+    original = phi1k.copy()
+    funcp = SimpleNamespace(kpnt_left=2, kpnt_right=1, ht_ker=None)
+
+    padded, transformed = get_htransf_phi1k(phi1k, funcp)
+    expected = np.empty_like(transformed)
+    for index in np.ndindex(padded.shape[1:]):
+        trace = (slice(None),) + index
+        expected[trace] = hilbert_fredriksen(
+            padded[trace], funcp.ht_ker
+        )
+
+    assert np.array_equal(phi1k, original)
+    assert np.array_equal(transformed, expected)
+    assert len(funcp.ht_ker) == 2*len(padded)
 
 
 def test_Approach2vN_kpnt():
