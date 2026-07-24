@@ -228,6 +228,25 @@ def test_Builder_double_dot_spinless_2vN():
         assert norm(system.energy_current - data_energy_current['2vN']) < EPS
 
 
+def test_Builder_sparse_2vN_backend_parity():
+    """Sparse zero tunnelling products must not change compiled 2vN results."""
+    p = ParametersDoubleDotSpinless()
+    systems = {}
+    for kerntype in ['2vN', 'py2vN']:
+        system = Builder(p.nsingle, p.hsingle, p.coulomb, p.nleads,
+                         p.tleads, p.mulst, p.tlst, p.dlst,
+                         kerntype=kerntype, indexing='Lin', kpnt=32)
+        system.solve(niter=2)
+        systems[kerntype] = system
+
+    compiled = systems['2vN']
+    python = systems['py2vN']
+    assert norm(compiled.current - python.current) < EPS
+    assert norm(compiled.energy_current - python.energy_current) < EPS
+    assert norm(compiled.phi0 - python.phi0) < EPS
+    assert norm(compiled.appr.phi1k - python.appr.phi1k) < EPS
+
+
 def test_Builder_single_orbital_spinful():
     data_current = {'Pauli': [0.08368833245372147, -0.08368833245372037, 0.08368833245372147, -0.08368833245372037],
                     '2vN':   [0.0735967870902393, -0.07359678709023731, 0.07359678709023965, -0.07359678709023706],

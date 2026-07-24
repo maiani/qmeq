@@ -19,6 +19,8 @@
 
 ### Changed
 
+- Skip interpolation work for exactly zero tunnelling products in the compiled
+  2vN iteration while preserving parity with the pure-Python implementation.
 - Standardize extension generation on Cython 3 (`>=3.0,<4`), make the Python
   language level and Cython 3 exception semantics explicit, and test compiled
   builds against both Cython 3.0 and the current Cython 3 release.

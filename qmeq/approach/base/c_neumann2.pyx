@@ -410,6 +410,8 @@ cdef class TermsCalculator2vN:
 
         cdef double_t [:] Ek_grid = self.Ek_grid_ext
         cdef long_t Eklen = Ek_grid.shape[0]
+        if fct.real == 0.0 and fct.imag == 0.0:
+            return
         if Ek<Ek_grid[0] or Ek>Ek_grid[Eklen-1]:
             return
 
