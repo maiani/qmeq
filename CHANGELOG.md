@@ -5,6 +5,15 @@
 ### Added
 
 - Add a prioritized maintenance roadmap in `TODO.md`.
+- Add a six-notebook tutorial path in `examples/tutorials/`, each notebook
+  stating a prediction, building the smallest useful model, and asserting
+  physical and numerical checks: a first sequential-transport calculation,
+  Coulomb blockade in the Anderson model, bias-gate stability diagrams,
+  coherence in a double dot with the Pauli/Lindblad/Redfield/1vN comparison,
+  energy and heat transport with thermovoltage and unit conversions, and
+  cotunnelling with the RTD and 2vN approaches including a quantum-dot heat
+  engine and many-body input. The path covers the material of the legacy
+  tutorials.
 - Add explicit backend selection through `QMEQ_BACKEND=auto|python|cython` and
   expose `qmeq.get_backend_status()` for diagnostics and test assertions.
 - Vendor the tutorials, example scripts, and appendix notebooks (previously in
@@ -19,6 +28,9 @@
 
 ### Changed
 
+- Move the original introductory and RTD notebooks, with their image assets, to
+  `examples/legacy_tutorials/`; they are kept for reference and their material
+  is now covered by the numbered tutorials.
 - Batch the 2vN Hilbert transforms in memory-bounded chunks instead of
   launching one FFT pair for every density-matrix trace.
 - Skip interpolation work for exactly zero tunnelling products in the compiled

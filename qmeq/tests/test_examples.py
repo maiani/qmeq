@@ -18,7 +18,16 @@ EXAMPLES_DIR = ROOT / 'examples'
 
 # Examples fast enough to run in the default suite; everything else is `slow`.
 FAST_SCRIPTS = {'example0_minimal.py'}
-FAST_NOTEBOOKS = {'appendix/00_types.ipynb', 'appendix/01_symmetries.ipynb'}
+# Tutorials 4 and 6 stay `slow`: the first sweeps two dense first-order
+# conductance maps, the second runs the 2vN and RTD sweeps and the heat engine.
+FAST_NOTEBOOKS = {
+    'appendix/00_types.ipynb',
+    'appendix/01_symmetries.ipynb',
+    'tutorials/01_first_transport_calculation.ipynb',
+    'tutorials/02_coulomb_blockade.ipynb',
+    'tutorials/03_bias_and_gate_sweeps.ipynb',
+    'tutorials/05_energy_and_heat_transport.ipynb',
+}
 
 # Generous ceiling so the heavy sweeps do not fail spuriously under --runslow.
 TIMEOUT = 1800

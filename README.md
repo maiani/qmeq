@@ -44,7 +44,7 @@ For installation instructions see [INSTALL.md](INSTALL.md).
 Tutorial & Examples
 -------------------
 
-For an introduction to QmeQ see the [tutorial][tutorial] and the runnable
+For an introduction to QmeQ see the [tutorials][tutorial] and the runnable
 [example scripts][examples] in the [`examples/`][examples] directory. The
 notebooks are also rendered in the [documentation][qmeqdocs].
 
@@ -67,7 +67,7 @@ quantum dot devices*, [Comput. Phys. Commun. 221, 317 (2017)][qmeqdoi].
 The preprint version of the paper can be found on the
 [arXiv.org][qmeqarxiv] server.
 
-[tutorial]: examples/tutorial/tutorial.ipynb
+[tutorial]: examples/tutorials
 [examples]: examples
 [qmeqdocs]: https://github.com/gedaskir/qmeq/tree/master/docs
 [license]: https://opensource.org/licenses/BSD-2-Clause
