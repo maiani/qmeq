@@ -334,16 +334,25 @@ cdef complex_t polygamma( complex_t U, long_t K ) noexcept nogil:
 cdef complex_t integralD(double_t p1, double_t eta1, double_t E1, double_t E2, double_t E3, double_t T1,
             double_t T2, double_t mu1, double_t mu2, double_t D, double_t[:,:] b_and_R, bint ImGamma) noexcept nogil:
     cdef complex_t ret
-    cdef double_t lambda1, lambda2, lambda3
-    if fabs(T2-T1) < TMIN and not ImGamma:
+    cdef double_t lambda1, lambda2, lambda3, wide_band_real = 0.0
+    cdef bint equal_temperatures = fabs(T2-T1) < TMIN
+    if equal_temperatures:
         lambda1 = (E1 - mu1) / T1
         lambda2 = (E2 - mu1 - eta1 * mu2) / T1
         lambda3 = (E3 - mu1) /T1
-        ret = D_integral_equal_T(p1, 1, lambda3, lambda2,  lambda1, D/2/T1, D/2/T1)
-        return ret*pi/T1
-    else:
-        ret = D_integral(1, p1, -E1, -E2, -E3, T1, T2, mu1, eta1*mu2, D/2, D/2, b_and_R)
-        return -1j*ret
+        wide_band_real = D_integral_equal_T(
+            p1, 1, lambda3, lambda2, lambda1, D/2/T1, D/2/T1
+        )*pi/T1
+        if not ImGamma:
+            return wide_band_real
+
+    ret = -1j*D_integral(
+        1, p1, -E1, -E2, -E3, T1, T2, mu1, eta1*mu2,
+        D/2, D/2, b_and_R
+    )
+    if equal_temperatures:
+        return wide_band_real + 1j*ret.imag
+    return ret
 
 
 @cython.cdivision(True)
@@ -351,16 +360,25 @@ cdef complex_t integralD(double_t p1, double_t eta1, double_t E1, double_t E2, d
 cdef complex_t integralX(double_t p1, double_t eta1, double_t E1, double_t E2, double_t E3, double_t T1,
             double_t T2, double_t mu1, double_t mu2, double_t D, double_t[:,:] b_and_R, bint ImGamma) noexcept nogil:
     cdef complex_t ret
-    cdef double_t lambda1, lambda2, lambda3
-    if fabs(T2-T1) < TMIN and not ImGamma:
+    cdef double_t lambda1, lambda2, lambda3, wide_band_real = 0.0
+    cdef bint equal_temperatures = fabs(T2-T1) < TMIN
+    if equal_temperatures:
         lambda1 = (E1 - mu1) / T1
         lambda2 = (E2 - mu1 - eta1 * mu2) / T1
         lambda3 = (E3 - eta1*mu2) /T1
-        ret = X_integral_equal_T(p1, 1, lambda3, lambda2,  lambda1, D/2/T1, D/2/T1)
-        return ret*pi/T1
-    else:
-        ret = X_integral(1, p1, -E1, -E2, -E3, T1, T2, mu1, eta1*mu2, D/2, D/2, b_and_R)
-        return -1j*ret
+        wide_band_real = X_integral_equal_T(
+            p1, 1, lambda3, lambda2, lambda1, D/2/T1, D/2/T1
+        )*pi/T1
+        if not ImGamma:
+            return wide_band_real
+
+    ret = -1j*X_integral(
+        1, p1, -E1, -E2, -E3, T1, T2, mu1, eta1*mu2,
+        D/2, D/2, b_and_R
+    )
+    if equal_temperatures:
+        return wide_band_real + 1j*ret.imag
+    return ret
 
 
 @cython.cdivision(True)

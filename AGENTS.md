@@ -135,9 +135,10 @@ build regenerates them, while the legacy `--cython` option forces regeneration
 when local generated files already exist. The roadmap tracks removal or
 formalization of that legacy path.
 
-The code currently builds and passes with Cython 3, but the build requirement
-does not yet declare a minimum or tested range. Treat Cython 3 warning cleanup
-as semantic work: do not add `noexcept` merely to silence a diagnostic when an
+The supported build range is Cython `>=3.0,<4`; CI regenerates all extensions
+with both Cython 3.0.0 and the current Cython 3 release. Compiler directives
+are explicit in `setup.py`. Treat future exception/`nogil` warning cleanup as
+semantic work: do not add `noexcept` merely to silence a diagnostic when an
 error needs to propagate.
 
 ## Conventions & gotchas

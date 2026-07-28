@@ -536,15 +536,29 @@ def integralD(p1, eta1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma):
         The integral value
     """
     TMIN = 1e-5
-    if abs(T2-T1) < TMIN and not ImGamma:
+    equal_temperatures = abs(T2-T1) < TMIN
+    if equal_temperatures:
         lambda1 = (E1 - mu1) / T1
         lambda2 = (E2 - mu1 - eta1 * mu2) / T1
         lambda3 = (E3 - mu1) /T1
-        ret = _D_integral_equal_T(p1, 1, lambda3, lambda2,  lambda1, D/2/T1, D/2/T1)
-        return ret*np.pi/T1
-    else:
-        ret = _D_integral(1, p1, -E1, -E2, -E3, T1, T2, mu1, eta1*mu2, D/2, D/2, b_and_R)
-        return -1j*ret
+        wide_band_real = _D_integral_equal_T(
+            p1, 1, lambda3, lambda2, lambda1, D/2/T1, D/2/T1
+        ) * np.pi/T1
+        if not ImGamma:
+            return wide_band_real
+
+    ret = -1j*_D_integral(
+        1, p1, -E1, -E2, -E3, T1, T2, mu1, eta1*mu2,
+        D/2, D/2, b_and_R
+    )
+    if equal_temperatures:
+        # Appendix D of PRB 78, 235424 gives the wide-band real
+        # component for equal temperatures. Complex tunnel products also
+        # require the complementary imaginary component evaluated below.
+        # Do not replace the known wide-band component by the finite-pole
+        # approximation merely because that complementary component is needed.
+        return wide_band_real + 1j*ret.imag
+    return ret
 
 def integralX(p1, eta1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma):
     """ Evaluates the 'exchange' integral in the RTD approach. Picks the appropriate way
@@ -585,15 +599,24 @@ def integralX(p1, eta1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma):
     """
 
     TMIN = 1e-10
-    if abs(T2-T1) < TMIN and not ImGamma:
+    equal_temperatures = abs(T2-T1) < TMIN
+    if equal_temperatures:
         lambda1 = (E1 - mu1) / T1
         lambda2 = (E2 - mu1 - eta1 * mu2) / T1
         lambda3 = (E3 - eta1*mu2) / T1
-        ret = _X_integral_equal_T(p1, 1, lambda3, lambda2,  lambda1, D/2/T1, D/2/T1)
-        return ret*np.pi/T1
-    else:
-        ret = _X_integral(1, p1, -E1, -E2, -E3, T1, T2, mu1, eta1*mu2, D/2, D/2, b_and_R)
-        return -1j*ret
+        wide_band_real = _X_integral_equal_T(
+            p1, 1, lambda3, lambda2, lambda1, D/2/T1, D/2/T1
+        ) * np.pi/T1
+        if not ImGamma:
+            return wide_band_real
+
+    ret = -1j*_X_integral(
+        1, p1, -E1, -E2, -E3, T1, T2, mu1, eta1*mu2,
+        D/2, D/2, b_and_R
+    )
+    if equal_temperatures:
+        return wide_band_real + 1j*ret.imag
+    return ret
 
 
 def _D_integral_equal_T(p1, p2, E1, deltaE, E2, Dp, Dm):

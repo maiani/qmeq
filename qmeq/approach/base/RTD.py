@@ -17,6 +17,14 @@ from ...specfunc.specfunc import func_pauli
 from ..aprclass import Approach
 from ..kernel_handler import KernelHandlerRTD
 
+_IMAGINARY_TUNNEL_PRODUCT_RTOL = 1e-12
+
+
+def _has_significant_imaginary_part(value):
+    """Return whether a tunnel product has a physically relevant phase."""
+    return abs(value.imag) > _IMAGINARY_TUNNEL_PRODUCT_RTOL*abs(value)
+
+
 class ApproachPyRTD(Approach):
 
     kerntype = 'pyRTD'
@@ -521,10 +529,10 @@ class ApproachPyRTD(Approach):
                         t2X = t1 * Tba[r0, a2p, a3p].conj() * Tba[r1, a3p, a0].conj()
                         E3 = E[a3p] - E[a0]
                         if abs(t2D) > t_cutoff3:
-                            tempD = t2D * integralD(1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, abs(t2D.imag)>t_cutoff3)
+                            tempD = t2D * integralD(1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, _has_significant_imaginary_part(t2D))
                             kh.add_element_2nd_order(r0, tempD.real, indx0, indx1, a3p, charge + 1, a0, charge)
                         if abs(t2X) > t_cutoff3:
-                            tempX = -t2X * integralX(1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, abs(t2X.imag)>t_cutoff3)
+                            tempX = -t2X * integralX(1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, _has_significant_imaginary_part(t2X))
                             kh.add_element_2nd_order(r1, tempX.real, indx0, indx1, a3p, charge + 1, a0, charge)
                     #p2 = -1
                     #N3 = ( N0 +1, N0 + 2)
@@ -534,10 +542,10 @@ class ApproachPyRTD(Approach):
                         t2X = t1 * Tba[r0, a3m, a0].conj() * Tba[r1, a2p, a3m].conj()
                         E3 = E[a2p] - E[a3m]
                         if abs(t2D) > t_cutoff3:
-                            tempD = t2D * integralD(1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, abs(t2D.imag)>t_cutoff3)
+                            tempD = t2D * integralD(1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, _has_significant_imaginary_part(t2D))
                             kh.add_element_2nd_order(r0, tempD.real, indx0, indx1, a2p, charge + 2, a3m, charge + 1)
                         if abs(t2X) > t_cutoff3:
-                            tempX = -t2X * integralX(1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, abs(t2X.imag)>t_cutoff3)
+                            tempX = -t2X * integralX(1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, _has_significant_imaginary_part(t2X))
                             kh.add_element_2nd_order(r1, tempX.real, indx0, indx1, a2p, charge + 2, a3m, charge+1)
                 #p1 = -1
                 #N2 = ( N0 - 1, N0 + 1 ), a2+ = a1+
@@ -554,10 +562,10 @@ class ApproachPyRTD(Approach):
                         t2X = t1 * Tba[r0, a1p, a3p].conj() * Tba[r1, a3p, a2m].conj()
                         E3 = E[a3p] - E[a2m]
                         if abs(t2D) > t_cutoff3:
-                            tempD = t2D * integralD(-1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, abs(t2D.imag)>t_cutoff3)
+                            tempD = t2D * integralD(-1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, _has_significant_imaginary_part(t2D))
                             kh.add_element_2nd_order(r0, tempD.real, indx0, indx1, a3p, charge, a2m, charge - 1)
                         if abs(t2X) > t_cutoff3:
-                            tempX = -t2X * integralX(-1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, abs(t2X.imag)>t_cutoff3)
+                            tempX = -t2X * integralX(-1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, _has_significant_imaginary_part(t2X))
                             kh.add_element_2nd_order(r1, tempX.real, indx0, indx1, a3p, charge, a2m, charge-1)
                     #p2 = -1
                     #N3 = ( N0 , N0 + 1), a3+ = a2+
@@ -567,10 +575,10 @@ class ApproachPyRTD(Approach):
                         t2X = t1 * Tba[r0, a3m, a2m].conj() * Tba[r1, a1p, a3m].conj()
                         E3 = E[a1p] - E[a3m]
                         if abs(t2D) > t_cutoff3:
-                            tempD = t2D * integralD(-1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, abs(t2D.imag)>t_cutoff3)
+                            tempD = t2D * integralD(-1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, _has_significant_imaginary_part(t2D))
                             kh.add_element_2nd_order(r0, tempD.real, indx0, indx1, a1p, charge + 1, a3m, charge)
                         if abs(t2X) > t_cutoff3:
-                            tempX = -t2X * integralX(-1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, abs(t2X.imag)>t_cutoff3)
+                            tempX = -t2X * integralX(-1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, _has_significant_imaginary_part(t2X))
                             kh.add_element_2nd_order(r1, tempX.real, indx0, indx1, a1p, charge + 1, a3m, charge)
                 #eta1 = -1
                 #p1 = 1
@@ -587,7 +595,7 @@ class ApproachPyRTD(Approach):
                         t2D = t1 * Tba[r1, a3p, a2p] * Tba[r0, a3p, a0].conj()
                         E3 = E[a3p] - E[a0]
                         if abs(t2D) > t_cutoff3:
-                            tempD = t2D * integralD(1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, abs(t2D.imag)>t_cutoff3)
+                            tempD = t2D * integralD(1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, _has_significant_imaginary_part(t2D))
                             kh.add_element_2nd_order(r0, tempD.real, indx0, indx1, a3p, charge + 1, a0, charge)
                     #N3 = (N0, N0-1), a3- = a0
                     for a3p in statesdm[charge-1]:
@@ -595,7 +603,7 @@ class ApproachPyRTD(Approach):
                         t2X = t1 * Tba[r0, a2p, a3p].conj() * Tba[r1, a0, a3p]
                         E3 = E[a3p] - E[a0]
                         if abs(t2X) > t_cutoff3:
-                            tempX = -t2X * integralX(1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, abs(t2X.imag)>t_cutoff3)
+                            tempX = -t2X * integralX(1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, _has_significant_imaginary_part(t2X))
                             kh.add_element_2nd_order(r1, tempX.real, indx0, indx1, a3p, charge - 1, a0, charge)
                     #p2 = -1
                     #N3 = ( N0-1, N0 ), a3+ = a2+
@@ -604,7 +612,7 @@ class ApproachPyRTD(Approach):
                         t2D = t1 * Tba[r1, a0, a3m] * Tba[r0, a2p, a3m].conj()
                         E3 = E[a2p] - E[a3m]
                         if abs(t2D) > t_cutoff3:
-                            tempD = t2D * integralD(1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, abs(t2D.imag)>t_cutoff3)
+                            tempD = t2D * integralD(1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, _has_significant_imaginary_part(t2D))
                             kh.add_element_2nd_order(r0, tempD.real, indx0, indx1, a2p, charge, a3m, charge - 1)
                     #N3 = (N0 + 1, N0)
                     for a3m in statesdm[charge+1]:
@@ -612,7 +620,7 @@ class ApproachPyRTD(Approach):
                         t2X = t1 * Tba[r0, a3m, a0].conj() * Tba[r1, a3m, a2p]
                         E3 = E[a2p] - E[a3m]
                         if abs(t2X) > t_cutoff3:
-                            tempX = -t2X * integralX(1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, abs(t2X.imag)>t_cutoff3)
+                            tempX = -t2X * integralX(1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, _has_significant_imaginary_part(t2X))
                             kh.add_element_2nd_order(r1, tempX.real, indx0, indx1, a2p, charge, a3m, charge + 1)
                 #p1 = -1
                 #N2 = ( N0 + 1  , N0 + 1), a2+ = a1+
@@ -626,7 +634,7 @@ class ApproachPyRTD(Approach):
                         t2D = t1 * Tba[r1, a3p, a1p] * Tba[r0, a3p, a2m].conj()
                         E3 = E[a3p] - E[a2m]
                         if abs(t2D) > t_cutoff3:
-                            tempD = t2D * integralD(-1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, abs(t2D.imag)>t_cutoff3)
+                            tempD = t2D * integralD(-1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, _has_significant_imaginary_part(t2D))
                             kh.add_element_2nd_order(r0, tempD.real, indx0, indx1, a3p, charge + 2, a2m, charge + 1)
                     #N3 = ( N0 + 1, N0 )
                     for a3p in statesdm[charge]:
@@ -634,7 +642,7 @@ class ApproachPyRTD(Approach):
                         t2X = t1 * Tba[r0, a1p, a3p].conj() * Tba[r1, a2m, a3p]
                         E3 = E[a3p] - E[a2m]
                         if abs(t2X) > t_cutoff3:
-                            tempX = -t2X * integralX(-1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, abs(t2X.imag)>t_cutoff3)
+                            tempX = -t2X * integralX(-1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, _has_significant_imaginary_part(t2X))
                             kh.add_element_2nd_order(r1, tempX.real, indx0, indx1, a3p, charge, a2m, charge + 1)
                     #p2 = -1
                     #N3 = ( N0, N0+1), a3+ = a2+
@@ -643,7 +651,7 @@ class ApproachPyRTD(Approach):
                         t2D = t1 * Tba[r1, a2m, a3m] * Tba[r0, a1p, a3m].conj()
                         E3 = E[a1p] - E[a3m]
                         if abs(t2D) > t_cutoff3:
-                            tempD = t2D * integralD(-1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, abs(t2D.imag)>t_cutoff3)
+                            tempD = t2D * integralD(-1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, _has_significant_imaginary_part(t2D))
                             kh.add_element_2nd_order(r0, tempD.real, indx0, indx1, a1p, charge + 1, a3m, charge)
                     #N3 = ( N0 + 2, N0 + 1 ), a3+ = a2+
                     for a3m in statesdm[charge+2]:
@@ -651,7 +659,7 @@ class ApproachPyRTD(Approach):
                         t2X = t1 * Tba[r0, a3m, a2m].conj() * Tba[r1, a3m, a1p]
                         E3 = E[a1p] - E[a3m]
                         if abs(t2X) > t_cutoff3:
-                            tempX = -t2X * integralX(-1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, abs(t2X.imag)>t_cutoff3)
+                            tempX = -t2X * integralX(-1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, _has_significant_imaginary_part(t2X))
                             kh.add_element_2nd_order(r1, tempX.real, indx0, indx1, a1p, charge + 1, a3m, charge + 2)
 
     def generate_col_nondiag_kern_1st_order_dn(self, a1, b1, charge):

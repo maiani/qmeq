@@ -40,7 +40,7 @@ implementations when both exist.
   - Keep `.py`, `.pyx`, and `.pxd` behavior synchronized; add parity tests for
     shared kernels rather than relying only on build success.
 
-- [ ] Standardize the compiled backend on Cython 3.
+- [x] Standardize the compiled backend on Cython 3.
   - Declare a supported Cython 3 minimum and test both that version and the
     current release instead of leaving the build dependency unconstrained.
   - Set language level and other compiler directives explicitly so builds do
@@ -139,8 +139,8 @@ implementations when both exist.
     NumPy, SciPy, and Cython versions.
   - Remove stale compatibility comments and APIs such as the old NumPy scalar
     aliases after verifying dtype behavior.
-  - Address Cython 3 exception/no-GIL diagnostics deliberately; do not add
-    `noexcept` without checking the physics kernels' error behavior.
+  - Keep Cython exception/no-GIL diagnostics clean as dependencies evolve; do
+    not add `noexcept` without checking the physics kernels' error behavior.
   - Add focused tests before changing numerical types, integration behavior,
     tolerances, or solver defaults.
 

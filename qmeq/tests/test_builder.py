@@ -357,6 +357,32 @@ def test_Builder_sparse_2vN_backend_parity():
     assert norm(compiled.appr.phi1k - python.appr.phi1k) < EPS
 
 
+@pytest.mark.parametrize(
+    "kerntype",
+    ["Pauli", "Lindblad", "Redfield", "1vN", "RTD"],
+)
+def test_first_order_and_RTD_backend_parity(kerntype):
+    """The compiled kernels must reproduce their pure-Python twins."""
+    p = ParametersDoubleDotSpinful()
+    itype = 1 if kerntype == "RTD" else 2
+    systems = {}
+
+    for implementation in [kerntype, "py"+kerntype]:
+        system = Builder(
+            p.nsingle, p.hsingle, p.coulomb, p.nleads, p.tleads,
+            p.mulst, p.tlst, p.dlst,
+            kerntype=implementation, itype=itype,
+        )
+        system.solve()
+        systems[implementation] = system
+
+    compiled = systems[kerntype]
+    python = systems["py"+kerntype]
+    assert norm(compiled.current-python.current) < EPS
+    assert norm(compiled.energy_current-python.energy_current) < EPS
+    assert norm(compiled.phi0-python.phi0) < EPS
+
+
 def test_Builder_single_orbital_spinful():
     data_current = {'Pauli': [0.08368833245372147, -0.08368833245372037, 0.08368833245372147, -0.08368833245372037],
                     '2vN':   [0.0735967870902393, -0.07359678709023731, 0.07359678709023965, -0.07359678709023706],

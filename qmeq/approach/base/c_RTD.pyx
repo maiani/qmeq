@@ -23,6 +23,7 @@ from ...wrappers.mytypes import complexnp
 from cython.parallel cimport prange
 from cython.parallel cimport parallel
 from libc.math cimport fabs
+
 from ...specfunc.c_specfunc cimport phi
 from ...specfunc.c_specfunc cimport integralD
 from ...specfunc.c_specfunc cimport integralX
@@ -40,6 +41,13 @@ cimport cython
 
 from ..c_aprclass cimport Approach
 from ..c_kernel_handler cimport KernelHandlerRTD
+
+cdef double_t IMAGINARY_TUNNEL_PRODUCT_RTOL = 1e-12
+
+
+cdef bint has_significant_imaginary_part(complex_t value) noexcept nogil:
+    return fabs(value.imag) > IMAGINARY_TUNNEL_PRODUCT_RTOL*cabs(value)
+
 
 # ---------------------------------------------------------------------------------------------------
 # RTD Approach
@@ -572,11 +580,11 @@ cdef class ApproachRTD(Approach):
                             t2X = t1 * Tba[r0, a2p, a3p].conjugate() * Tba[r1, a3p, a0].conjugate()
                             E3 = E[a3p] - E[a0]
                             if cabs(t2D) > t_cutoff3:
-                                ImGamma = fabs(t2D.imag) > t_cutoff3
+                                ImGamma = has_significant_imaginary_part(t2D)
                                 tempD = t2D * integralD(1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma)
                                 kh.add_element_2nd_order(t_id, r0, tempD.real, indx0, indx1, a3p, ccharge, a0, bcharge)
                             if cabs(t2X) > t_cutoff3:
-                                ImGamma = fabs(t2X.imag) > t_cutoff3
+                                ImGamma = has_significant_imaginary_part(t2X)
                                 tempX = -t2X * integralX(1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma)
                                 kh.add_element_2nd_order(t_id, r1, tempX.real, indx0, indx1, a3p, ccharge, a0, bcharge)
                         #p2 = -1
@@ -586,11 +594,11 @@ cdef class ApproachRTD(Approach):
                             t2X = t1 * Tba[r0, a3m, a0].conjugate() * Tba[r1, a2p, a3m].conjugate()
                             E3 = E[a2p] - E[a3m]
                             if cabs(t2D) > t_cutoff3:
-                                ImGamma = fabs(t2D.imag) > t_cutoff3
+                                ImGamma = has_significant_imaginary_part(t2D)
                                 tempD = t2D * integralD(1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma)
                                 kh.add_element_2nd_order(t_id, r0, tempD.real, indx0, indx1, a2p, dcharge, a3m, ccharge)
                             if cabs(t2X) > t_cutoff3:
-                                ImGamma = fabs(t2X.imag) > t_cutoff3
+                                ImGamma = has_significant_imaginary_part(t2X)
                                 tempX = -t2X * integralX(1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma)
                                 kh.add_element_2nd_order(t_id, r1, tempX.real, indx0, indx1, a2p, dcharge, a3m, ccharge)
                     #p1 = -1
@@ -607,11 +615,11 @@ cdef class ApproachRTD(Approach):
                             t2X = t1 * Tba[r0, a1p, a3p].conjugate() * Tba[r1, a3p, a2m].conjugate()
                             E3 = E[a3p] - E[a2m]
                             if cabs(t2D) > t_cutoff3:
-                                ImGamma = fabs(t2D.imag) > t_cutoff3
+                                ImGamma = has_significant_imaginary_part(t2D)
                                 tempD = t2D * integralD(-1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma)
                                 kh.add_element_2nd_order(t_id, r0, tempD.real, indx0, indx1, a3p, bcharge, a2m, acharge)
                             if cabs(t2X) > t_cutoff3:
-                                ImGamma = fabs(t2X.imag) > t_cutoff3
+                                ImGamma = has_significant_imaginary_part(t2X)
                                 tempX = -t2X * integralX(-1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma)
                                 kh.add_element_2nd_order(t_id, r1, tempX.real, indx0, indx1, a3p, bcharge, a2m, acharge)
                         #p2 = -1
@@ -621,11 +629,11 @@ cdef class ApproachRTD(Approach):
                             t2X = t1 * Tba[r0, a3m, a2m].conjugate() * Tba[r1, a1p, a3m].conjugate()
                             E3 = E[a1p] - E[a3m]
                             if cabs(t2D) > t_cutoff3:
-                                ImGamma = fabs(t2D.imag) > t_cutoff3
+                                ImGamma = has_significant_imaginary_part(t2D)
                                 tempD = t2D * integralD(-1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma)
                                 kh.add_element_2nd_order(t_id, r0, tempD.real, indx0, indx1, a1p, ccharge, a3m, bcharge)
                             if cabs(t2X) > t_cutoff3:
-                                ImGamma = fabs(t2X.imag) > t_cutoff3
+                                ImGamma = has_significant_imaginary_part(t2X)
                                 tempX = -t2X * integralX(-1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma)
                                 kh.add_element_2nd_order(t_id, r1, tempX.real, indx0, indx1, a1p, ccharge, a3m, bcharge)
                     #eta1 = -1
@@ -641,7 +649,7 @@ cdef class ApproachRTD(Approach):
                             t2D = t1 * Tba[r1, a3p, a2p] * Tba[r0, a3p, a0].conjugate()
                             E3 = E[a3p] - E[a0]
                             if cabs(t2D) > t_cutoff3:
-                                ImGamma = fabs(t2D.imag) > t_cutoff3
+                                ImGamma = has_significant_imaginary_part(t2D)
                                 tempD = t2D * integralD(1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma)
                                 kh.add_element_2nd_order(t_id, r0, tempD.real, indx0, indx1, a3p, ccharge, a0, bcharge)
                         for k in range(acount):
@@ -649,7 +657,7 @@ cdef class ApproachRTD(Approach):
                             t2X = t1 * Tba[r0, a2p, a3p].conjugate() * Tba[r1, a0, a3p]
                             E3 = E[a3p] - E[a0]
                             if cabs(t2X) > t_cutoff3:
-                                ImGamma = fabs(t2X.imag) > t_cutoff3
+                                ImGamma = has_significant_imaginary_part(t2X)
                                 tempX = -t2X * integralX(1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma)
                                 kh.add_element_2nd_order(t_id, r1, tempX.real, indx0, indx1, a3p, acharge, a0, bcharge)
                         #p2 = -1
@@ -658,7 +666,7 @@ cdef class ApproachRTD(Approach):
                             t2D = t1 * Tba[r1, a0, a3m] * Tba[r0, a2p, a3m].conjugate()
                             E3 = E[a2p] - E[a3m]
                             if cabs(t2D) > t_cutoff3:
-                                ImGamma = fabs(t2D.imag) > t_cutoff3
+                                ImGamma = has_significant_imaginary_part(t2D)
                                 tempD = t2D * integralD(1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma)
                                 kh.add_element_2nd_order(t_id, r0, tempD.real, indx0, indx1, a2p, bcharge, a3m, acharge)
                         for k in range(ccount):
@@ -666,7 +674,7 @@ cdef class ApproachRTD(Approach):
                             t2X = t1 * Tba[r0, a3m, a0].conjugate() * Tba[r1, a3m, a2p]
                             E3 = E[a2p] - E[a3m]
                             if cabs(t2X) > t_cutoff3:
-                                ImGamma = fabs(t2X.imag) > t_cutoff3
+                                ImGamma = has_significant_imaginary_part(t2X)
                                 tempX = -t2X * integralX(1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma)
                                 kh.add_element_2nd_order(t_id, r1, tempX.real, indx0, indx1, a2p, bcharge, a3m, ccharge)
                     #p1 = -1
@@ -682,7 +690,7 @@ cdef class ApproachRTD(Approach):
                             t2D = t1 * Tba[r1, a3p , a1p] * Tba[r0, a3p, a2m].conjugate()
                             E3 = E[a3p] - E[a2m]
                             if cabs(t2D) > t_cutoff3:
-                                ImGamma = fabs(t2D.imag) > t_cutoff3
+                                ImGamma = has_significant_imaginary_part(t2D)
                                 tempD = t2D * integralD(-1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma)
                                 kh.add_element_2nd_order(t_id, r0, tempD.real, indx0, indx1, a3p, dcharge, a2m, ccharge)
                         for k in range(bcount):
@@ -690,7 +698,7 @@ cdef class ApproachRTD(Approach):
                             t2X = t1 * Tba[r0, a1p, a3p].conjugate() * Tba[r1, a2m, a3p]
                             E3 = E[a3p] - E[a2m]
                             if cabs(t2X) > t_cutoff3:
-                                ImGamma = fabs(t2X.imag) > t_cutoff3
+                                ImGamma = has_significant_imaginary_part(t2X)
                                 tempX = -t2X * integralX(-1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma)
                                 kh.add_element_2nd_order(t_id, r1, tempX.real, indx0, indx1, a3p, bcharge, a2m, ccharge)
                         #p2 = -1
@@ -699,7 +707,7 @@ cdef class ApproachRTD(Approach):
                             t2D = t1 * Tba[r1, a2m, a3m] * Tba[r0, a1p, a3m].conjugate()
                             E3 = E[a1p] - E[a3m]
                             if cabs(t2D) > t_cutoff3:
-                                ImGamma = fabs(t2D.imag) > t_cutoff3
+                                ImGamma = has_significant_imaginary_part(t2D)
                                 tempD = t2D * integralD(-1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma)
                                 kh.add_element_2nd_order(t_id, r0, tempD.real, indx0, indx1, a1p, ccharge, a3m, bcharge)
                         for k in range(dcount):
@@ -707,7 +715,7 @@ cdef class ApproachRTD(Approach):
                             t2X = t1 * Tba[r0, a3m, a2m].conjugate() * Tba[r1, a3m, a1p]
                             E3 = E[a1p] - E[a3m]
                             if cabs(t2X) > t_cutoff3:
-                                ImGamma = fabs(t2X.imag) > t_cutoff3
+                                ImGamma = has_significant_imaginary_part(t2X)
                                 tempX = -t2X * integralX(-1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma)
                                 kh.add_element_2nd_order(t_id, r1, tempX.real, indx0, indx1, a1p, ccharge, a3m, dcharge)
 

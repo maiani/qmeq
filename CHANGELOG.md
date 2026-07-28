@@ -51,7 +51,8 @@
   2vN iteration while preserving parity with the pure-Python implementation.
 - Standardize extension generation on Cython 3 (`>=3.0,<4`), make the Python
   language level and Cython 3 exception semantics explicit, and test compiled
-  builds against both Cython 3.0 and the current Cython 3 release.
+  builds against both Cython 3.0 and the current Cython 3 release. Backend
+  parity tests cover Pauli, Lindblad, Redfield, 1vN, 2vN, and RTD.
 - Use NumPy for `pi` and `exp` constants removed from the public SciPy API.
 - Allow the Sphinx documentation to build without optional Cython extensions.
 - Modernize packaging: move static project metadata to `pyproject.toml`,
@@ -71,6 +72,11 @@
 
 ### Fixed
 
+- Make the two equal-temperature RTD integral paths share the same analytic
+  wide-band component, while retaining the complementary component required
+  for genuinely complex tunnel products. RTD now detects such products with a
+  relative phase tolerance, so roundoff-scale imaginary parts no longer switch
+  individual diagrams to a different approximation or change the current.
 - Normalize the example notebooks to a Python 3 kernel and fix display-math
   markup in the RTD tutorial so the documentation builds without warnings.
 - Resolve ambiguous ``Approach`` cross-references between the pure-Python and

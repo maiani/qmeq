@@ -209,3 +209,19 @@ def test_D_integrals():
         assert abs(f(-1, 1, 50, 0, 50, 10, 10, 0, 0, 10*BW, b_and_R, False) - -0.03477669776185972) < EPS
         assert abs(f(1, 1, 500, 0, 670, 10, 10, 0, 0, 10*BW, b_and_R, False) - -9.406521280339516e-05) < EPS
         assert abs(f(-1, 1, 500, 0, 670, 10, 10, 50, -6, 10*BW, b_and_R, False) - -0.005465272683842759) < EPS
+
+
+def test_RTD_equal_temperature_branches_share_wide_band_component():
+    args = (1, 1, -0.0048, 5.0036, 0.0084,
+            0.02, 0.02, 0.2, -0.2, 50.0)
+
+    for analytic, compiled in [
+            (integralD, c_integralD),
+            (integralX, c_integralX)]:
+        for f in [analytic, compiled]:
+            wide_band = f(*args, None, False)
+            for pole_bandwidth in [1250.0, 5000.0, 20000.0]:
+                with_complex_component = f(
+                    *args, BW_Ozaki(pole_bandwidth), True
+                )
+                assert abs(with_complex_component.real-wide_band) < EPS
