@@ -29,6 +29,7 @@ cdef class Approach:
     cdef double_t [:] _Ea
     cdef complex_t [:, :, :] _Tba
     cdef complex_t [:, :, :] _tLba
+    cdef complex_t [:, :, :] _HLS
     cdef double_t [:, :, :] _paulifct
     cdef complex_t [:, :, :] _phi1fct
     cdef complex_t [:, :, :] _phi1fct_energy

@@ -87,11 +87,12 @@ class BuilderElPh(BuilderBase):
                  nbaths=0, velph={}, tlst_ph={}, dband_ph={},
                  indexing=None, kpnt=None,
                  kerntype='Pauli', symq=True, norm_row=0, solmethod=None,
-                 itype=0, itype_ph=0, dqawc_limit=10000,
+                 itype=None, itype_ph=0, dqawc_limit=10000,
                  mfreeq=False, phi0_init=None,
                  mtype_qd=complex, mtype_leads=complex,
                  symmetry=None, herm_hs=True, herm_c=False, m_less_n=True,
-                 bath_func=None, eps_elph=1.0e-6):
+                 bath_func=None, eps_elph=1.0e-6,
+                 bandwidth=None, principal_part=None):
 
         self._init_copy_data(locals())
         self._init_validate_data()
@@ -173,10 +174,11 @@ class BuilderManyBodyElPh(BuilderElPh, BuilderManyBody):
                  Ea=None, Na=[0], Tba=None, Vbbp=None,
                  mulst={}, tlst={}, dband={}, tlst_ph={}, dband_ph={}, kpnt=None,
                  kerntype='Pauli', symq=True, norm_row=0, solmethod=None,
-                 itype=0, dqawc_limit=10000, mfreeq=False, phi0_init=None,
+                 itype=None, dqawc_limit=10000, mfreeq=False, phi0_init=None,
                  mtype_qd=complex, mtype_leads=complex,
                  symmetry=None, herm_hs=True, herm_c=False, m_less_n=True,
-                 bath_func=None, eps_elph=1.0e-6):
+                 bath_func=None, eps_elph=1.0e-6,
+                 bandwidth=None, principal_part=None):
 
         nleads = Tba.shape[0] if Tba is not None else 0
         nbaths = Vbbp.shape[0] if Vbbp is not None else 0
@@ -186,7 +188,8 @@ class BuilderManyBodyElPh(BuilderElPh, BuilderManyBody):
             nleads=nleads, mulst=mulst, tlst=tlst, dband=dband,
             nbaths=nbaths, tlst_ph=tlst_ph, dband_ph=dband_ph, kpnt=kpnt,
             kerntype=kerntype, symq=symq, norm_row=norm_row, solmethod=solmethod,
-            itype=itype, dqawc_limit=dqawc_limit, mfreeq=mfreeq, phi0_init=phi0_init,
+            itype=itype, bandwidth=bandwidth, principal_part=principal_part,
+            dqawc_limit=dqawc_limit, mfreeq=mfreeq, phi0_init=phi0_init,
             mtype_qd=mtype_qd, mtype_leads=mtype_leads,
             symmetry=symmetry, herm_hs=herm_hs, herm_c=herm_c, m_less_n=m_less_n,
             bath_func=bath_func, eps_elph=eps_elph,

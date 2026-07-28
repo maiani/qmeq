@@ -78,13 +78,21 @@ class Builder(BuilderBase):
         For matrix free methods (used when mfreeq=True) the possible values are
         'krylov', 'broyden', etc.
     itype : int
-        Type of integral for first order approach calculations.
-        itype=0: the principal parts are evaluated using Fortran integration package QUADPACK \
-                 routine dqawc through SciPy.
-        itype=1: the principal parts are kept, but approximated by digamma function valid for \
-                 large bandwidth D.
-        itype=2: the principal parts are neglected.
-        itype=3: the principal parts are neglected and infinite bandwidth D is assumed.
+        Legacy shorthand for `bandwidth` and `principal_part`. The mappings are
+        0 = finite/quad, 1 = infinite/digamma, 2 = finite/omit, and
+        3 = infinite/omit. Existing calls remain supported. For Lindblad, legacy
+        `itype` controls only the bandwidth and preserves the historical omission
+        of the Lamb shift.
+    bandwidth : str
+        Treatment of lead transitions outside `dband`: ``'finite'`` drops them
+        and ``'infinite'`` keeps them. Pauli, Lindblad, 1vN, and Redfield support
+        this option. RTD requires ``'infinite'``; 2vN does not use it.
+    principal_part : str
+        Treatment of principal-value contributions. 1vN and Redfield support
+        ``'quad'``, ``'digamma'``, and ``'omit'``. For Lindblad the principal
+        part is the Lamb shift, and only ``'digamma'`` and ``'omit'`` are
+        supported. Pauli has no principal-value contribution, RTD requires
+        ``'digamma'``, and 2vN does not use this option.
     dqawc_limit : int
         For itype=0 dqawc_limit determines the maximum number of sub-intervals
         in the partition of the given integration interval.

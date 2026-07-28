@@ -121,6 +121,19 @@ implementations when both exist.
   - Report the original load failure when compiled mode is required.
   - Keep importing QmeQ quiet during a normal, intentional pure-Python run.
 
+- [ ] Fix `BuilderManyBody` construction with the compiled RTD approach.
+  - `BuilderManyBody(..., kerntype='RTD')` ignores `nsingle` and
+    `tleads_array` assigned after construction, so the single-particle
+    corrections to the RTD energy current are silently dropped and the energy
+    and heat currents are wrong; the particle current is unaffected.
+  - Building with `kerntype='pyRTD'` and then assigning `kerntype='RTD'` gives
+    the correct result, and is the workaround used in Tutorial 6
+    (`examples/tutorials/06_cotunnelling_and_second_order.ipynb`) and in the
+    legacy RTD notebook.
+  - Fix the construction path so both spellings agree, add a regression test
+    comparing many-body input against the equivalent `Builder` system, and drop
+    the workaround from the tutorial.
+
 - [ ] Clear deprecated and fragile dependency usage.
   - Run tests with deprecations visible under the oldest and newest supported
     NumPy, SciPy, and Cython versions.

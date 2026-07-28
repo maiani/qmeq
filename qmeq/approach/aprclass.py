@@ -52,6 +52,8 @@ class Approach(object):
         Factors used to calculate energy and heat currents in 1vN, Redfield approaches.
     tLba : array
         Jump operator matrix in many-body basis for Lindblad approach.
+    HLS : array
+        Lead resolved Lamb shift Hamiltonian in many-body basis for Lindblad approach.
     """
 
     kerntype = 'not defined'
@@ -97,7 +99,50 @@ class Approach(object):
         return self.funcp.itype
     @itype.setter
     def itype(self, value):
-        self.funcp.itype = value
+        # Import lazily to avoid a builder/approach import cycle.
+        from ..builder.validation import resolve_transport_options
+
+        principal_part = (
+            self.funcp.principal_part
+            if self.kerntype.removeprefix("py") == "Lindblad"
+            else None
+        )
+        itype, bandwidth, principal_part = resolve_transport_options(
+            value, None, principal_part, self.kerntype
+        )
+        self.funcp.itype = itype
+        self.funcp.bandwidth = bandwidth
+        self.funcp.principal_part = principal_part
+
+    @property
+    def bandwidth(self):
+        return self.funcp.bandwidth
+    @bandwidth.setter
+    def bandwidth(self, value):
+        # Import lazily to avoid a builder/approach import cycle.
+        from ..builder.validation import resolve_transport_options
+
+        itype, bandwidth, principal_part = resolve_transport_options(
+            None, value, self.funcp.principal_part, self.kerntype
+        )
+        self.funcp.itype = itype
+        self.funcp.bandwidth = bandwidth
+        self.funcp.principal_part = principal_part
+
+    @property
+    def principal_part(self):
+        return self.funcp.principal_part
+    @principal_part.setter
+    def principal_part(self, value):
+        # Import lazily to avoid a builder/approach import cycle.
+        from ..builder.validation import resolve_transport_options
+
+        itype, bandwidth, principal_part = resolve_transport_options(
+            None, self.funcp.bandwidth, value, self.kerntype
+        )
+        self.funcp.itype = itype
+        self.funcp.bandwidth = bandwidth
+        self.funcp.principal_part = principal_part
 
     #endregion Properties
 
@@ -130,6 +175,7 @@ class Approach(object):
         self.phi1fct, self.paulifct = None, None
         self.phi1fct_energy = None
         self.tLba = None
+        self.HLS = None
         self.kernel_handler = None
 
     #region Preparation

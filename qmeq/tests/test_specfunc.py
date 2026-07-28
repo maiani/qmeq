@@ -37,6 +37,28 @@ def test_func_pauli():
             assert norm( f(Ecb, mu, T, Dm, Dp, itype) - [0.04163676679420959, 6.241548540385377] ) < EPS
 
 
+def test_func_lambshift():
+    Ecb, mu, T, Dm, Dp = 0.5, 0.3, 1.0, -1e6, 1e6
+
+    # Principal value integral of the Fermi function over the band
+    def f0(x): return fermi_func((x-mu)/T)
+    pv, err = quad(f0, Dm, Dp, weight='cauchy', wvar=Ecb,
+                   epsabs=1.0e-10, epsrel=1.0e-10, limit=10000)
+    # func_lambshift drops the bandwidth constant of the wide band expansion
+    const = np.log(0.5*(abs(Dm)+abs(Dp))/(2*np.pi*T))
+
+    for f in [func_lambshift, c_func_lambshift]:
+        assert abs(f(Ecb, mu, T) - (pv+const)) < 1e-5
+        # Even around mu, which is what allows the hole contributions to be
+        # evaluated by reversing the chemical potential
+        assert abs(f(Ecb, mu, T) - f(2*mu-Ecb, mu, T)) < EPS
+        assert abs(f(Ecb, -mu, T) - f(-Ecb, mu, T)) < EPS
+        # It is the principal part of the 1vN factors, up to the same constant
+        rez = func_1vN(Ecb, mu, T, Dm, Dp, 1, 10000)
+        assert abs(f(Ecb, mu, T) - (rez[0].real+const)) < EPS2
+        assert abs(f(Ecb, mu, T) - (rez[1].real+const)) < EPS2
+
+
 def test_func_1vN():
 
     def test_rez(Ecb, mu, T, Dm, Dp):

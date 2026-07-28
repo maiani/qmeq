@@ -23,7 +23,7 @@ from .various import remove_states
 from .various import use_all_states
 
 from .validation import validate_kerntype
-from .validation import validate_itype
+from .validation import resolve_transport_options
 from .validation import validate_indexing
 
 # -----------------------------------------------------------
@@ -79,7 +79,8 @@ attribute_map = dict(
     iters='appr', kern='appr', success='appr', make_kern_copy='appr',
     # FunctionProperties
     kpnt='funcp', symq='appr', norm_row='appr', solmethod='appr',
-    itype='appr', dqawc_limit='funcp',
+    itype='appr', bandwidth='appr', principal_part='appr',
+    dqawc_limit='funcp',
     mfreeq='appr', phi0_init='funcp', off_diag_corrections='funcp'
     )
 
@@ -104,9 +105,10 @@ class BuilderBase(object):
                  nleads=0, tleads={}, mulst={}, tlst={}, dband={},
                  indexing=None, kpnt=None,
                  kerntype='Pauli', symq=True, norm_row=0, solmethod=None,
-                 itype=0, dqawc_limit=10000, mfreeq=False, phi0_init=None,
+                 itype=None, dqawc_limit=10000, mfreeq=False, phi0_init=None,
                  mtype_qd=complex, mtype_leads=complex,
-                 symmetry=None, herm_hs=True, herm_c=False, m_less_n=True):
+                 symmetry=None, herm_hs=True, herm_c=False, m_less_n=True,
+                 bandwidth=None, principal_part=None):
 
         self._init_copy_data(locals())
         self._init_validate_data()
@@ -120,8 +122,12 @@ class BuilderBase(object):
 
     def _init_validate_data(self):
         data = self.data
-        data.itype = validate_itype(data.itype, data.kerntype)
         data.kerntype = validate_kerntype(data.kerntype)
+        (data.itype, data.bandwidth,
+         data.principal_part) = resolve_transport_options(
+            data.itype, data.bandwidth, data.principal_part,
+            data.kerntype
+        )
         data.indexing, data.symmetry = validate_indexing(data.indexing,
                                           data.symmetry,
                                           data.kerntype)
@@ -141,7 +147,9 @@ class BuilderBase(object):
     def _init_create_setup(self):
         data = self.data
         self.funcp = FunctionProperties(symq=data.symq, norm_row=data.norm_row, solmethod=data.solmethod,
-                                        itype=data.itype, dqawc_limit=data.dqawc_limit,
+                                        itype=data.itype, bandwidth=data.bandwidth,
+                                        principal_part=data.principal_part,
+                                        dqawc_limit=data.dqawc_limit,
                                         mfreeq=data.mfreeq, phi0_init=data.phi0_init,
                                         mtype_qd=data.mtype_qd, mtype_leads=data.mtype_leads,
                                         kpnt=data.kpnt, dband=data.dband)
@@ -330,9 +338,10 @@ class BuilderManyBody(BuilderBase):
                  Ea=None, Na=[0], Tba=None,
                  mulst={}, tlst={}, dband={}, kpnt=None,
                  kerntype='Pauli', symq=True, norm_row=0, solmethod=None,
-                 itype=0, dqawc_limit=10000, mfreeq=False, phi0_init=None,
+                 itype=None, dqawc_limit=10000, mfreeq=False, phi0_init=None,
                  mtype_qd=complex, mtype_leads=complex,
-                 symmetry=None, herm_hs=True, herm_c=False, m_less_n=True):
+                 symmetry=None, herm_hs=True, herm_c=False, m_less_n=True,
+                 bandwidth=None, principal_part=None):
 
         nleads = Tba.shape[0] if Tba is not None else 0
 
@@ -340,7 +349,8 @@ class BuilderManyBody(BuilderBase):
         BuilderBase.__init__(self,
             nleads=nleads, mulst=mulst, tlst=tlst, dband=dband, kpnt=kpnt,
             kerntype=kerntype, symq=symq, norm_row=norm_row, solmethod=solmethod,
-            itype=itype, dqawc_limit=dqawc_limit, mfreeq=mfreeq, phi0_init=phi0_init,
+            itype=itype, bandwidth=bandwidth, principal_part=principal_part,
+            dqawc_limit=dqawc_limit, mfreeq=mfreeq, phi0_init=phi0_init,
             mtype_qd=mtype_qd, mtype_leads=mtype_leads,
             symmetry=symmetry, herm_hs=herm_hs, herm_c=herm_c, m_less_n=m_less_n,
             indexing='charge')

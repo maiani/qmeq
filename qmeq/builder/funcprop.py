@@ -20,13 +20,13 @@ class FunctionProperties(object):
         For matrix free methods (used when mfreeq=True) the possible values are
         'krylov', 'broyden', etc.
     itype : int
-        Type of integral for first order approach calculations.
-        itype=0: the principal parts are evaluated using Fortran integration package QUADPACK \
-                 routine dqawc through SciPy.
-        itype=1: the principal parts are kept, but approximated by digamma function valid for \
-                 large bandwidth D.
-        itype=2: the principal parts are neglected.
-        itype=3: the principal parts are neglected and infinite bandwidth D is assumed.
+        Legacy shorthand for `bandwidth` and `principal_part`: 0 = finite/quad,
+        1 = infinite/digamma, 2 = finite/omit, and 3 = infinite/omit.
+    bandwidth : str
+        Either ``'finite'`` or ``'infinite'``.
+    principal_part : str
+        ``'quad'``, ``'digamma'``, or ``'omit'``, subject to the selected
+        approach's supported evaluation methods.
     dqawc_limit : int
         For itype=0 dqawc_limit determines the maximum number of sub-intervals
         in the partition of the given integration interval.
@@ -59,7 +59,8 @@ class FunctionProperties(object):
 
     def __init__(self,
                  kerntype='2vN', symq=True, norm_row=0, solmethod=None,
-                 itype=0, dqawc_limit=10000, mfreeq=False, phi0_init=None,
+                 itype=0, bandwidth="finite", principal_part="quad",
+                 dqawc_limit=10000, mfreeq=False, phi0_init=None,
                  mtype_qd=float, mtype_leads=complex, kpnt=None, dband=None,
                  off_diag_corrections=True):
         self.kerntype = kerntype
@@ -68,6 +69,8 @@ class FunctionProperties(object):
         self.solmethod = solmethod
         #
         self.itype = itype
+        self.bandwidth = bandwidth
+        self.principal_part = principal_part
         self.dqawc_limit = dqawc_limit
         #
         self.mfreeq = mfreeq
@@ -88,6 +91,7 @@ class FunctionProperties(object):
         self.ext_fct = 1.1
         #
         self.suppress_err = False
+        # Warnings shown at most once: 0 - missing phi0_init for mfreeq=True.
         self.suppress_wrn = [False]
         #
         self.off_diag_corrections = off_diag_corrections

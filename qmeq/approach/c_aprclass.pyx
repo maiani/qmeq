@@ -75,6 +75,20 @@ cdef class Approach:
         ApproachPy.itype.fset(self, value)
 
     @property
+    def bandwidth(self):
+        return self.funcp.bandwidth
+    @bandwidth.setter
+    def bandwidth(self, value):
+        ApproachPy.bandwidth.fset(self, value)
+
+    @property
+    def principal_part(self):
+        return self.funcp.principal_part
+    @principal_part.setter
+    def principal_part(self, value):
+        ApproachPy.principal_part.fset(self, value)
+
+    @property
     def success(self):
         return self._success
     @success.setter

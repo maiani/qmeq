@@ -51,6 +51,49 @@ def func_pauli(Ecb, mu, T, Dm, Dp, itype):
     return rez
 
 
+def func_lambshift(Ecb, mu, T):
+    r"""
+    Function used when generating the Lamb shift Hamiltonian of the Lindblad approach.
+
+    Returns the principal value integral
+
+    .. math::
+
+        \Lambda(E) = \mathcal{P}\!\!\int_{D_-}^{D_+}\!\!\mathrm{d}\omega\,
+                     \frac{f\big((\omega-\mu)/T\big)}{\omega-E}
+                   \approx \mathrm{Re}\,\psi\!\left(\frac{1}{2}
+                           + i\frac{E-\mu}{2\pi T}\right),
+
+    which is the real part of the factor returned by :func:`func_1vN` for the same
+    arguments, up to the bandwidth constant :math:`-\ln(D/2\pi T)`. That constant is
+    dropped here: it only adds a term proportional to the identity within each charge
+    sector of the Lamb shift Hamiltonian (because the tunneling operators satisfy
+    :math:`XX^{\dagger}+X^{\dagger}X\propto\mathbb{1}`) and therefore drops out of the
+    commutator :math:`[H_{LS},\rho]`. Dropping it also makes the returned value
+    independent of the bandwidth.
+
+    The hole (particle removal) contributions are obtained by calling this function
+    with a reversed chemical potential, :math:`\mu\to-\mu`, which is exact here because
+    :math:`\mathrm{Re}\,\psi(1/2+iy)` is an even function of :math:`y`.
+
+    Parameters
+    ----------
+    Ecb : float
+        Energy.
+    mu : float
+        Chemical potential.
+    T : float
+        Temperature.
+
+    Returns
+    -------
+    float
+        Principal value factor entering the Lamb shift Hamiltonian.
+    """
+    alpha = (Ecb-mu)/T
+    return digamma(0.5+1.0j*alpha/(2*pi)).real
+
+
 def func_1vN(Ecb, mu, T, Dm, Dp, itype, limit):
     """
     Function used when generating 1vN, Redfield approach kernel.

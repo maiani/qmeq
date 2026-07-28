@@ -163,6 +163,15 @@ cdef int_t func_pauli(double_t Ecb, double_t mu, double_t T,
     return 0
 
 
+@cython.cdivision(True)
+cdef double_t func_lambshift(double_t Ecb, double_t mu,
+                             double_t T) noexcept nogil:
+    """Principal value factor entering the Lamb shift Hamiltonian of the Lindblad
+       approach. For docstrings see documentation of module specfunc."""
+    cdef double_t alpha = (Ecb-mu)/T
+    return digamma(0.5+1.0j*alpha/(2*pi)).real
+
+
 @cython.boundscheck(False)
 @cython.cdivision(True)
 cdef int_t func_1vN(double_t Ecb, double_t mu, double_t T,
@@ -538,6 +547,11 @@ def c_func_1vN(double_t Ecb, double_t mu, double_t T,
     rez = np.zeros(4, dtype=complexnp)
     func_1vN(Ecb, mu, T, Dm, Dp, itype, limit, rez)
     return rez
+
+
+def c_func_lambshift(double_t Ecb, double_t mu, double_t T):
+    return func_lambshift(Ecb, mu, T)
+
 
 def c_diff_fermi(double_t x, double_t sign=1):
     return diff_fermi(x, sign=sign)

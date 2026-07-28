@@ -4,6 +4,20 @@
 
 ### Added
 
+- Include the Lamb shift in the Lindblad approach. The renormalisation of the
+  many-body energies by the coupling to the leads is now built as a lead-resolved
+  Hamiltonian `HLS` (a new attribute of the Lindblad approach, with the same shape
+  as `Tba`) and enters the master equation through the commutator
+  `-1j*[HLS, phi0]`, beyond the secular approximation. Set
+  `principal_part='digamma'` to include it; the backwards-compatible default
+  `principal_part='omit'` leaves Lindblad results unchanged. Numerical quadrature
+  is not implemented for Lindblad. The new descriptive
+  `bandwidth` and `principal_part` options replace the two meanings previously
+  combined in `itype`, which remains accepted as a legacy shorthand. The new
+  `qmeq.specfunc.specfunc.func_lambshift` (with a compiled twin) evaluates the
+  principal-value factors in the wide-band digamma approximation. See
+  `qmeq.approach.base.lindblad.generate_lamb_shift` and
+  `docs/source/theory/lambshift.rst` for the implemented expressions.
 - Add a prioritized maintenance roadmap in `TODO.md`.
 - Add a six-notebook tutorial path in `examples/tutorials/`, each notebook
   stating a prediction, building the smallest useful model, and asserting

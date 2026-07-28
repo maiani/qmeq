@@ -14,6 +14,8 @@ cdef double_t fermi_func(double_t) noexcept nogil
 cdef int_t func_pauli(double_t, double_t, double_t, double_t, double_t,
                       int_t, double_t [:])
 
+cdef double_t func_lambshift(double_t, double_t, double_t) noexcept nogil
+
 cdef int_t func_1vN(double_t, double_t, double_t, double_t, double_t,
                     int_t, int_t, complex_t [:])
 

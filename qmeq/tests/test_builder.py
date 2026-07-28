@@ -3,6 +3,7 @@ from numpy.linalg import norm
 from qmeq.builder import *
 import qmeq
 import itertools
+import pytest
 
 EPS = 1e-11
 CHECK_PY = False
@@ -109,6 +110,99 @@ class Calcs(object):
         pass
 
 
+@pytest.mark.parametrize(
+    ("itype", "bandwidth", "principal_part"),
+    [
+        (0, "finite", "quad"),
+        (1, "infinite", "digamma"),
+        (2, "finite", "omit"),
+        (3, "infinite", "omit"),
+    ],
+)
+def test_transport_option_legacy_mapping(itype, bandwidth, principal_part):
+    legacy = Builder(nsingle=0, kerntype="Redfield", itype=itype)
+    descriptive = Builder(
+        nsingle=0, kerntype="Redfield",
+        bandwidth=bandwidth, principal_part=principal_part
+    )
+
+    assert legacy.itype == descriptive.itype == itype
+    assert legacy.bandwidth == descriptive.bandwidth == bandwidth
+    assert legacy.principal_part == descriptive.principal_part == principal_part
+
+
+def test_transport_option_defaults_preserve_legacy_itype_zero():
+    first_order = Builder(nsingle=0, kerntype="Redfield")
+    lindblad = Builder(nsingle=0, kerntype="Lindblad")
+
+    assert first_order.itype == 0
+    assert first_order.bandwidth == "finite"
+    assert first_order.principal_part == "quad"
+    assert lindblad.itype == 0
+    assert lindblad.bandwidth == "finite"
+    assert lindblad.principal_part == "omit"
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"itype": 0, "bandwidth": "infinite"},
+        {"itype": 1, "principal_part": "omit"},
+        {"bandwidth": "finite", "principal_part": "digamma"},
+    ],
+)
+def test_transport_option_conflicts_raise(kwargs):
+    with pytest.raises(ValueError):
+        Builder(nsingle=0, kerntype="Redfield", **kwargs)
+
+
+@pytest.mark.parametrize(
+    ("kerntype", "kwargs"),
+    [
+        ("Lindblad", {"principal_part": "quad"}),
+        ("Pauli", {"principal_part": "digamma"}),
+        ("RTD", {"bandwidth": "finite", "principal_part": "quad"}),
+        ("2vN", {"bandwidth": "finite"}),
+    ],
+)
+def test_transport_options_reject_unsupported_approach_combinations(
+        kerntype, kwargs):
+    with pytest.raises(ValueError):
+        Builder(nsingle=0, kerntype=kerntype, **kwargs)
+
+
+@pytest.mark.parametrize(
+    ("bandwidth", "principal_part", "itype"),
+    [
+        ("finite", "omit", 0),
+        ("finite", "digamma", 0),
+        ("infinite", "omit", 1),
+        ("infinite", "digamma", 1),
+    ],
+)
+def test_lindblad_transport_options_are_independent(
+        bandwidth, principal_part, itype):
+    system = Builder(
+        nsingle=0, kerntype="Lindblad", bandwidth=bandwidth,
+        principal_part=principal_part
+    )
+
+    assert system.itype == itype
+    assert system.bandwidth == bandwidth
+    assert system.principal_part == principal_part
+
+
+def test_transport_options_can_be_changed_on_existing_lindblad():
+    system = Builder(nsingle=0, kerntype="Lindblad")
+
+    system.bandwidth = "infinite"
+    system.principal_part = "digamma"
+
+    assert system.itype == 1
+    assert system.bandwidth == "infinite"
+    assert system.principal_part == "digamma"
+
+
 def save_Builder_double_dot_spinful(fname='data_builder.py'):
     p = ParametersDoubleDotSpinful()
     # data = {}
@@ -117,11 +211,19 @@ def save_Builder_double_dot_spinful(fname='data_builder.py'):
     itypes = [0, 1, 2]
     data = 'data = {\n'
     for kerntype, itype in itertools.product(kerns, itypes):
-        if kerntype in {'Pauli', 'pyPauli', 'Lindblad', 'pyLindblad'} and itype in [0, 1]:
+        if kerntype in {'Pauli', 'pyPauli'} and itype in [0, 1]:
             continue
 
-        system = Builder(p.nsingle, p.hsingle, p.coulomb, p.nleads, p.tleads, p.mulst, p.tlst, p.dlst,
-                         kerntype=kerntype, itype=itype)
+        principal_part = (
+            "digamma"
+            if kerntype in {'Lindblad', 'pyLindblad'} and itype in {0, 1}
+            else None
+        )
+        system = Builder(
+            p.nsingle, p.hsingle, p.coulomb, p.nleads, p.tleads,
+            p.mulst, p.tlst, p.dlst, kerntype=kerntype, itype=itype,
+            principal_part=principal_part
+        )
         system.solve()
         attr = kerntype+str(itype)
         data = data+' '*4+'\''+attr+'current\': '+str(system.current.tolist())+',\n'
@@ -143,13 +245,21 @@ def test_Builder_double_dot_spinful():
     itypes = [0, 1, 2]
     repetitions = 3
     for kerntype, itype in itertools.product(kerns, itypes):
-        if kerntype in {'Pauli', 'pyPauli', 'Lindblad', 'pyLindblad'} and itype in [0, 1]:
+        if kerntype in {'Pauli', 'pyPauli'} and itype in [0, 1]:
             continue
         elif kerntype in {'RTD', 'pyRTD'} and itype in [0, 2]:
             continue
 
-        system = Builder(p.nsingle, p.hsingle, p.coulomb, p.nleads, p.tleads, p.mulst, p.tlst, p.dlst,
-                         kerntype=kerntype, itype=itype)
+        principal_part = (
+            "digamma"
+            if kerntype in {'Lindblad', 'pyLindblad'} and itype in {0, 1}
+            else None
+        )
+        system = Builder(
+            p.nsingle, p.hsingle, p.coulomb, p.nleads, p.tleads,
+            p.mulst, p.tlst, p.dlst, kerntype=kerntype, itype=itype,
+            principal_part=principal_part
+        )
 
         for i in range(repetitions):
             system.solve()

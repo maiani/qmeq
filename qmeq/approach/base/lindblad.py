@@ -7,7 +7,92 @@ from ...wrappers.mytypes import complexnp
 from ...wrappers.mytypes import doublenp
 
 from ...specfunc.specfunc import func_pauli
+from ...specfunc.specfunc import func_lambshift
 from ..aprclass import Approach
+
+
+# ---------------------------------------------------------------------------------------------------
+# Lamb shift Hamiltonian
+# ---------------------------------------------------------------------------------------------------
+def generate_lamb_shift(appr):
+    r"""
+    Makes the lead resolved Lamb shift Hamiltonian used in the Lindblad master equation.
+
+    The Lamb shift is the renormalisation of the many-body energies of the quantum dot due
+    to the coupling to the leads. It is the principal value counterpart of the Lindblad
+    dissipator and enters the unitary part of the evolution,
+
+    .. math::
+
+        \dot{\rho} = -i[H_{QD}+H_{LS},\rho] + \mathcal{D}[\rho].
+
+    Beyond the secular approximation, i.e., keeping all energy differences of the many-body
+    spectrum and not only those of neighbouring levels, the Lamb shift Hamiltonian reads
+
+    .. math::
+
+        (H_{LS}^{l})_{bb'} = \frac{1}{2}\sum_{a}T^{l}_{ba}T^{l}_{ab'}
+                             \left[\Lambda_{l}(E_b-E_a)+\Lambda_{l}(E_{b'}-E_a)\right]
+                           + \frac{1}{2}\sum_{c}T^{l}_{bc}T^{l}_{cb'}
+                             \left[\tilde{\Lambda}_{l}(E_b-E_c)
+                                   +\tilde{\Lambda}_{l}(E_{b'}-E_c)\right],
+
+    where :math:`H_{LS}=\sum_{l}H_{LS}^{l}`, the states :math:`a` (:math:`c`) have one
+    electron less (more) than the states :math:`b`, :math:`b'`, and
+
+    .. math::
+
+        \Lambda_{l}(E) = \mathrm{Re}\,\psi\!\left(\frac{1}{2}
+                         + i\frac{E-\mu_{l}}{2\pi T_{l}}\right), \qquad
+        \tilde{\Lambda}_{l}(E) = \Lambda_{l}(E)\big|_{\mu_l\to-\mu_l},
+
+    are the principal value factors returned by
+    :func:`~qmeq.specfunc.specfunc.func_lambshift`. The particle (:math:`a`) and hole
+    (:math:`c`) contributions correspond to the two terms of the anticommutator of the
+    tunneling operators. :math:`H_{LS}` is Hermitian and block diagonal in the charge, as it
+    has to be because the charge of the total system is conserved.
+
+    The Lamb shift is controlled by the descriptive ``principal_part`` option. Setting
+    it to ``'digamma'`` includes the shift and ``'omit'`` excludes it; numerical
+    quadrature is not implemented for the Lindblad approach. The legacy ``itype`` option
+    continues to control the dissipative transition rates but does not opt into the
+    newly implemented Lamb shift.
+
+    This is a module level function and not a method of
+    :class:`~qmeq.approach.base.lindblad.ApproachLindblad`, because the electron-phonon
+    Lindblad approach reuses the kernel of the electron-lead part with an instance which is
+    not an :class:`~qmeq.approach.base.lindblad.ApproachLindblad`.
+
+    Parameters
+    ----------
+    appr : Approach
+        Approach object holding the arrays below.
+    """
+    Tba, E, si = appr.leads.Tba, appr.qd.Ea, appr.si
+    mulst, tlst = appr.leads.mulst, appr.leads.tlst
+    ncharge, nleads, statesdm = si.ncharge, si.nleads, si.statesdm
+
+    if appr.funcp.principal_part != "digamma":
+        return
+
+    HLS = appr.HLS
+    for bcharge in range(ncharge):
+        acharge = bcharge-1
+        ccharge = bcharge+1
+        for b, bp in itertools.combinations_with_replacement(statesdm[bcharge], 2):
+            for l in range(nleads):
+                mu, T = mulst[l], tlst[l]
+                fct = 0
+                for a in statesdm[acharge]:
+                    fct += 0.5*Tba[l, b, a]*Tba[l, a, bp]*(
+                            func_lambshift(E[b]-E[a], mu, T)
+                            + func_lambshift(E[bp]-E[a], mu, T))
+                for c in statesdm[ccharge]:
+                    fct += 0.5*Tba[l, b, c]*Tba[l, c, bp]*(
+                            func_lambshift(E[b]-E[c], -mu, T)
+                            + func_lambshift(E[bp]-E[c], -mu, T))
+                HLS[l, b, bp] = fct
+                HLS[l, bp, b] = fct.conjugate()
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -21,10 +106,12 @@ class ApproachLindblad(Approach):
         Approach.prepare_arrays(self)
         Tba, mtype = self.leads.Tba, self.leads.mtype
         self.tLba = np.zeros(Tba.shape, dtype=mtype)
+        self.HLS = np.zeros(Tba.shape, dtype=mtype)
 
     def clean_arrays(self):
         Approach.clean_arrays(self)
         self.tLba.fill(0.0)
+        self.HLS.fill(0.0)
 
     def generate_fct(self):
         """
@@ -34,6 +121,9 @@ class ApproachLindblad(Approach):
         ----------
         tLba : array
             (Modifies) Jump operator matrix in many-body basis.
+        HLS : array
+            (Modifies) Lead resolved Lamb shift Hamiltonian in many-body basis,
+            see generate_lamb_shift.
         """
         Tba, E, si = self.leads.Tba, self.qd.Ea, self.si
         mulst, tlst, dlst = self.leads.mulst, self.leads.tlst, self.leads.dlst
@@ -51,8 +141,10 @@ class ApproachLindblad(Approach):
                     tLba[l, b, a] = np.sqrt(fct1)*Tba[l, b, a]
                     tLba[l, a, b] = np.sqrt(fct2)*Tba[l, a, b]
 
+        generate_lamb_shift(self)
+
     def generate_coupling_terms(self, b, bp, bcharge):
-        tLba = self.tLba
+        tLba, HLS = self.tLba, self.HLS
         si, kh = self.si, self.kernel_handler
         nleads, statesdm = si.nleads, si.statesdm
 
@@ -75,6 +167,9 @@ class ApproachLindblad(Approach):
                 for c in statesdm[ccharge]:
                     for l in range(nleads):
                         fct_bppbp += -0.5*tLba[l, c, b].conjugate()*tLba[l, c, bpp]
+                # Lamb shift, first term of -1j*(HLS*phi0 - phi0*HLS)
+                for l in range(nleads):
+                    fct_bppbp += -1j*HLS[l, b, bpp]
                 kh.set_matrix_element(1j*fct_bppbp, b, bp, bcharge, bpp, bp, bcharge)
             # --------------------------------------------------
             if kh.is_included(b, bpp, bcharge):
@@ -85,6 +180,9 @@ class ApproachLindblad(Approach):
                 for c in statesdm[ccharge]:
                     for l in range(nleads):
                         fct_bbpp += -0.5*tLba[l, c, bpp].conjugate()*tLba[l, c, bp]
+                # Lamb shift, second term of -1j*(HLS*phi0 - phi0*HLS)
+                for l in range(nleads):
+                    fct_bbpp += 1j*HLS[l, bpp, bp]
                 kh.set_matrix_element(1j*fct_bbpp, b, bp, bcharge, b, bpp, bcharge)
         # --------------------------------------------------
         for c, cp in itertools.product(statesdm[ccharge], statesdm[ccharge]):

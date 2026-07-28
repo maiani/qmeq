@@ -16,6 +16,7 @@ from .specfunc import integralD
 from .specfunc import integralX
 from .specfunc import BW_Ozaki
 from .specfunc import func_pauli
+from .specfunc import func_lambshift
 from .specfunc import func_1vN
 from .specfunc import kernel_fredriksen
 from .specfunc import hilbert_fredriksen
@@ -39,6 +40,7 @@ if _compiled is None:
     c_integralX = integralX
     c_BW_Ozaki = BW_Ozaki
     c_func_pauli = func_pauli
+    c_func_lambshift = func_lambshift
     c_func_1vN = func_1vN
     Func = pyFunc
 else:
@@ -56,5 +58,6 @@ else:
     c_integralX = _c_specfunc.c_integralX
     c_BW_Ozaki = _c_specfunc.c_BW_Ozaki
     c_func_pauli = _c_specfunc.c_func_pauli
+    c_func_lambshift = _c_specfunc.c_func_lambshift
     c_func_1vN = _c_specfunc.c_func_1vN
     Func = _compiled['qmeq.specfunc.c_specfunc_elph'].Func

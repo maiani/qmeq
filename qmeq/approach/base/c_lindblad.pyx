@@ -25,9 +25,69 @@ cimport cython
 from libc.math cimport sqrt
 
 from ...specfunc.c_specfunc cimport func_pauli
+from ...specfunc.c_specfunc cimport func_lambshift
 
 from ..c_aprclass cimport Approach
 from ..c_kernel_handler cimport KernelHandler
+
+
+# ---------------------------------------------------------------------------------------------------
+# Lamb shift Hamiltonian
+# ---------------------------------------------------------------------------------------------------
+cdef void generate_lamb_shift(Approach appr):
+    """Makes the lead resolved Lamb shift Hamiltonian HLS. This is a module level function
+       and not a method, because the electron-phonon Lindblad approach reuses it with an
+       instance which is not an ApproachLindblad. For docstrings see documentation of the
+       function generate_lamb_shift of module lindblad."""
+    cdef complex_t [:, :, :] Tba = appr._Tba
+    cdef double_t [:] E = appr._Ea
+    cdef double_t [:] mulst = appr._mulst
+    cdef double_t [:] tlst = appr._tlst
+
+    cdef KernelHandler kh = appr._kernel_handler
+    cdef long_t nleads = kh.nleads
+    cdef long_t [:, :] statesdm = kh.statesdm
+
+    cdef long_t i, j, k, l
+    cdef long_t a, b, bp, c
+    cdef long_t acharge, bcharge, ccharge
+    cdef long_t acount, bcount, ccount
+    cdef double_t mu, T
+    cdef complex_t fct
+
+    cdef complex_t [:, :, :] HLS = appr._HLS
+
+    if appr.funcp.principal_part != "digamma":
+        return
+
+    for bcharge in range(kh.ncharge):
+        acharge = bcharge-1
+        ccharge = bcharge+1
+
+        acount = kh.statesdm_count[acharge] if acharge >= 0 else 0
+        bcount = kh.statesdm_count[bcharge]
+        ccount = kh.statesdm_count[ccharge] if ccharge <= kh.ncharge else 0
+
+        for i in range(bcount):
+            for j in range(i, bcount):
+                b = statesdm[bcharge, i]
+                bp = statesdm[bcharge, j]
+                for l in range(nleads):
+                    mu, T = mulst[l], tlst[l]
+                    fct = 0
+                    for k in range(acount):
+                        a = statesdm[acharge, k]
+                        fct = fct + 0.5*Tba[l, b, a]*Tba[l, a, bp]*(
+                                func_lambshift(E[b]-E[a], mu, T)
+                                + func_lambshift(E[bp]-E[a], mu, T))
+                    for k in range(ccount):
+                        c = statesdm[ccharge, k]
+                        fct = fct + 0.5*Tba[l, b, c]*Tba[l, c, bp]*(
+                                func_lambshift(E[b]-E[c], -mu, T)
+                                + func_lambshift(E[bp]-E[c], -mu, T))
+                    HLS[l, b, bp] = fct
+                    HLS[l, bp, b] = fct.conjugate()
+
 
 # ---------------------------------------------------------------------------------------------------
 # Lindblad approach
@@ -40,13 +100,16 @@ cdef class ApproachLindblad(Approach):
         Approach.prepare_arrays(self)
         Tba, mtype = self.leads.Tba, self.leads.mtype
         self.tLba = np.zeros(Tba.shape, dtype=mtype)
+        self.HLS = np.zeros(Tba.shape, dtype=mtype)
 
         self._tLba = self.tLba
+        self._HLS = self.HLS
         self._rez_real = np.zeros(2, dtype=doublenp)
 
     cdef void clean_arrays(self):
         Approach.clean_arrays(self)
         self._tLba[::1] = 0.0
+        self._HLS[::1] = 0.0
 
     cpdef void generate_fct(self):
         cdef complex_t [:, :, :] Tba = self._Tba
@@ -77,6 +140,8 @@ cdef class ApproachLindblad(Approach):
                 tLba[l, b, a] = sqrt(rez[0])*Tba[l, b, a]
                 tLba[l, a, b] = sqrt(rez[1])*Tba[l, a, b]
 
+        generate_lamb_shift(self)
+
     cdef void generate_coupling_terms(self,
                 long_t b, long_t bp, long_t bcharge,
                 KernelHandler kh) noexcept nogil:
@@ -89,6 +154,7 @@ cdef class ApproachLindblad(Approach):
         cdef long_t [:, :] statesdm = kh.statesdm
 
         cdef complex_t [:, :, :] tLba = self._tLba
+        cdef complex_t [:, :, :] HLS = self._HLS
 
         cdef long_t acharge = bcharge-1
         cdef long_t ccharge = bcharge+1
@@ -122,6 +188,9 @@ cdef class ApproachLindblad(Approach):
                     c = statesdm[ccharge, j]
                     for l in range(nleads):
                         fct_bppbp += -0.5*tLba[l, c, b].conjugate()*tLba[l, c, bpp]
+                # Lamb shift, first term of -1j*(HLS*phi0 - phi0*HLS)
+                for l in range(nleads):
+                    fct_bppbp += -1j*HLS[l, b, bpp]
                 kh.set_matrix_element(1j*fct_bppbp, b, bp, bcharge, bpp, bp, bcharge)
 
             # --------------------------------------------------
@@ -135,6 +204,9 @@ cdef class ApproachLindblad(Approach):
                     c = statesdm[ccharge, j]
                     for l in range(nleads):
                         fct_bbpp += -0.5*tLba[l, c, bpp].conjugate()*tLba[l, c, bp]
+                # Lamb shift, second term of -1j*(HLS*phi0 - phi0*HLS)
+                for l in range(nleads):
+                    fct_bbpp += 1j*HLS[l, bpp, bp]
                 kh.set_matrix_element(1j*fct_bbpp, b, bp, bcharge, b, bpp, bcharge)
 
         # --------------------------------------------------

@@ -18,6 +18,13 @@ Contents:
 
 .. toctree::
    :maxdepth: 2
+   :caption: Theory notes
+
+   theory/transport_options
+   theory/lambshift
+
+.. toctree::
+   :maxdepth: 2
    :caption: Tutorials and examples
 
    examples/index

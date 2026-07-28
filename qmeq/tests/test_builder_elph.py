@@ -45,6 +45,7 @@ class SpinfulDoubleDotWithElPh(BuilderElPh):
                  kerntype='Pauli',
                  itype=0,
                  itype_ph=0,
+                 principal_part=None,
                  indexing='ssq',
                  symq=True,
                  mfreeq=False):
@@ -84,6 +85,7 @@ class SpinfulDoubleDotWithElPh(BuilderElPh):
             kerntype=kerntype,
             itype=itype,
             itype_ph=itype_ph,
+            principal_part=principal_part,
             symq=symq,
             mfreeq=mfreeq,
             indexing=indexing,
