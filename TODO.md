@@ -167,8 +167,9 @@ implementations when both exist.
     explicit markers and documented runtime expectations.
 
 - [ ] Add lightweight quality gates for maintenance changes.
-  - Add import/compile checks and a narrowly configured linter before adopting
-    any repository-wide formatter.
+  - [x] Add a narrowly configured linter before adopting any repository-wide
+    formatter.
+  - [ ] Add lightweight import and compile checks.
   - Keep generated files, notebooks, and scientific data out of broad
     mechanical rewrites.
   - Add coverage reporting to identify untested maintenance paths, without

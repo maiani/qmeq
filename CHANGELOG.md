@@ -4,6 +4,10 @@
 
 ### Added
 
+- Add a narrowly scoped Ruff correctness gate for Python files and notebooks,
+  available through the `lint` and `dev` dependency extras and enforced in CI.
+  Repository-wide automatic formatting remains intentionally disabled while
+  the historical source baseline is reviewed.
 - Add an unequal-temperature RTD cutoff diagnostic. RTD now warns when the
   finite ``dband`` regulator is not conservatively separated from all
   transport scales, sizes the Ozaki expansion from the widest lead rather than

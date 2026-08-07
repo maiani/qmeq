@@ -54,6 +54,18 @@ Installation
 
 For installation instructions see [INSTALL.md](INSTALL.md).
 
+Development checks
+------------------
+
+Install the development tools with `pip install -e '.[dev]'`. Run the
+zero-debt correctness lint before submitting changes:
+
+```bash
+ruff check .
+```
+
+Repository-wide automatic formatting is not enabled yet.
+
 Tutorial & Examples
 -------------------
 

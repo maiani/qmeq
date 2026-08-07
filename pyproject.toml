@@ -41,8 +41,9 @@ dependencies = [
 [project.optional-dependencies]
 test = ["pytest", "matplotlib", "nbclient", "ipykernel"]
 docs = ["sphinx", "sphinx-rtd-theme", "nbsphinx", "nbsphinx-link"]
+lint = ["ruff==0.15.22"]
 dev = [
-    "qmeq[test,docs]",
+    "qmeq[test,docs,lint]",
     "cython>=3.0,<4",
     "build",
     "twine",
@@ -68,3 +69,11 @@ include = ["qmeq*"]
 
 [tool.pytest.ini_options]
 testpaths = ["qmeq/tests"]
+
+[tool.ruff]
+target-version = "py310"
+
+[tool.ruff.lint]
+# Begin with definite correctness errors that are clean on the legacy codebase.
+# Broader style and modernization rules can be enabled incrementally.
+select = ["E9", "F63", "F7", "F82"]
