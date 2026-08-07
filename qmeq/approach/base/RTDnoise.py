@@ -13,6 +13,7 @@ from ...specfunc.specfunc import func_pauli
 from ...specfunc.specfunc import diff_phi
 from .RTD import ApproachPyRTD
 from .RTD import _warn_if_unequal_temperature_cutoff_is_small
+from ..counting import nonmarkovian_current_noise_matrix
 from ..counting import stationary_projected_pseudoinverse
 from ..kernel_handler import KernelHandlerRTDnoise
 
@@ -43,6 +44,8 @@ class ApproachPyRTDnoise(ApproachPyRTD):
         self.current_noise = None
         self.current_noise_first = None
         self.current_noise_o4trunc = None
+        self.current_noise_matrix = None
+        self.current_noise_matrix_first = None
 
         self.lpm_imaginary_2nd = None # temporary
 
@@ -251,7 +254,7 @@ class ApproachPyRTDnoise(ApproachPyRTD):
             for b in statesdm[bcharge]:
                 if not kh.is_unique(b, b, bcharge):
                     continue
-                self.generate_row_1st_order_kernel_lpm(b, bcharge)#simon
+                self.generate_row_1st_order_kernel_lpm(b, bcharge)
                 self.generate_col_diag_kern_2nd_order_lpm(b, bcharge)
                 self.generate_row_1st_energy_kernel(b, bcharge)
                 self.generate_row_2nd_energy_kernel(b, bcharge)
@@ -281,25 +284,19 @@ class ApproachPyRTDnoise(ApproachPyRTD):
             Value of the current noise attaching the counting field to countingleads.
         """
         countingleads = self.funcp.countingleads
-        phi0 = self.phi0
-
-        L0, Lp1, Lp2, Lm2, Lm1 = self.build_counting_kernels(self.Lpm_first,self.Lpm_second,countingleads)
-        L0p,Lp1p, Lp2p, Lm2p, Lm1p = self.build_counting_kernels(self.Lpm_first_dot,self.Lpm_second_dot,countingleads)
-        kern = self.kern
-
-        P, O, Q, R = stationary_projected_pseudoinverse(
-            kern, phi0, self.norm_vec
+        first, second, _ = self._lead_resolved_derivatives(
+            self.Lpm_first, self.Lpm_second, countingleads
         )
-        # derivatives of noise kernel
-        Jp = 1j*(Lp1 - Lm1 + 2*Lp2 - 2*Lm2)
-        Jpp = -Lp1 - Lm1 - 4*Lp2 - 4*Lm2
-        Jdot = L0p + Lp1p + Lp2p + Lm2p + Lm1p
-        Jdotp = 1j*(Lp1p - Lm1p + 2*Lp2p - 2*Lm2p)
-        # current and noise
-        c = -1j*(O @ Jp @ P)
-        s = -(O @ (Jpp - 2*(Jp @ R @ Jp)) @ P) + 2 * c *(O @ (Jdotp - (Jp @ R @ Jdot)) @ P)
-        self.current_noise[0] = c.item()
-        self.current_noise[1] = s.item()
+        first_dot, _, kernel_dot = self._lead_resolved_derivatives(
+            self.Lpm_first_dot, self.Lpm_second_dot, countingleads
+        )
+        currents, noise_matrix = nonmarkovian_current_noise_matrix(
+            self.kern, self.phi0, self.norm_vec, first, second,
+            kernel_dot, first_dot,
+        )
+        self.current_noise_matrix = noise_matrix
+        self.current_noise[0] = np.sum(currents)
+        self.current_noise[1] = np.sum(noise_matrix)
 
     def generate_current_noise_first(self):
         """
@@ -314,27 +311,73 @@ class ApproachPyRTDnoise(ApproachPyRTD):
         """
 
         countingleads = self.funcp.countingleads
-        phi0 = self.phi0_first
-
-        L0, Lp1, Lm1 = self.build_counting_kernels_first(self.Lpm_first,countingleads)
-        L0p,Lp1p, Lm1p = self.build_counting_kernels_first(self.Lpm_first_dot,countingleads)
-        kern = self.kern_first
-
-        P, O, Q, R = stationary_projected_pseudoinverse(
-            kern, phi0, self.norm_vec
+        first, second, _ = self._lead_resolved_derivatives(
+            self.Lpm_first, None, countingleads
         )
-        # derivatives of noise kernel
-        Jp = 1j*(Lp1 - Lm1)
-        Jpp = -Lp1 - Lm1
-        Jdot = L0p + Lp1p + Lm1p
-        Jdotp = 1j*(Lp1p - Lm1p)
-        # current and noise
-        c = -1j*(O @ Jp @ P)
-        s = -(O @ (Jpp - 2*(Jp @ R @ Jp)) @ P) + 2 * c *(O @ (Jdotp - (Jp @ R @ (Jdot))) @ P)
-        self.current_noise_first[0] = c.item()
-        self.current_noise_first[1] = s.item()
+        first_dot, _, kernel_dot = self._lead_resolved_derivatives(
+            self.Lpm_first_dot, None, countingleads
+        )
+        currents, noise_matrix = nonmarkovian_current_noise_matrix(
+            self.kern_first, self.phi0_first, self.norm_vec, first, second,
+            kernel_dot, first_dot,
+        )
+        self.current_noise_matrix_first = noise_matrix
+        self.current_noise_first[0] = np.sum(currents)
+        self.current_noise_first[1] = np.sum(noise_matrix)
 
-    def generate_current_noise_o4trunc(self): #simon
+    @staticmethod
+    def _lead_resolved_derivatives(
+            Lpm_first, Lpm_second, countingleads):
+        """Return individual counting-field derivatives at zero field."""
+        countingleads = tuple(countingleads)
+        lead_positions = {
+            lead: position for position, lead in enumerate(countingleads)
+        }
+        ncounted = len(countingleads)
+        size = Lpm_first.shape[-1]
+        first = np.zeros((ncounted, size, size), dtype=complexnp)
+        second = np.zeros(
+            (ncounted, ncounted, size, size), dtype=complexnp
+        )
+        kernel = np.sum(Lpm_first, axis=(0, 1))
+
+        for lead, position in lead_positions.items():
+            for transfer in (-1, 1):
+                contribution = Lpm_first[lead, transfer]
+                first[position] += 1j * transfer * contribution
+                second[position, position] -= transfer**2 * contribution
+
+        if Lpm_second is None:
+            return first, second, kernel
+
+        kernel = kernel + np.sum(Lpm_second, axis=(0, 1, 2, 3))
+        nleads = Lpm_second.shape[0]
+        for lead0, lead1 in product(range(nleads), repeat=2):
+            position0 = lead_positions.get(lead0)
+            position1 = lead_positions.get(lead1)
+            if position0 is None and position1 is None:
+                continue
+            for transfer0, transfer1 in product((-1, 0, 1), repeat=2):
+                transfers = np.zeros(ncounted, dtype=int)
+                if position0 is not None:
+                    transfers[position0] += transfer0
+                if position1 is not None:
+                    transfers[position1] += transfer1
+                if not np.any(transfers):
+                    continue
+                contribution = Lpm_second[
+                    lead0, lead1, transfer0, transfer1
+                ]
+                for i in np.flatnonzero(transfers):
+                    first[i] += 1j * transfers[i] * contribution
+                    for j in np.flatnonzero(transfers):
+                        second[i, j] -= (
+                            transfers[i] * transfers[j] * contribution
+                        )
+
+        return first, second, kernel
+
+    def generate_current_noise_o4trunc(self):
         """
         Calculates currents and noise via the O4trunc approach in C.Emary (PRB 80, 235306 (2009))
 
@@ -428,7 +471,7 @@ class ApproachPyRTDnoise(ApproachPyRTD):
         """
         si, kh = self.si, self.kernel_handler
         nleads, statesdm = si.nleads, si.statesdm
-        countingleads = self.funcp.countingleads #simon
+        countingleads = self.funcp.countingleads
         itype = self.funcp.itype
 
         (E, Tba, mulst, tlst, dlst) = (self.qd.Ea, self.leads.Tba,

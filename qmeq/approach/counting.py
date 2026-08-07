@@ -12,7 +12,7 @@ import itertools
 
 import numpy as np
 
-from ..wrappers.mytypes import doublenp
+from ..wrappers.mytypes import complexnp, doublenp
 from .kernel_handler import KernelHandlerNoise
 
 
@@ -260,6 +260,120 @@ def markovian_current_noise(kernel, stationary_state, trace_vector, lpm):
     return np.asarray([current.real.item(), noise.real.item()], dtype=doublenp)
 
 
+def markovian_current_noise_matrix(
+        kernel, stationary_state, trace_vector, lead_lpm):
+    """Evaluate lead-resolved currents and their noise covariance matrix.
+
+    Parameters
+    ----------
+    lead_lpm : array
+        Array with shape ``(ncounted, 2, n, n)`` containing
+        ``[L_minus, L_plus]`` separately for each counted lead.
+
+    Returns
+    -------
+    currents, noise_matrix : array, array
+        The first cumulant for every counted lead and the symmetric matrix of
+        second cumulants, in the same order as ``lead_lpm``.
+    """
+    lead_lpm = np.asarray(lead_lpm)
+    if lead_lpm.ndim != 4 or lead_lpm.shape[1] != 2:
+        raise ValueError(
+            "lead_lpm must have shape (ncounted, 2, n, n)."
+        )
+
+    right, left, _, pseudoinverse = stationary_projected_pseudoinverse(
+        kernel, stationary_state, trace_vector
+    )
+    first_derivatives = 1j * (lead_lpm[:, 1] - lead_lpm[:, 0])
+    diagonal_second_derivatives = -(lead_lpm[:, 1] + lead_lpm[:, 0])
+    ncounted = lead_lpm.shape[0]
+    currents = np.empty(ncounted, dtype=doublenp)
+    noise_matrix = np.empty((ncounted, ncounted), dtype=doublenp)
+
+    for i in range(ncounted):
+        current = -1j * (left @ first_derivatives[i] @ right)
+        currents[i] = current.real.item()
+        for j in range(i, ncounted):
+            second_derivative = (
+                diagonal_second_derivatives[i] if i == j else 0.0
+            )
+            noise = -left @ (
+                second_derivative
+                - first_derivatives[i] @ pseudoinverse
+                @ first_derivatives[j]
+                - first_derivatives[j] @ pseudoinverse
+                @ first_derivatives[i]
+            ) @ right
+            noise_matrix[i, j] = noise.real.item()
+            noise_matrix[j, i] = noise_matrix[i, j]
+
+    return currents, noise_matrix
+
+
+def nonmarkovian_current_noise_matrix(
+        kernel, stationary_state, trace_vector, first_derivatives,
+        second_derivatives, kernel_derivative,
+        first_derivative_dots):
+    """Evaluate a lead covariance matrix for an energy-dependent kernel.
+
+    The derivative arrays are derivatives with respect to the individual
+    counting fields at zero field. ``kernel_derivative`` is the energy
+    derivative of the physical kernel, while ``first_derivative_dots`` holds
+    the mixed energy/counting-field derivatives.
+    """
+    first_derivatives = np.asarray(first_derivatives)
+    second_derivatives = np.asarray(second_derivatives)
+    first_derivative_dots = np.asarray(first_derivative_dots)
+    ncounted = first_derivatives.shape[0]
+    expected_second_shape = (
+        ncounted, ncounted, *first_derivatives.shape[1:]
+    )
+    if second_derivatives.shape != expected_second_shape:
+        raise ValueError(
+            "second_derivatives has an incompatible covariance shape."
+        )
+    if first_derivative_dots.shape != first_derivatives.shape:
+        raise ValueError(
+            "first_derivative_dots must match first_derivatives."
+        )
+
+    right, left, _, pseudoinverse = stationary_projected_pseudoinverse(
+        kernel, stationary_state, trace_vector
+    )
+    currents = np.empty(ncounted, dtype=complexnp)
+    responses = np.empty(ncounted, dtype=complexnp)
+    noise_matrix = np.empty((ncounted, ncounted), dtype=complexnp)
+
+    for i in range(ncounted):
+        currents[i] = (-1j * (
+            left @ first_derivatives[i] @ right
+        )).item()
+        responses[i] = (left @ (
+            first_derivative_dots[i]
+            - first_derivatives[i] @ pseudoinverse @ kernel_derivative
+        ) @ right).item()
+
+    for i in range(ncounted):
+        for j in range(i, ncounted):
+            noise = -left @ (
+                second_derivatives[i, j]
+                - first_derivatives[i] @ pseudoinverse
+                @ first_derivatives[j]
+                - first_derivatives[j] @ pseudoinverse
+                @ first_derivatives[i]
+            ) @ right
+            noise = (
+                noise.item()
+                + currents[i] * responses[j]
+                + currents[j] * responses[i]
+            )
+            noise_matrix[i, j] = noise
+            noise_matrix[j, i] = noise
+
+    return currents, noise_matrix
+
+
 def validate_counting_request(approach):
     """Reject requested counting modes that have no controlled implementation."""
     countingleads = approach.funcp.countingleads
@@ -289,11 +403,20 @@ def generate_counting_statistics(approach):
         approach._counting_kernel = None
         approach.Lpm = None
         approach.current_noise = None
+        approach.current_noise_matrix = None
         return
     validate_counting_request(approach)
 
-    lpm = build_first_order_counting_kernel(approach, countingleads)
-    approach.Lpm = lpm
-    approach.current_noise = markovian_current_noise(
-        approach._counting_kernel, approach.phi0, approach.norm_vec, lpm
+    lead_lpm = np.asarray([
+        build_first_order_counting_kernel(approach, (lead,))
+        for lead in countingleads
+    ])
+    approach.Lpm = np.sum(lead_lpm, axis=0)
+    currents, noise_matrix = markovian_current_noise_matrix(
+        approach._counting_kernel, approach.phi0, approach.norm_vec,
+        lead_lpm,
+    )
+    approach.current_noise_matrix = noise_matrix
+    approach.current_noise = np.asarray(
+        [np.sum(currents), np.sum(noise_matrix)], dtype=doublenp
     )

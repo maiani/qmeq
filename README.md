@@ -5,7 +5,9 @@ QmeQ supports the first two zero-frequency particle-current cumulants through
 counting fields for Pauli, Lindblad, Redfield, 1vN, and RTD. Pass a nonempty
 iterable such as `countingleads=[0, 2]`; after `solve()`,
 `system.current_noise` contains `[current, noise]` for the aggregate counted
-leads. Omitting `countingleads` leaves counting disabled. See the
+leads, while `system.current_noise_matrix` contains their lead-resolved noise
+covariance matrix in the order given by `countingleads`. Omitting
+`countingleads` leaves counting disabled. See the
 [counting-statistics documentation](https://qmeq.readthedocs.io/en/latest/theory/counting_statistics.html)
 for formulas, RTD outputs, conventions, and limitations.
 

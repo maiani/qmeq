@@ -179,7 +179,7 @@ def validate_indexing(indexing, symmetry, kerntype):
     return indexing, symmetry
 
 def validate_countingleads(countingleads, nleads=None):
-    """Validate and freeze the leads sharing one particle-counting field."""
+    """Validate and freeze the lead order used for particle counting."""
     if countingleads is None:
         return None
     if isinstance(countingleads, (str, bytes)):

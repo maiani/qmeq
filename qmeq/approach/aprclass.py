@@ -181,6 +181,7 @@ class Approach(object):
         self._counting_kernel = None
         self.Lpm = None
         self.current_noise = None
+        self.current_noise_matrix = None
 
     #region Preparation
 

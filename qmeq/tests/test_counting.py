@@ -7,6 +7,8 @@ from scipy.special import expit
 
 import qmeq
 from qmeq.approach.counting import markovian_current_noise
+from qmeq.approach.counting import markovian_current_noise_matrix
+from qmeq.approach.counting import stationary_projected_pseudoinverse
 from qmeq.tests.data_counting import (
     FIRST_ORDER_POINTS,
     FIRST_ORDER_REFERENCE,
@@ -31,7 +33,7 @@ def _first_order_system(kerntype, gate, bias, countingleads=(0,)):
     )
 
 
-def _rtd_system(gate, bias):
+def _rtd_system(gate, bias, countingleads=(0,)):
     return qmeq.Builder(
         nsingle=1,
         hsingle={(0, 0): gate},
@@ -44,7 +46,7 @@ def _rtd_system(gate, bias):
         tlst={0: 1.0, 1: 1.0},
         dband={0: 100.0, 1: 100.0},
         kerntype="pyRTDnoise",
-        countingleads=(0,),
+        countingleads=countingleads,
         off_diag_corrections=False,
     )
 
@@ -80,6 +82,8 @@ def test_first_order_python_and_selected_backend_agree(kerntype):
         (python_system.appr.Lpm, selected_system.appr.Lpm),
         (python_system.phi0, selected_system.phi0),
         (python_system.current_noise, selected_system.current_noise),
+        (python_system.current_noise_matrix,
+         selected_system.current_noise_matrix),
     ):
         np.testing.assert_allclose(
             selected_value, python_value, rtol=1e-12, atol=1e-13
@@ -146,6 +150,7 @@ def test_counting_is_opt_in_and_reusable():
     disabled = _single_level(countingleads=None)
     disabled.solve()
     assert disabled.current_noise is None
+    assert disabled.current_noise_matrix is None
     assert disabled.appr.Lpm is None
     assert disabled.appr._counting_kernel is None
 
@@ -158,6 +163,7 @@ def test_counting_is_opt_in_and_reusable():
 
     system.countingleads = (1,)
     system.solve()
+    assert system.current_noise_matrix.shape == (1, 1)
     np.testing.assert_allclose(system.current_noise[0], system.current[1])
     np.testing.assert_allclose(system.current_noise[1], left[1])
     assert np.sign(system.current_noise[0]) == -np.sign(left[0])
@@ -165,6 +171,7 @@ def test_counting_is_opt_in_and_reusable():
     system.change(countingleads=None)
     system.solve()
     assert system.current_noise is None
+    assert system.current_noise_matrix is None
     assert system.appr.Lpm is None
     assert system.appr._counting_kernel is None
 
@@ -190,6 +197,150 @@ def test_equilibrium_and_all_leads_counting():
     all_leads = _single_level(countingleads=(0, 1))
     all_leads.solve()
     np.testing.assert_allclose(all_leads.current_noise, 0.0, atol=1e-12)
+    np.testing.assert_allclose(
+        all_leads.current_noise_matrix,
+        all_leads.current_noise_matrix.T,
+        rtol=0,
+        atol=0,
+    )
+    assert np.max(np.abs(all_leads.current_noise_matrix)) > 1e-3
+    np.testing.assert_allclose(
+        np.sum(all_leads.current_noise_matrix), 0.0, atol=1e-12
+    )
+
+
+@pytest.mark.parametrize("kerntype", FIRST_ORDER_REFERENCE)
+def test_first_order_noise_matrix_reconstructs_counting_fields(kerntype):
+    individual = []
+    for lead in (0, 1):
+        system = _first_order_system(
+            kerntype, gate=0.0, bias=5.0, countingleads=(lead,)
+        )
+        system.solve()
+        individual.append(system.current_noise.copy())
+
+    joint = _first_order_system(
+        kerntype, gate=0.0, bias=5.0, countingleads=(0, 1)
+    )
+    joint.solve()
+    matrix = joint.current_noise_matrix
+
+    np.testing.assert_allclose(matrix, matrix.T, rtol=0, atol=0)
+    np.testing.assert_allclose(
+        np.diag(matrix), [value[1] for value in individual],
+        rtol=1e-11, atol=1e-12,
+    )
+    np.testing.assert_allclose(
+        joint.current_noise,
+        [joint.current[0] + joint.current[1], np.sum(matrix)],
+        rtol=1e-11, atol=1e-12,
+    )
+
+    spin_weights = np.array([0.5, -0.5])
+    direct_spin_noise = spin_weights @ matrix @ spin_weights
+    reconstructed_spin_noise = (
+        2 * individual[0][1] + 2 * individual[1][1]
+        - joint.current_noise[1]
+    ) / 4
+    np.testing.assert_allclose(
+        direct_spin_noise, reconstructed_spin_noise,
+        rtol=1e-11, atol=1e-12,
+    )
+
+
+def test_rtd_noise_matrices_reconstruct_counting_fields():
+    individual = []
+    for lead in (0, 1):
+        system = _rtd_system(0.0, 6.0, countingleads=(lead,))
+        system.solve()
+        individual.append((
+            system.current_noise.copy(),
+            system.current_noise_first.copy(),
+        ))
+
+    joint = _rtd_system(0.0, 6.0, countingleads=(0, 1))
+    joint.solve()
+
+    for scalar, matrix, scalar_index in (
+        (joint.current_noise, joint.current_noise_matrix, 0),
+        (joint.current_noise_first, joint.current_noise_matrix_first, 1),
+    ):
+        np.testing.assert_allclose(matrix, matrix.T, rtol=0, atol=0)
+        np.testing.assert_allclose(
+            np.diag(matrix),
+            [value[scalar_index][1] for value in individual],
+            rtol=1e-9, atol=1e-11,
+        )
+        np.testing.assert_allclose(
+            scalar[1], np.sum(matrix), rtol=1e-9, atol=1e-11
+        )
+
+
+def test_rtd_matrix_sum_matches_aggregate_nonmarkovian_formula():
+    system = qmeq.Builder(
+        nsingle=1,
+        hsingle={(0, 0): 0.2},
+        nleads=3,
+        tleads={
+            (0, 0): np.sqrt(0.08 / (2 * np.pi)),
+            (1, 0): np.sqrt(0.12 / (2 * np.pi)),
+            (2, 0): np.sqrt(0.05 / (2 * np.pi)),
+        },
+        mulst={0: 3.0, 1: -3.0, 2: 1.0},
+        tlst={0: 1.0, 1: 1.0, 2: 1.0},
+        dband={0: 100.0, 1: 100.0, 2: 100.0},
+        kerntype="pyRTDnoise",
+        countingleads=(0, 2),
+        off_diag_corrections=False,
+    )
+    system.solve()
+    approach = system.appr
+    counted = system.countingleads
+    L0, Lp1, Lp2, Lm2, Lm1 = approach.build_counting_kernels(
+        approach.Lpm_first, approach.Lpm_second, counted
+    )
+    L0p, Lp1p, Lp2p, Lm2p, Lm1p = approach.build_counting_kernels(
+        approach.Lpm_first_dot, approach.Lpm_second_dot, counted
+    )
+    P, O, _, R = stationary_projected_pseudoinverse(
+        approach.kern, approach.phi0, approach.norm_vec
+    )
+    Jp = 1j * (Lp1 - Lm1 + 2 * Lp2 - 2 * Lm2)
+    Jpp = -Lp1 - Lm1 - 4 * Lp2 - 4 * Lm2
+    Jdot = L0p + Lp1p + Lp2p + Lm2p + Lm1p
+    Jdotp = 1j * (Lp1p - Lm1p + 2 * Lp2p - 2 * Lm2p)
+    current = -1j * (O @ Jp @ P)
+    noise = (
+        -(O @ (Jpp - 2 * Jp @ R @ Jp) @ P)
+        + 2 * current * (O @ (Jdotp - Jp @ R @ Jdot) @ P)
+    )
+
+    np.testing.assert_allclose(
+        system.current_noise,
+        [current.item(), noise.item()],
+        rtol=1e-10,
+        atol=1e-12,
+    )
+    np.testing.assert_allclose(
+        system.current_noise[1],
+        np.sum(system.current_noise_matrix),
+        rtol=1e-10,
+        atol=1e-12,
+    )
+
+
+def test_noise_matrix_follows_countinglead_order():
+    forward = _single_level(countingleads=(0, 1))
+    reverse = _single_level(countingleads=(1, 0))
+    forward.solve()
+    reverse.solve()
+
+    np.testing.assert_allclose(
+        reverse.current_noise_matrix,
+        forward.current_noise_matrix[::-1, ::-1],
+        rtol=0,
+        atol=1e-14,
+    )
 
 
 @pytest.mark.parametrize(
@@ -261,6 +412,66 @@ def test_markovian_formula_matches_tilted_liouvillian_derivatives():
         (-(lambda_plus - 2 * lambda_zero + lambda_minus) / step**2).real,
     ])
     np.testing.assert_allclose(result, numerical, rtol=2e-7, atol=2e-9)
+
+
+def test_markovian_noise_matrix_matches_mixed_tilted_derivatives():
+    lead_lpm = np.array([
+        [
+            [[0.0, 0.5], [0.0, 0.0]],
+            [[0.0, 0.0], [0.4, 0.0]],
+        ],
+        [
+            [[0.0, 0.8], [0.0, 0.0]],
+            [[0.0, 0.0], [0.3, 0.0]],
+        ],
+    ])
+    rate_in, rate_out = 0.7, 1.3
+    kernel = np.array([[-rate_in, rate_out], [rate_in, -rate_out]])
+    stationary = np.array([rate_out, rate_in]) / (rate_in + rate_out)
+    currents, matrix = markovian_current_noise_matrix(
+        kernel, stationary, np.ones(2), lead_lpm
+    )
+
+    def eigenvalue(fields):
+        tilted = kernel.astype(complex)
+        for field, (lminus, lplus) in zip(fields, lead_lpm):
+            tilted += (np.exp(1j * field) - 1) * lplus
+            tilted += (np.exp(-1j * field) - 1) * lminus
+        values = np.linalg.eigvals(tilted)
+        return values[np.argmin(np.abs(values))]
+
+    step = 3e-4
+    numerical_currents = np.empty(2)
+    numerical_matrix = np.empty((2, 2))
+    zero = np.zeros(2)
+    for i in range(2):
+        shift = np.zeros(2)
+        shift[i] = step
+        numerical_currents[i] = (
+            (eigenvalue(shift) - eigenvalue(-shift)) / (2j * step)
+        ).real
+        numerical_matrix[i, i] = (
+            -(eigenvalue(shift) - 2 * eigenvalue(zero)
+              + eigenvalue(-shift)) / step**2
+        ).real
+        for j in range(i + 1, 2):
+            shift_j = np.zeros(2)
+            shift_j[j] = step
+            mixed = -(
+                eigenvalue(shift + shift_j)
+                - eigenvalue(shift - shift_j)
+                - eigenvalue(-shift + shift_j)
+                + eigenvalue(-shift - shift_j)
+            ) / (4 * step**2)
+            numerical_matrix[i, j] = mixed.real
+            numerical_matrix[j, i] = mixed.real
+
+    np.testing.assert_allclose(
+        currents, numerical_currents, rtol=2e-7, atol=2e-9
+    )
+    np.testing.assert_allclose(
+        matrix, numerical_matrix, rtol=2e-7, atol=2e-9
+    )
 
 
 def test_unsupported_counting_modes_raise():

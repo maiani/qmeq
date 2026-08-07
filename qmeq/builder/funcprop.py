@@ -56,8 +56,8 @@ class FunctionProperties(object):
         Determines wether to include first oder off-diagonal corrections to the kernel in the
         RTD approach.
     countingleads : tuple of int or None
-        Lead indices sharing one particle-counting field, or ``None`` when
-        counting statistics are disabled.
+        Lead indices included in particle counting, or ``None`` when counting
+        statistics are disabled.
     """
 
     def __init__(self,

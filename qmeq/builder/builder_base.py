@@ -83,7 +83,8 @@ attribute_map = dict(
     heat_current='appr', phi0='appr', phi1='appr', niter='appr',
     iters='appr', kern='appr', success='appr', make_kern_copy='appr',
     current_noise='appr', current_noise_first='appr',
-    current_noise_o4trunc='appr',
+    current_noise_o4trunc='appr', current_noise_matrix='appr',
+    current_noise_matrix_first='appr',
     # FunctionProperties
     kpnt='funcp', symq='appr', norm_row='appr', solmethod='appr',
     itype='appr', bandwidth='appr', principal_part='appr',

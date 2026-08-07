@@ -26,6 +26,11 @@
   full fourth-order-kernel result, its sequential result, and a consistently
   fourth-order-truncated result. See `docs/source/theory/counting_statistics.rst`
   and Simon's [example notebook](https://github.com/si8881wo/qmeq-noise-example).
+- Add lead-resolved zero-frequency particle-current covariance matrices.
+  `current_noise_matrix` is ordered as `countingleads` for every supported
+  first-order approach and RTD; RTD also exposes the sequential companion
+  `current_noise_matrix_first`. The existing `current_noise` aggregate is
+  unchanged and equals the sum over the corresponding matrix entries.
 - Vendor and modernize Simon Wozny's counting-statistics notebook as tutorial
   7, retaining his authorship, source link, and BSD-2-Clause license notice.
 - Include the Lamb shift in the Lindblad approach. The renormalisation of the

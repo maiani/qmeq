@@ -12,15 +12,18 @@ as tutorial 7 in this documentation.
 First-order formula
 -------------------
 
-For Pauli, Lindblad, Redfield, and 1vN, QmeQ decomposes the Markovian kernel as
+For Pauli, Lindblad, Redfield, and 1vN, QmeQ assigns an independent counting
+field to every selected lead and decomposes the Markovian kernel as
 
 .. math::
 
-   K(\chi) = K + (e^{i\chi}-1)J_+ + (e^{-i\chi}-1)J_- .
+   K(\boldsymbol\chi) = K
+   + \sum_i\left[(e^{i\chi_i}-1)J_{i,+}
+   +(e^{-i\chi_i}-1)J_{i,-}\right] .
 
-All leads in ``countingleads`` share the same field :math:`\chi`; the result is
-therefore the cumulant of their aggregate particle transfer. It is not a matrix
-of lead-to-lead cross correlations.
+The order of :math:`i` is exactly the order supplied in ``countingleads``.
+Setting all selected fields equal gives the aggregate result retained in
+``current_noise``.
 
 Let :math:`|0\rangle\!\rangle` be the normalized stationary state,
 :math:`\langle\!\langle\tilde 0|` the approach's trace vector, and
@@ -31,16 +34,18 @@ Let :math:`|0\rangle\!\rangle` be the normalized stationary state,
    \qquad R = Q K^+ Q,
 
 where :math:`K^+` is the Moore--Penrose pseudoinverse. With
-:math:`K^{(1)}=i(J_+-J_-)` and :math:`K^{(2)}=-(J_++J_-)`, QmeQ evaluates
+:math:`K_i^{(1)}=i(J_{i,+}-J_{i,-})` and
+:math:`K_{ij}^{(2)}=-\delta_{ij}(J_{i,+}+J_{i,-})`, QmeQ evaluates
 
 .. math::
 
-   I = -i\langle\!\langle\tilde 0|K^{(1)}|0\rangle\!\rangle,
+   I_i = -i\langle\!\langle\tilde 0|K_i^{(1)}|0\rangle\!\rangle,
 
 .. math::
 
-   S = -\langle\!\langle\tilde 0|
-       \left[K^{(2)}-2K^{(1)}RK^{(1)}\right]
+   S_{ij} = -\langle\!\langle\tilde 0|
+       \left[K_{ij}^{(2)}-K_i^{(1)}RK_j^{(1)}
+       -K_j^{(1)}RK_i^{(1)}\right]
        |0\rangle\!\rangle.
 
 The physical kernel is checked for exactly one stationary state. A disconnected
@@ -57,6 +62,7 @@ allocation. A nonempty iterable must contain unique integer lead indices:
 
 .. code-block:: python
 
+   import numpy as np
    import qmeq
 
    system = qmeq.Builder(
@@ -72,10 +78,32 @@ allocation. A nonempty iterable must contain unique integer lead indices:
    )
    system.solve()
    current, noise = system.current_noise
+   covariance = system.current_noise_matrix
 
 ``current_noise`` is ``[I, S]``. The current uses QmeQ's convention: positive
 means particle flow from the counted lead into the dot. Consequently its first
 entry equals the sum of the corresponding entries in ``system.current``.
+``current_noise_matrix`` is the symmetric matrix :math:`S_{ij}` ordered as
+``countingleads``. The aggregate quantities obey
+
+.. math::
+
+   I = \sum_i I_i, \qquad S = \sum_{ij} S_{ij}.
+
+For arbitrary real channel weights :math:`w_i`, the weighted current and noise
+are therefore
+
+.. code-block:: python
+
+   leads = np.asarray(system.countingleads)
+   weights = np.asarray([0.5, -0.5])
+   weighted_current = weights @ system.current[leads]
+   weighted_noise = weights @ system.current_noise_matrix @ weights
+
+For spin-resolved channels ordered as up and down, ``weights = [0.5, -0.5]``
+directly gives the :math:`S_z` current and noise. Equivalently, its noise can be
+reconstructed from three aggregate calculations as
+:math:`(2S_\uparrow+2S_\downarrow-S_{\uparrow+\downarrow})/4`.
 Changing ``system.countingleads`` before another solve changes the counted
 aggregate; assigning ``None`` disables it again.
 
@@ -102,7 +130,9 @@ implementation:
    )
    system.solve()
    full = system.current_noise
+   full_covariance = system.current_noise_matrix
    sequential = system.current_noise_first
+   sequential_covariance = system.current_noise_matrix_first
    truncated = system.current_noise_o4trunc
 
 The arrays mean:
@@ -110,6 +140,8 @@ The arrays mean:
 * ``current_noise`` is ``[I, S]`` from the full fourth-order RTD kernel and its
   stationary state.
 * ``current_noise_first`` is the sequential ``[I, S]`` result.
+* ``current_noise_matrix`` and ``current_noise_matrix_first`` are the
+  corresponding lead-resolved covariance matrices.
 * ``current_noise_o4trunc`` is
   ``[I_sequential, I_fourth_order, S_sequential, S_fourth_order]``, where the
   latter member of each pair is evaluated with the consistent fourth-order
@@ -124,10 +156,10 @@ Limitations
 -----------
 
 Only the first two zero-frequency particle-current cumulants are implemented.
-There are no arbitrary higher cumulants, separate lead-to-lead correlation
-matrices, or energy-current noise. Counting is not implemented for 2vN,
-electron-phonon approaches, or matrix-free solvers. RTD counting does not
-implement off-diagonal corrections and requires
+There are no arbitrary higher cumulants or energy-current noise. The auxiliary
+``current_noise_o4trunc`` order decomposition has no matrix-valued companion.
+Counting is not implemented for 2vN, electron-phonon approaches, or matrix-free
+solvers. RTD counting does not implement off-diagonal corrections and requires
 ``off_diag_corrections=False``. These combinations raise
 ``NotImplementedError`` rather than returning uncontrolled values.
 

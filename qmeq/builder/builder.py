@@ -99,9 +99,10 @@ class Builder(BuilderBase):
     mfreeq : bool
         If mfreeq=True the matrix free solution method is used for first order methods.
     countingleads : iterable of int or None
-        Lead indices sharing one particle-counting field. A nonempty iterable
-        enables the first two zero-frequency current cumulants for supported
-        approaches; ``None`` disables counting.
+        Lead indices included in particle counting. A nonempty iterable
+        enables the aggregate first two zero-frequency current cumulants and
+        the lead-resolved noise covariance matrix for supported approaches;
+        ``None`` disables counting.
     off_diag_corrections : bool
         Include RTD off-diagonal corrections. These corrections are not
         implemented for ``RTDnoise``, which requires this option to be false.
@@ -151,6 +152,9 @@ class Builder(BuilderBase):
         Values of the current having nleads entries.
     current_noise : array or None
         Aggregate counted particle current and zero-frequency noise ``[I, S]``.
+    current_noise_matrix : array or None
+        Symmetric zero-frequency particle-current covariance matrix, ordered
+        as ``countingleads``.
     energy_current : array
         Values of the energy current having nleads entries.
     heat_current : array
