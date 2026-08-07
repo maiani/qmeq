@@ -163,6 +163,78 @@ class KernelHandler(object):
 
         return phi0_real + 1j*phi0_imag
 
+class KernelHandlerNoise(KernelHandler):
+    """Class used for inserting matrix elements into the matrices used in the first order counting statistics approaches."""
+
+    def __init__(self, si):
+        KernelHandler.__init__(self, si)
+        self.Lpm = None
+
+    def set_lpm(self, Lpm):
+        self.Lpm = Lpm
+
+    def set_matrix_element_lpm_pauli(self,pfct,pm,bb,aa):
+        """ Adds a real value (fctp) to the the matrix element connecting the states
+        bb and aa with counting index pm in the in the counting field dependend Pauli kernel.
+
+        Parameters
+        ----------
+        pfct : double
+            value to be added to kern[bb, aa]
+        pm : int
+            counting index
+        bb : int
+            first state/index
+        aa : int
+            second state/index
+        self.Lpm : ndarray
+            (modifies) the counting kernel
+        """
+        self.Lpm[pm,bb,aa] += pfct
+
+    def set_matrix_element_lpm(self, fct, pm, b, bp, bcharge, a, ap, acharge):
+        """ Adds a complex value to the matrix element connecting :math:`|a><ap|` and :math:`|b><bp|` with counting index pm in the counting field resolved kernel.
+
+        Parameters
+        ----------
+        fct : complex
+            value to be added
+        pm : int
+            counting index
+        b : int
+            first state of :math:`|b><bp|`
+        bp : int
+            second state of :math:`|b><bp|`
+        bcharge : int
+            charge of states b and bp
+        a : int
+            first state of :math:`|a><ap|`
+        ap : int
+            second state of :math:`|a><ap|`
+        acharge : int
+            charge of the states a and ap
+        self.Lpm : ndarray
+            (modifies) the counting kernel
+        """
+        bbp = self.si.get_ind_dm0(b, bp, bcharge)
+        bbpi = self.ndm0 + bbp - self.npauli
+        bbpi_bool = True if bbpi >= self.ndm0 else False
+
+        aap = self.si.get_ind_dm0(a, ap, acharge)
+        aapi = self.ndm0 + aap - self.npauli
+        aap_sgn = +1 if self.si.get_ind_dm0(a, ap, acharge, maptype=3) else -1
+
+        fct_imag = fct.imag
+        fct_real = fct.real
+
+        self.Lpm[pm,bbp, aap] += fct_imag
+        if aapi >= self.ndm0:
+            self.Lpm[pm,bbp, aapi] += fct_real*aap_sgn
+            if bbpi_bool:
+                self.Lpm[pm,bbpi, aapi] += fct_imag*aap_sgn
+        if bbpi_bool:
+            self.Lpm[pm,bbpi, aap] += -fct_real
+
 class KernelHandlerMatrixFree(KernelHandler):
     """Class used for inserting matrix elements into vectors when using the matrix free
         solution method."""
@@ -373,7 +445,6 @@ class KernelHandlerRTD(KernelHandler):
         # Flipping left-most and right-most vertices p0 = -p0 and p3 = -p3
         self.Wdd[r, indx3, indx1] += -fct
 
-
     def add_element_Lnn(self, a1, b1, charge, fct):
         """
         Adds a value to the part of :math:`L_{N,+}` connecting an off-diagonal component of the density matrix to
@@ -396,3 +467,127 @@ class KernelHandlerRTD(KernelHandler):
         if a1 > b1:
             indx += self.ndm0 - self.npauli
         self.Lnn[indx, indx] += fct
+
+class KernelHandlerRTDnoise(KernelHandlerNoise, KernelHandlerRTD):
+    """Class used for inserting matrix elements into the matrices used in the RTD noise approach."""
+
+    def set_matrix_element_lpm_first(self,l,pfct,dpfct,pm,bb,aa):
+        """ Adds a kernel value (pfct) and the corresponding energy derivative (dpfct) to the the matrix element connecting the states
+        bb and aa with counting index pm in the in the counting field dependend first order kernels.
+
+        Parameters
+        ----------
+        pfct : double
+            value to be added to Lpm_first[l,pm,bb,aa]
+        dpfct : double
+            value to be added to Lpm_first_dot[l,pm,bb,aa]
+        pm : int
+            counting index
+        bb : int
+            first state/index
+        aa : int
+            second state/index
+        self.Lpm_first : ndarray
+            (modifies) the first order counting kernel
+        self.Lpm_first_dot : ndarray
+            (modifies) the energy derivatives of the first order counting kernel
+        """
+
+        self.Lpm_first[l,pm,bb,aa] += pfct
+        self.Lpm_first_dot[l,pm,bb,aa] += dpfct
+
+    def add_element_2nd_order(self, r0, r1, eta0, eta1, p1, p2, fct, fcth, h, indx0, indx1, a3, charge3, a4, charge4, dx):
+        """
+        Adds a value to the counting index resolved noise kernel for the diagonal density matrix. Uses symmetries
+        between second order diagrams in the RTD approach to add the value to four places in the matrices.
+
+
+        Parameters
+        ----------
+        r0 : int
+            lead index 0
+        r1 : int
+            lead index 1
+        eta0 : int
+            electron-hole index (note: different sign convention in emary, i.e. eta=-xi)
+        eta1 : int
+            electron-hole index (note: different sign convention in emary, i.e. eta=-xi)
+        p1 : int
+            keldysh index
+        p2 : int
+            keldysh index
+        fct : float
+            value to be added
+        fcth : float
+            shifted value to add numerical derivative
+        indx0 : int
+            index for inital state
+        indx1 : int
+            index for intermidiate state 1
+        a3 : int
+            intermediate state 3 is given by :math:`|a3><a3|`
+        charge3 : int
+            charge of intermediate state 3
+        a4 : int
+            final state is given by :math:`|a4><a4|`
+        charge4 : int
+            charge of the final state
+        dx : string
+            indicates if direct or exchange integral
+        dot : bool
+            indicate if energy shifted version for derivative Jprimedot
+        self.Wdd : ndarray
+            (Modifies) the lead-resolved kernel for the diagonal density matrix.
+        """
+        si = self.si
+        indx3 = si.get_ind_dm0(a3, a3, charge3)
+        indx4 = si.get_ind_dm0(a4, a4, charge4)
+
+        # calculate counting indices
+        if dx == 'd': # eta0 * (p0 - p3)/2 , eta1 * (p1 - p2)/2
+            cind0 = eta0 * (1 - 1)//2 , eta1 * (p1 - p2)//2 # p0=1,p3=1
+            cind1 = eta0 * (1 + 1)//2 , eta1 * (p1 - p2)//2 # p0=1,p3=-1
+            cind2 = eta0 * (-1 - 1)//2 , eta1 * (p1 - p2)//2 # p0=-1,p3=1
+            cind3 = eta0 * (-1 + 1)//2 , eta1 * (p1 - p2)//2 # p0=-1,p3=-1
+        elif dx == 'x': # eta1 * (p1 - p3)/2 + eta0 * (p0 - p2)/2
+            cind0 = eta0 * (1 - p2)//2 , eta1 * (p1 - 1)//2 # p0=1,p3=1
+            cind1 = eta0 * (1 - p2)//2 , eta1 * (p1 + 1)//2 # p0=1,p3=-1
+            cind2 = eta0 * (-1 - p2)//2 , eta1 * (p1 - 1)//2 # p0=-1,p3=1
+            cind3 = eta0 * (-1 - p2)//2 , eta1 * (p1 + 1)//2 # p0=-1,p3=-1
+
+        # add kernel elements
+        self.Lpm_second[r0,r1,cind0[0],cind0[1], indx4, indx0] += fct
+        # Flipping left-most vertex p3 = -p3
+        self.Lpm_second[r0,r1,cind1[0],cind1[1], indx3, indx0] += -fct
+        # Flipping right-most vertex p0 = -p0
+        self.Lpm_second[r0,r1,cind2[0],cind2[1], indx4, indx1] += fct
+        # Flipping left-most and right-most vertices p0 = -p0 and p3 = -p3
+        self.Lpm_second[r0,r1,cind3[0],cind3[1], indx3, indx1] += -fct
+
+        # add derivatives
+        fct_dot = (fcth-fct)/h
+        self.Lpm_second_dot[r0,r1,cind0[0],cind0[1], indx4, indx0] += fct_dot
+        # Flipping left-most vertex p3 = -p3
+        self.Lpm_second_dot[r0,r1,cind1[0],cind1[1], indx3, indx0] += -fct_dot
+        # Flipping right-most vertex p0 = -p0
+        self.Lpm_second_dot[r0,r1,cind2[0],cind2[1], indx4, indx1] += fct_dot
+        # Flipping left-most and right-most vertices p0 = -p0 and p3 = -p3
+        self.Lpm_second_dot[r0,r1,cind3[0],cind3[1], indx3, indx1] += -fct_dot
+
+        # for std currents
+        if dx == 'd':
+            self.Wdd[r0, indx4, indx0] += fct.real
+            # Flipping left-most vertex p3 = -p3
+            self.Wdd[r0, indx3, indx0] += -fct.real
+            # Flipping right-most vertex p0 = -p0
+            self.Wdd[r0, indx4, indx1] += fct.real
+            # Flipping left-most and right-most vertices p0 = -p0 and p3 = -p3
+            self.Wdd[r0, indx3, indx1] += -fct.real
+        elif dx == 'x':
+            self.Wdd[r1, indx4, indx0] += fct.real
+            # Flipping left-most vertex p3 = -p3
+            self.Wdd[r1, indx3, indx0] += -fct.real
+            # Flipping right-most vertex p0 = -p0
+            self.Wdd[r1, indx4, indx1] += fct.real
+            # Flipping left-most and right-most vertices p0 = -p0 and p3 = -p3
+            self.Wdd[r1, indx3, indx1] += -fct.real

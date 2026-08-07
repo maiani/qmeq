@@ -12,10 +12,10 @@ TRANSPORT_OPTIONS = {options: itype for itype, options in ITYPE_OPTIONS.items()}
 def validate_kerntype(kerntype):
     if isinstance(kerntype, str):
         if kerntype not in {'Pauli', 'Lindblad', 'Redfield', '1vN', '2vN', 'pyPauli',
-                    'pyLindblad', 'pyRedfield', 'py1vN', 'py2vN', 'pyRTD', 'RTD'}:
+                    'pyLindblad', 'pyRedfield', 'py1vN', 'py2vN', 'pyRTD', 'RTD','pyRTDnoise','RTDnoise'}:
             print("WARNING: Allowed kerntype values are: " +
                   "\'Pauli\', \'Lindblad\', \'Redfield\', \'1vN\', \'2vN\', " +
-                  "\'pyPauli\', \'pyLindblad\', \'pyRedfield\', \'py1vN\', \'py2vN\', \'RTD\'. " +
+                  "\'pyPauli\', \'pyLindblad\', \'pyRedfield\', \'py1vN\', \'py2vN\', \'RTD\', \'pyRTDnoise\', \'RTDnoise\'. " +
                   "Using default kerntype=\'Pauli\'.")
             kerntype = 'Pauli'
     return kerntype
@@ -112,7 +112,7 @@ def resolve_transport_options(itype, bandwidth, principal_part, kerntype):
             bandwidth = legacy_bandwidth
             principal_part = legacy_principal_part
 
-    if approach == "RTD" and itype != 1:
+    if approach in {"RTD", "RTDnoise"} and itype != 1:
         if descriptive_explicit:
             raise ValueError(
                 "The RTD approach requires bandwidth='infinite' and "
@@ -141,14 +141,14 @@ def validate_itype_ph(itype_ph):
     return itype_ph
 
 def validate_mfreeq(kerntype, mfreeq):
-    if mfreeq and kerntype in {'RTD', 'pyRTD'}:
+    if mfreeq and kerntype in {'RTD', 'pyRTD','RTDnoise','pyRTDnoise'}:
         print("WARNING: mfreeq=True is not supported by the RTD approach. Using default mfreeq=False.")
         mfreeq = False
     return mfreeq
 
 def validate_indexing(indexing, symmetry, kerntype):
     if indexing is None:
-        if symmetry == 'spin' and kerntype in {'pyRTD', 'RTD'}:
+        if symmetry == 'spin' and kerntype in {'pyRTD', 'RTD', 'pyRTDnoise', 'RTDnoise'}:
             print("WARNING: symmetry=\'spin\' is not supported by the RTD approach. " +
                   "Using default indexing=\'charge\'.")
             indexing = 'charge'
@@ -168,9 +168,13 @@ def validate_indexing(indexing, symmetry, kerntype):
               "Using indexing=\'charge\' as a default.")
         indexing = 'charge'
 
-    if indexing != 'charge' and kerntype in {'pyRTD', 'RTD'}:
+    if indexing != 'charge' and kerntype in {'pyRTD', 'RTD', 'pyRTDnoise', 'RTDnoise'}:
         print("WARNING: For the RTD approach indexing needs to be \'charge\'. " +
               "Using indexing=\'charge\' as a default.")
         indexing = 'charge'
-
     return indexing, symmetry
+
+def validate_countingleads(countingleads): #simon
+    if len(set(countingleads)) != len(countingleads):
+        print('WARNING: The counting field gets attached more than once to at least one lead!')
+    return countingleads

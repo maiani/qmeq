@@ -50,6 +50,36 @@ def func_pauli(Ecb, mu, T, Dm, Dp, itype):
         rez = np.zeros(2)
     return rez
 
+def fermi_lpm(lam, mu, T, Dm, Dp, itype):
+    """
+    Function used when generating Counting kernels for master equation.
+
+    Parameters
+    ----------
+    Ecb : float
+        Energy.
+    mu : float
+        Chemical potential.
+    T : float
+        Temperature.
+    Dm,Dp : float
+        Bandwidth.
+    itype : int
+        Type of function calculation.
+
+    Returns
+    -------
+    float
+        | rez - particle current amplitude.
+    """
+    alpha = (lam)/T
+    Rm, Rp = (Dm-mu)/T, (Dp-mu)/T
+    if itype == 1 or itype == 3 or (Rm < alpha < Rp):
+        rez = 2*pi*fermi_func(alpha)
+    else:
+        rez = 0
+    return rez
+
 
 def func_lambshift(Ecb, mu, T):
     r"""
@@ -306,8 +336,34 @@ def phi(x, Dp, Dm, sign=1):
     double
         real part of the function value
     """
-    Z = 0.5 + x / (2 * np.pi) * 1j
+    Z = 0.5 + x / (2 * pi) * 1j
     ret = sign * (-digamma(Z).real + log(0.5*(abs(Dp)+abs(Dm))/(2.0*pi)))
+    return ret
+
+@lru_cache(MAX_CACHE)
+def phi_lpm(x, Dp, Dm, sign=1):
+    """
+    Calculates the phi function, i.e. eq. C4 in PRB 78, 235424, 2008.
+
+    Parameters
+    ----------
+    x : float
+        Energy.
+    Dp : float
+        Bandwidth (positive energy) over temperature
+    Dm : float
+        Bandwidth (negative energy) over temperature
+    sign : int
+        Sign factor to be multiplied with the function
+
+    Returns
+    -------
+    double
+        real part of the function value
+    """
+    Zp = 0.5 - x / (2 * pi) * 1j
+    Zm = 0.5 + x / (2 * pi) * 1j
+    ret = sign * ((digamma(Zm) + digamma(Zp))/2 - log(0.5*(abs(Dp)+abs(Dm))/(2.0*pi)))
     return ret
 
 @lru_cache(MAX_CACHE)
@@ -497,7 +553,6 @@ def polygamma(U, K):
 
     return H
 
-
 def integralD(p1, eta1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma):
     """ Evaluates the 'direct' integral in the RTD approach. Picks the appropriate way
     of evaluating the integral based on the temperatures. Assumes that the wide band limits is valid.
@@ -560,6 +615,49 @@ def integralD(p1, eta1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma):
         return wide_band_real + 1j*ret.imag
     return ret
 
+def integralD_lpm(lpm_imaginary_2nd, p1, eta0, eta1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma):
+    """ Evaluates the 'direct' integral in the RTD approach. Always uses the general way of evaluating the integral
+     i.e. Matsubara sum. Assumes that the wide band limits is valid.
+
+    Parameters
+    ----------
+    p1 : float/int
+        Keldysh index of right-most operator
+    eta1 : float
+        electron-hole index
+    E1 : float
+        Energy difference (E1+ - E1-).
+    E2 : float
+        Energy difference (E2+ - E2-).
+    E3 : float
+        Energy difference (E3+ - E3-).
+    T1 : float
+        Temperature of lead 1
+    T2 : float
+        Temperature of lead 2
+    mu1 : float
+        Chemical potential of lead 1
+    mu2 : float
+        Chemical potential of lead 2
+    Dp : float
+        Bandwidth (positive energy) over temperature
+    Dm : float
+        Bandwidth (negative energy) over temperature
+    b_and_R : ndarray
+        2xN ndarray containing 1/b in the first row and R in the second row. b and R are the poles and residues
+        of the Ozaki expansion of tanh(z), respectively.
+
+    Returns
+    -------
+    double
+        The integral value
+    """
+    ret = _D_integral(1, p1, -E1, -E2, -E3, T1, T2, eta0*mu1, eta1*mu2, D/2, D/2, b_and_R)
+    if lpm_imaginary_2nd:
+        return -1j*ret
+    else:
+        return -1j*ret.imag
+
 def integralX(p1, eta1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma):
     """ Evaluates the 'exchange' integral in the RTD approach. Picks the appropriate way
     of evaluating the integral based on the temperatures. Assumes that the wide band limit is valid.
@@ -618,6 +716,48 @@ def integralX(p1, eta1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma):
         return wide_band_real + 1j*ret.imag
     return ret
 
+def integralX_lpm(lpm_imaginary_2nd, p1, eta0, eta1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma):
+    """ Evaluates the 'exchange' integral in the RTD approach. Always uses the general way of evaluating the integral
+     i.e. Matsubara sum. Assumes that the wide band limit is valid.
+
+    Parameters
+    ----------
+    p1 : float/int
+        Keldysh index of right-most operator
+    eta1 : float
+        electron-hole index
+    E1 : float
+        Energy difference (E1+ - E1-).
+    E2 : float
+        Energy difference (E2+ - E2-).
+    E3 : float
+        Energy difference (E3+ - E3-).
+    T1 : float
+        Temperature of lead 1
+    T2 : float
+        Temperature of lead 2
+    mu1 : float
+        Chemical potential of lead 1
+    mu2 : float
+        Chemical potential of lead 2
+    Dp : float
+        Bandwidth (positive energy) over temperature
+    Dm : float
+        Bandwidth (negative energy) over temperature
+    b_and_R : ndarray
+        2xN ndarray containing 1/b in the first row and R in the second row. b and R are the poles and residues
+        of the Ozaki expansion of tanh(z), respectively.
+
+    Returns
+    -------
+    double
+        The integral value
+    """
+    ret = _X_integral(1, p1, -E1, -E2, -E3, T1, T2, eta0*mu1, eta1*mu2, D/2, D/2, b_and_R)
+    if lpm_imaginary_2nd:
+        return -1j*ret
+    else:
+        return -1j*ret.imag
 
 def _D_integral_equal_T(p1, p2, E1, deltaE, E2, Dp, Dm):
     """
