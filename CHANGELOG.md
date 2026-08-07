@@ -5,7 +5,7 @@
 ### Added
 
 - Add a narrowly scoped Ruff correctness gate for Python files and notebooks,
-  available through the `lint` and `dev` dependency extras and enforced in CI.
+  available through the development dependencies and enforced in CI.
   Repository-wide automatic formatting remains intentionally disabled while
   the historical source baseline is reviewed.
 - Add an unequal-temperature RTD cutoff diagnostic. RTD now warns when the
@@ -97,6 +97,9 @@
 
 ### Fixed
 
+- Remove a dead, shadowed duplicate definition of the pure-Python 2vN
+  `TermsCalculator2vN.iterate` method. The surviving implementation already
+  contains the initialization performed by the removed definition.
 - Make the two equal-temperature RTD integral paths share the same analytic
   wide-band component, while retaining the complementary component required
   for genuinely complex tunnel products. RTD now detects such products with a

@@ -389,10 +389,6 @@ class TermsCalculator2vN(object):
     def __init__(self, appr):
         self.appr = appr
 
-    def iterate(self):
-        self.retrieve_approach_variables()
-
-
     def retrieve_approach_variables(self):
         self.si = self.appr.si
         self.kpnt_left = self.appr.funcp.kpnt_left
