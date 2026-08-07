@@ -76,4 +76,4 @@ target-version = "py310"
 [tool.ruff.lint]
 # Begin with definite correctness errors that are clean on the legacy codebase.
 # Broader style and modernization rules can be enabled incrementally.
-select = ["E9", "F63", "F7", "F82", "F811"]
+select = ["E9", "E701", "E712", "E713", "F63", "F7", "F82", "F811"]

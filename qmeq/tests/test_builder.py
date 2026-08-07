@@ -469,7 +469,7 @@ def test_Builder_coulomb_symmetry_spin():
     # Spinless, m_less_n=False, herm_c=True
     coulomb1 = {}
     for m, n, k, l in itertools.product(range(nsingle), repeat=4):
-        if not ((l, k, n, m) in coulomb1.keys()):
+        if (l, k, n, m) not in coulomb1:
             coulomb1.update({(m, n, k, l): Vmnkl(m,n,k,l)/2})
 
     sys1_spinless = Builder(nsingle=nsingle, coulomb=coulomb1, mtype_qd=complex, m_less_n=False, herm_c=True)
@@ -487,7 +487,7 @@ def test_Builder_coulomb_symmetry_spin():
     # Spinless, m_less_n=True, herm_c=True
     coulomb3 = {}
     for m, n, k, l in itertools.product(range(nsingle), repeat=4):
-        if m <= n and not ((l, k, n, m) in coulomb3.keys()):
+        if m <= n and (l, k, n, m) not in coulomb3:
             coulomb3.update({(m, n, k, l): Vmnkl(m,n,k,l)})
 
     sys3_spinless = Builder(nsingle=nsingle, coulomb=coulomb3, mtype_qd=complex, m_less_n=True, herm_c=True)
@@ -545,8 +545,10 @@ def serial_triple_dot_coulomb_symmetry_spin():
         if m != n and k != l:
             # Intradot
             if dotindex[m] == dotindex[n]:
-                if m == l and n == k: coulomb.append([m,n,n,m,u/2])   # Direct
-                if m == k and n == l: coulomb.append([m,n,m,n,uex/2]) # Exchange
+                if m == l and n == k:
+                    coulomb.append([m,n,n,m,u/2])   # Direct
+                if m == k and n == l:
+                    coulomb.append([m,n,m,n,uex/2]) # Exchange
             # Interdot
             # Note that the pairs (n,k) and (m,l) are located at different dots
             if (dotindex[m] == dotindex[l] and
@@ -623,7 +625,8 @@ def serial_triple_dot_coulomb_symmetry_spin():
         if m != n and k != l and m//nssl == l//nssl and n//nssl == k//nssl:
             # Intradot
             if dotindex[m] == dotindex[n]:
-                if m == l and n == k: coulomb.append([m,n,n,m,u/2]) # Direct
+                if m == l and n == k:
+                    coulomb.append([m,n,n,m,u/2]) # Direct
                 if m == k and n == l:
                     coulomb.append([m,n,m,n,uex/2]) # Exchange
                     if m+nssl < nsingle:

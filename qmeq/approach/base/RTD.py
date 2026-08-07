@@ -400,7 +400,8 @@ class ApproachPyRTD(Approach):
                 mu, Tr, gamma = mulst[l], tlst[l], 0.0
                 dE = E[b] - E[a]
                 for lp in range(nleads):
-                    if lp == l: continue
+                    if lp == l:
+                        continue
                     for n1 in range(nsingle):
                         gamma += Tba[l, a, b] * Tba[lp, a, b].conj() * tleads[l, n1] * tleads[lp, n1].conj()
                 temp = gamma.real * phi((dE - mu) / Tr, dlst[l, 0] / Tr, dlst[l, 1] / Tr)
@@ -419,7 +420,8 @@ class ApproachPyRTD(Approach):
                 mu, Tr, gamma = mulst[l], tlst[l], 0.0
                 dE = E[c] - E[b]
                 for lp in range(nleads):
-                    if lp == l: continue
+                    if lp == l:
+                        continue
                     for n1 in range(nsingle):
                         gamma += Tba[l, b, c] * Tba[lp, b, c].conj() * tleads[l, n1] * tleads[lp, n1].conj()
                 temp = gamma.real * phi((dE - mu) / Tr, dlst[l, 0] / Tr, dlst[l, 1] / Tr)

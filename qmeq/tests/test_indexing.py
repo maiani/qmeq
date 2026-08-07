@@ -392,8 +392,8 @@ def test_StateIndexingDMc_charge():
     assert list(si.booldm0) == [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
     assert si.get_ind_dm0(7, 8, 2, maptype=0) == 32
     assert si.get_ind_dm0(7, 8, 2, maptype=1) == 40
-    assert si.get_ind_dm0(7, 8, 2, maptype=2) == True
-    assert si.get_ind_dm0(8, 7, 2, maptype=2) == True
+    assert si.get_ind_dm0(7, 8, 2, maptype=2)
+    assert si.get_ind_dm0(8, 7, 2, maptype=2)
     assert si.get_ind_dm0(5, 8, 2, maptype=1) == 30
     assert si.get_ind_dm1(5, 4, 1) == 7
     #
