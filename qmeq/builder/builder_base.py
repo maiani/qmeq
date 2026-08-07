@@ -27,9 +27,6 @@ from .validation import resolve_transport_options
 from .validation import validate_indexing
 from .validation import validate_countingleads
 
-
-_UNSET = object()
-
 # -----------------------------------------------------------
 # Python modules
 
@@ -70,6 +67,8 @@ else:
     ApproachRTD = _compiled['qmeq.approach.base.c_RTD'].ApproachRTD
 ApproachRTDnoise = ApproachPyRTDnoise
 # -----------------------------------------------------------
+
+_UNSET = object()
 
 attribute_map = dict(
     # StateIndexing
