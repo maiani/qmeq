@@ -6,8 +6,8 @@ the mean current :math:`I` and noise :math:`S`. The implementation follows the
 counting-field formulation of `Emary, Phys. Rev. B 80, 235306 (2009)
 <https://arxiv.org/abs/0902.3544>`_. It was developed by Simon Wozny in his
 `QmeQ fork <https://github.com/si8881wo/qmeq>`_; his
-`example notebook <https://github.com/si8881wo/qmeq-noise-example>`_ provides a
-longer worked calculation.
+`example notebook <https://github.com/si8881wo/qmeq-noise-example>`_ is adapted
+as tutorial 7 in this documentation.
 
 First-order formula
 -------------------
@@ -130,3 +130,8 @@ electron-phonon approaches, or matrix-free solvers. RTD counting does not
 implement off-diagonal corrections and requires
 ``off_diag_corrections=False``. These combinations raise
 ``NotImplementedError`` rather than returning uncontrolled values.
+
+The unequal-temperature RTD integral path is still being validated for
+residual finite-bandwidth dependence. Thermal-bias RTD counting calculations
+should therefore include an independent bandwidth-convergence check and should
+not yet be treated as reference-precision results.

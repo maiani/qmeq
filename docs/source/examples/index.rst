@@ -36,6 +36,7 @@ the energy that the charge carries, and second-order tunnelling.
    4. Coherence in a double dot and choosing an approximation <coherence_and_approximations>
    5. Energy and heat transport <energy_and_heat_transport>
    6. Cotunnelling and second-order methods <cotunnelling_and_second_order>
+   7. Current noise from counting statistics <counting_statistics>
 
 The notebooks are rendered directly from ``examples/tutorials/``.  Short,
 self-contained programs suitable for copying into a new project remain in
