@@ -696,7 +696,7 @@ def integralX(p1, eta1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma):
         The integral value
     """
 
-    TMIN = 1e-10
+    TMIN = 1e-5
     equal_temperatures = abs(T2-T1) < TMIN
     if equal_temperatures:
         lambda1 = (E1 - mu1) / T1

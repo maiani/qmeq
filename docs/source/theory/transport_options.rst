@@ -7,7 +7,9 @@ transport approaches:
 ``bandwidth``
     Selects whether the finite lead bandwidths in ``dband`` are enforced.
     Use ``'finite'`` to drop transitions outside the bands or ``'infinite'``
-    for the wide-band limit.
+    for the wide-band limit. RTD is an important exception: the option selects
+    wide-band sequential rates, but its published second-order integrals still
+    retain ``dband`` as a finite regulator.
 
 ``principal_part``
     Selects how principal-value contributions are evaluated.  Use ``'quad'``
@@ -33,6 +35,18 @@ RTD         ``(infinite, digamma)``
 
 For Pauli, ``principal_part='omit'`` records that the approximation has no
 principal-value contribution; it does not change the Pauli kernel.
+
+For RTD, ``dband`` must be much larger than every transition energy, chemical
+potential, and temperature even though ``bandwidth='infinite'`` is selected.
+This follows the finite-cutoff derivation of the unequal-temperature
+second-order integrals in the supplemental material of `Gergs et al.,
+Phys. Rev. Lett. 120, 017701 (2018)
+<https://arxiv.org/abs/1707.03373>`_. QmeQ emits
+``RTDBandwidthWarning`` when unequal
+temperatures are used and the smallest cutoff is less than 1000 times the
+largest transport scale. The threshold is a conservative diagnostic, not a
+substitute for repeating the calculation with increasing ``dband`` and
+checking convergence of every reported observable.
 
 For Lindblad, the principal-value contribution is the
 :doc:`Lamb shift <lambshift>`.  Numerical quadrature is not implemented for

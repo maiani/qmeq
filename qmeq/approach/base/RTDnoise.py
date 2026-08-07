@@ -21,6 +21,7 @@ from ...specfunc.specfunc import func_pauli
 from ...specfunc.specfunc import fermi_lpm
 from ...specfunc.specfunc import diff_phi
 from .RTD import ApproachPyRTD
+from .RTD import _warn_if_unequal_temperature_cutoff_is_small
 from ..counting import stationary_projected_pseudoinverse
 from ..kernel_handler import KernelHandlerRTDnoise
 
@@ -249,6 +250,8 @@ class ApproachPyRTDnoise(ApproachPyRTD):
         si, kh = self.si, self.kernel_handler
         ncharge, statesdm = si.ncharge, si.statesdm
         self.off_diag_corrections = self.funcp.off_diag_corrections
+
+        _warn_if_unequal_temperature_cutoff_is_small(self.qd, self.leads)
 
         if True:#(not np.all(np.isclose(self.leads.tlst, self.leads.tlst[0]))) or np.any(abs(self.leads.Tba.imag)>0):
             self.set_Ozaki_params()

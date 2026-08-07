@@ -4,6 +4,13 @@
 
 ### Added
 
+- Add an unequal-temperature RTD cutoff diagnostic. RTD now warns when the
+  finite ``dband`` regulator is not conservatively separated from all
+  transport scales, sizes the Ozaki expansion from the widest lead rather than
+  lead 0, and documents the required observable-level convergence check.
+- Add `AUTHORS.md`, recording the original scientific authors, major code
+  contributors, source forks, and integration work without replacing Git
+  authorship.
 - Add opt-in zero-frequency particle-current counting statistics, originally
   implemented by Simon Wozny in his
   [QmeQ fork](https://github.com/si8881wo/qmeq), following

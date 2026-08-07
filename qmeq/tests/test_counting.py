@@ -316,6 +316,45 @@ def test_rtd_sequential_limit_agrees_with_pauli():
     )
 
 
+def _thermal_rtdnoise_system(dband):
+    temperature = 100.0
+    gamma_left, gamma_right = 1.5, 0.5
+    return qmeq.Builder(
+        nsingle=2,
+        hsingle={(0, 0): -3500.0, (1, 1): -3500.0},
+        coulomb={(0, 1, 1, 0): 2000.0},
+        nleads=4,
+        tleads={
+            (0, 0): np.sqrt(gamma_left / (2*np.pi)),
+            (1, 0): np.sqrt(gamma_right / (2*np.pi)),
+            (2, 1): np.sqrt(gamma_left / (2*np.pi)),
+            (3, 1): np.sqrt(gamma_right / (2*np.pi)),
+        },
+        mulst={lead: 0.0 for lead in range(4)},
+        tlst={0: temperature, 1: 2*temperature,
+              2: temperature, 3: 2*temperature},
+        dband=dband,
+        countingleads=(1, 3),
+        kerntype="pyRTDnoise",
+        off_diag_corrections=False,
+    )
+
+
+def test_rtdnoise_unequal_temperature_cutoff_convergence():
+    lower_cutoff = _thermal_rtdnoise_system(2e6)
+    higher_cutoff = _thermal_rtdnoise_system(2e7)
+    lower_cutoff.solve()
+    higher_cutoff.solve()
+    np.testing.assert_allclose(
+        lower_cutoff.current_noise[0], higher_cutoff.current_noise[0],
+        rtol=1e-5, atol=1e-12,
+    )
+    np.testing.assert_allclose(
+        lower_cutoff.current_noise[1], higher_cutoff.current_noise[1],
+        rtol=5e-3, atol=1e-12,
+    )
+
+
 @pytest.mark.parametrize("gamma, bias", [(0.1, 40.0), (0.25, 60.0)])
 def test_single_resonant_level_matches_exact_scattering(gamma, bias):
     gamma_left = gamma_right = gamma / 2

@@ -61,6 +61,14 @@ For an introduction to QmeQ see the [tutorials][tutorial] and the runnable
 [example scripts][examples] in the [`examples/`][examples] directory. The
 notebooks are also rendered in the [documentation][qmeqdocs].
 
+Contributors and provenance
+---------------------------
+
+QmeQ combines the original project with later RTD, maintenance,
+counting-statistics, and tutorial histories. See [AUTHORS.md](AUTHORS.md) for
+the authors, source forks, and their specific contributions. Git authorship is
+preserved for the complete imported histories.
+
 License
 -------
 

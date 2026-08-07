@@ -117,8 +117,10 @@ def resolve_transport_options(itype, bandwidth, principal_part, kerntype):
     if approach in {"RTD", "RTDnoise"} and itype != 1:
         if descriptive_explicit:
             raise ValueError(
-                "The RTD approach requires bandwidth='infinite' and "
-                "principal_part='digamma'."
+                "The RTD approach requires bandwidth='infinite' for its "
+                "sequential rates and principal_part='digamma'. Its "
+                "second-order integrals still use dband as a finite "
+                "wide-band regulator."
             )
         if legacy_explicit:
             print("WARNING: only itype=1 is supported by the RTD approach. Using itype=1.")

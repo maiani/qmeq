@@ -131,7 +131,8 @@ implement off-diagonal corrections and requires
 ``off_diag_corrections=False``. These combinations raise
 ``NotImplementedError`` rather than returning uncontrolled values.
 
-The unequal-temperature RTD integral path is still being validated for
-residual finite-bandwidth dependence. Thermal-bias RTD counting calculations
-should therefore include an independent bandwidth-convergence check and should
-not yet be treated as reference-precision results.
+The published unequal-temperature RTD integrals retain ``dband`` as a finite
+wide-band regulator. Thermal-bias RTD counting calculations must therefore be
+repeated with increasing ``dband`` until every reported current and noise
+cumulant converges. QmeQ emits ``RTDBandwidthWarning`` when the cutoff is below
+the conservative diagnostic ratio described in :doc:`transport_options`.
