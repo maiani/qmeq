@@ -12,6 +12,7 @@ Submodules
    qmeq.approach.base.pauli
    qmeq.approach.base.redfield
    qmeq.approach.base.RTD
+   qmeq.approach.base.RTDnoise
 
 Cython submodules
 -----------------

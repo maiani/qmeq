@@ -1,25 +1,18 @@
 QmeQ: Quantum master equation for Quantum dot transport calculations
 ====================================================================
 
-**NOTE: This is an extended version of QmeQ to perform noise calculations via counting statistics**
+QmeQ supports the first two zero-frequency particle-current cumulants through
+counting fields for Pauli, Lindblad, Redfield, 1vN, and RTD. Pass a nonempty
+iterable such as `countingleads=[0, 2]`; after `solve()`,
+`system.current_noise` contains `[current, noise]` for the aggregate counted
+leads. Omitting `countingleads` leaves counting disabled. See the
+[counting-statistics documentation](https://qmeq.readthedocs.io/en/latest/theory/counting_statistics.html)
+for formulas, RTD outputs, conventions, and limitations.
 
-Changes to the base QmeQ include the ability to calculate the second current
-cumulant via counting statistic for the first order approaches and the RTD approach.
-Note, that the changes in the first order approaches are directly in the approaches
-(subject to change), while in the RTD case RTDnoise was added as a separate approach.
-
-The counting leads can be chosen by passing an iterable with the lead indices to the
-builder when creating the system, e.g. `countingleads=[0,2]` when counting at leads
-0 and 2. Currently , in the first order approaches and RTDnoise `system.current_noise`
-is how to get the current and noise via counting statistics. It is an array with two
-entries, the first is the current and the second is the noise at the chosen counting
-leads. In the RTDnoise approach there are additionally `system.appr.current_noise_first`
-and `system.appr.current_noise_o4trunc` that contain the first order current and
-so-called *O(4) trunc.* current (expansion of the current to 4th order in $\Gamma$
-not $H_T$).
-An example of how to use this can be found [here](https://github.com/si8881wo/qmeq-noise-example).
-
-====================================================================
+This implementation was developed by Simon Wozny and integrated from his
+[QmeQ fork](https://github.com/si8881wo/qmeq). See his
+[example notebook](https://github.com/si8881wo/qmeq-noise-example) and
+[Emary's counting-statistics formulation](https://arxiv.org/abs/0902.3544).
 
 QmeQ is an open-source Python package for calculations of transport through
 quantum  dot devices. The so-called Anderson-type models are used to describe

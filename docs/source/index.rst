@@ -22,6 +22,7 @@ Contents:
 
    theory/transport_options
    theory/lambshift
+   theory/counting_statistics
 
 .. toctree::
    :maxdepth: 2

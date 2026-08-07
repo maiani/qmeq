@@ -4,6 +4,17 @@
 
 ### Added
 
+- Add opt-in zero-frequency particle-current counting statistics, originally
+  implemented by Simon Wozny in his
+  [QmeQ fork](https://github.com/si8881wo/qmeq), following
+  [Emary, Phys. Rev. B 80, 235306 (2009)](https://arxiv.org/abs/0902.3544).
+  `countingleads` selects one or more leads sharing an aggregate counting
+  field, and `current_noise` reports the first two cumulants for Pauli,
+  Lindblad, Redfield, and 1vN on both Python and Cython backends. The
+  pure-Python `pyRTDnoise` approach, also available as `RTDnoise`, exposes the
+  full fourth-order-kernel result, its sequential result, and a consistently
+  fourth-order-truncated result. See `docs/source/theory/counting_statistics.rst`
+  and Simon's [example notebook](https://github.com/si8881wo/qmeq-noise-example).
 - Include the Lamb shift in the Lindblad approach. The renormalisation of the
   many-body energies by the coupling to the leads is now built as a lead-resolved
   Hamiltonian `HLS` (a new attribute of the Lindblad approach, with the same shape
