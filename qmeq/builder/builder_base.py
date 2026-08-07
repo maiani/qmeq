@@ -27,6 +27,9 @@ from .validation import resolve_transport_options
 from .validation import validate_indexing
 from .validation import validate_countingleads
 
+
+_UNSET = object()
+
 # -----------------------------------------------------------
 # Python modules
 
@@ -80,7 +83,8 @@ attribute_map = dict(
     solve='appr', current='appr', energy_current='appr',
     heat_current='appr', phi0='appr', phi1='appr', niter='appr',
     iters='appr', kern='appr', success='appr', make_kern_copy='appr',
-    current_noise = 'appr', countingleads = 'funcp',
+    current_noise='appr', current_noise_first='appr',
+    current_noise_o4trunc='appr',
     # FunctionProperties
     kpnt='funcp', symq='appr', norm_row='appr', solmethod='appr',
     itype='appr', bandwidth='appr', principal_part='appr',
@@ -113,7 +117,7 @@ class BuilderBase(object):
                  mtype_qd=complex, mtype_leads=complex,
                  symmetry=None, herm_hs=True, herm_c=False, m_less_n=True,
                  bandwidth=None, principal_part=None,
-                 countingleads=[0], off_diag_corrections=True):
+                 countingleads=None, off_diag_corrections=True):
 
         self._init_copy_data(locals())
         self._init_validate_data()
@@ -136,7 +140,9 @@ class BuilderBase(object):
         data.indexing, data.symmetry = validate_indexing(data.indexing,
                                           data.symmetry,
                                           data.kerntype)
-        data.countingleads = validate_countingleads(data.countingleads)
+        data.countingleads = validate_countingleads(
+            data.countingleads, data.nleads
+        )
 
     def _init_set_globals(self):
         self.globals = globals()
@@ -159,6 +165,7 @@ class BuilderBase(object):
                                         mfreeq=data.mfreeq, phi0_init=data.phi0_init,
                                         mtype_qd=data.mtype_qd, mtype_leads=data.mtype_leads,
                                         kpnt=data.kpnt, dband=data.dband,
+                                        off_diag_corrections=data.off_diag_corrections,
                                         countingleads=data.countingleads
                                        )
 
@@ -235,6 +242,14 @@ class BuilderBase(object):
         self.leads.change(dlst=value)
     dband = property(get_dband, set_dband)
 
+    @property
+    def countingleads(self):
+        return self.funcp.countingleads
+
+    @countingleads.setter
+    def countingleads(self, value):
+        self.funcp.countingleads = validate_countingleads(value, self.nleads)
+
     def add(self, hsingle=None, coulomb=None, tleads=None, mulst=None, tlst=None, dlst=None):
         """
         Adds the values to the specified dictionaries and correspondingly redefines
@@ -251,9 +266,8 @@ class BuilderBase(object):
         if not (tleads is None and mulst is None and tlst is None and dlst is None):
             self.leads.add(tleads, mulst, tlst, dlst)
 
-    def change(self, hsingle=None, coulomb=None, tleads=None, mulst=None, tlst=None, dlst=None
-              ,countingleads=None
-              ):
+    def change(self, hsingle=None, coulomb=None, tleads=None, mulst=None,
+               tlst=None, dlst=None, countingleads=_UNSET):
         """
         Changes the values of the specified dictionaries and correspondingly redefines
         relevant many-body properties of the system.
@@ -268,8 +282,8 @@ class BuilderBase(object):
             self.qd.change(hsingle, coulomb)
         if not (tleads is None and mulst is None and tlst is None and dlst is None):
             self.leads.change(tleads, mulst, tlst, dlst)
-        if not (countingleads is None):
-            self.funcp.countingleads=validate_countingleads(countingleads)
+        if countingleads is not _UNSET:
+            self.countingleads = countingleads
 
     def get_phi0(self, b, bp):
         """
@@ -353,7 +367,8 @@ class BuilderManyBody(BuilderBase):
                  itype=None, dqawc_limit=10000, mfreeq=False, phi0_init=None,
                  mtype_qd=complex, mtype_leads=complex,
                  symmetry=None, herm_hs=True, herm_c=False, m_less_n=True,
-                 bandwidth=None, principal_part=None):
+                 bandwidth=None, principal_part=None,
+                 countingleads=None, off_diag_corrections=True):
 
         nleads = Tba.shape[0] if Tba is not None else 0
 
@@ -365,7 +380,8 @@ class BuilderManyBody(BuilderBase):
             dqawc_limit=dqawc_limit, mfreeq=mfreeq, phi0_init=phi0_init,
             mtype_qd=mtype_qd, mtype_leads=mtype_leads,
             symmetry=symmetry, herm_hs=herm_hs, herm_c=herm_c, m_less_n=m_less_n,
-            indexing='charge')
+            indexing='charge', countingleads=countingleads,
+            off_diag_corrections=off_diag_corrections)
 
         self._init_state_indexing(Na, Ea)
 

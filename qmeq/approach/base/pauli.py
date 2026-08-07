@@ -8,8 +8,6 @@ from ...wrappers.mytypes import doublenp
 from ...specfunc.specfunc import func_pauli
 from ..aprclass import Approach
 
-from ..kernel_handler import KernelHandlerNoise
-
 # ---------------------------------------------------------------------------------------------------
 # Pauli master equation
 # ---------------------------------------------------------------------------------------------------
@@ -20,36 +18,14 @@ class ApproachPauli(Approach):
     def get_kern_size(self):
         return self.si.npauli
 
-    def restart(self): # simon
-        Approach.restart(self)
-        self.Lpm = None
-        self.current_noise = None
-        self.energy_current_noise = None
-
-    def prepare_kernel_handler(self):
-        if self.funcp.mfreeq:
-            Approach.prepare_kernel_handler(self)
-        else:
-            self.kernel_handler = KernelHandlerNoise(self.si)
-
     def prepare_arrays(self):
         Approach.prepare_arrays(self)
-        nleads, ndm1, npauli = self.si.nleads, self.si.ndm1, self.si.npauli
+        nleads, ndm1 = self.si.nleads, self.si.ndm1
         self.paulifct = np.zeros((nleads, ndm1, 2), dtype=doublenp)
-        if not self.funcp.mfreeq:
-            self.Lpm = np.zeros((2, npauli, npauli), dtype=doublenp)
-            self.kernel_handler.set_lpm(self.Lpm)
-            self.current_noise = np.zeros(2)
-        # create additional vectors/matrices: 1d array with noise at all leads, matrix with derivative (liouvillian/parts)
-        # make sure kernel handler knows where to find new kernel (point to it)
 
     def clean_arrays(self):
         Approach.clean_arrays(self)
         self.paulifct.fill(0.0)
-        if not self.funcp.mfreeq:
-            self.Lpm.fill(0.0)
-            self.current_noise.fill(0.0)
-        # create additional vectors/matrices: 1d array with noise at all leads, matrix with derivative (liouvillian/parts)
 
     def generate_fct(self):
         """
@@ -100,9 +76,6 @@ class ApproachPauli(Approach):
         paulifct = self.paulifct
         si, kh = self.si, self.kernel_handler
         nleads, statesdm = si.nleads, si.statesdm
-        Lpm = self.Lpm #simon
-        countingleads = () if self.funcp.mfreeq else self.funcp.countingleads
-
         acharge = bcharge-1
         ccharge = bcharge+1
 
@@ -114,8 +87,6 @@ class ApproachPauli(Approach):
             for l in range(nleads):
                 fctm -= paulifct[l, ba, 1]
                 fctp += paulifct[l, ba, 0]
-                if l in countingleads:
-                    kh.set_matrix_element_lpm_pauli(paulifct[l, ba, 0],1,bb,aa)  #simon
             kh.set_matrix_element_pauli(fctm, fctp, bb, aa)
         for c in statesdm[ccharge]:
             cc = si.get_ind_dm0(c, c, ccharge)
@@ -124,17 +95,10 @@ class ApproachPauli(Approach):
             for l in range(nleads):
                 fctm -= paulifct[l, cb, 0]
                 fctp += paulifct[l, cb, 1]
-                if l in countingleads:
-                    kh.set_matrix_element_lpm_pauli(paulifct[l, cb, 1],0,bb,cc) #simon
             kh.set_matrix_element_pauli(fctm, fctp, bb, cc)
 
 
     def generate_current(self):
-        self.generate_current_std()
-        if not self.funcp.mfreeq:
-            self.generate_current_noise()
-
-    def generate_current_std(self):
         """
         Calculates currents using Pauli master equation approach.
 
@@ -168,38 +132,3 @@ class ApproachPauli(Approach):
                         energy_current[l] += -(E[b]-E[c])*(fct1 + fct2)
 
         self.heat_current[:] = energy_current - current*self.leads.mulst
-
-    def generate_current_noise(self): #simon
-        """
-        Calculates currents using Pauli master equation approach and noise via the C.Emary (PRB 80, 235306 (2009)) approach summed over countingleads passed
-
-        Returns
-        ----------
-        current : float
-            Value of the current attaching the counting field to countingleads.
-        noise : array
-            Value of the current noise attaching the counting field to countingleads.
-        """
-        phi0, E, si = self.phi0, self.qd.Ea, self.si
-        nleads = si.nleads
-        kern, Lpm = self.kern, self.Lpm
-        Lm, Lp = self.Lpm
-
-        # auxilliary quantities
-        # right eigenvector
-        P = phi0[...,None]
-        # left eigenvector
-        O = np.ones(np.size(P))[None,...]
-        # projector
-        Q = (np.eye(np.size(P)) - P @ O)
-        # pseudoinverse
-        eps = 1e-10
-        R = Q @ np.linalg.pinv(kern[:P.size, :P.size]) @ Q
-
-        # current and noise
-        Jp  = 1j*Lp - 1j*Lm
-        Jpp = -Lp - Lm
-        c = -1j*(O @ Jp @ P)
-        s = -O @ (Jpp - 2*(Jp @ R @ Jp)) @ P
-        self.current_noise[0] = c.real.item()
-        self.current_noise[1] = s.real.item()

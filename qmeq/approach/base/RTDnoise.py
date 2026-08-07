@@ -1,4 +1,4 @@
-"""Module containing RTD Approach."""
+"""Pure-Python RTD zero-frequency current and noise approach."""
 
 from itertools import product
 
@@ -21,6 +21,7 @@ from ...specfunc.specfunc import func_pauli
 from ...specfunc.specfunc import fermi_lpm
 from ...specfunc.specfunc import diff_phi
 from .RTD import ApproachPyRTD
+from ..counting import stationary_projected_pseudoinverse
 from ..kernel_handler import KernelHandlerRTDnoise
 
 class ApproachPyRTDnoise(ApproachPyRTD):
@@ -127,6 +128,19 @@ class ApproachPyRTDnoise(ApproachPyRTD):
         currentq : bool
             Calculate the current.
         """
+        if self.funcp.countingleads is None:
+            raise ValueError(
+                "RTDnoise requires a nonempty countingleads iterable."
+            )
+        if self.funcp.mfreeq:
+            raise NotImplementedError(
+                "Matrix-free counting statistics are not implemented."
+            )
+        if self.funcp.off_diag_corrections:
+            raise NotImplementedError(
+                "RTDnoise does not implement off-diagonal corrections; "
+                "set off_diag_corrections=False."
+            )
         if qdq:
             self.qd.diagonalise()
             if rotateq:
@@ -177,6 +191,8 @@ class ApproachPyRTDnoise(ApproachPyRTD):
             self.funcp.print_error(exept)
             self.phi0_first.fill(0.0)
             self.success = False
+        if symq:
+            kern[norm_row] = replaced_eq
 
     def solve_kern_second(self):
         """Finds the stationary state using least squares or using LU decomposition."""
@@ -212,6 +228,8 @@ class ApproachPyRTDnoise(ApproachPyRTD):
             self.funcp.print_error(exept)
             self.phi0_second.fill(0.0)
             self.success = False
+        if symq:
+            kern[norm_row] = replaced_eq
 
     def generate_kern(self):
         r""" Generates all kernels including tunnel processes of orders :math:`t^2` and :math:`t^4`.
@@ -234,9 +252,6 @@ class ApproachPyRTDnoise(ApproachPyRTD):
 
         if True:#(not np.all(np.isclose(self.leads.tlst, self.leads.tlst[0]))) or np.any(abs(self.leads.Tba.imag)>0):
             self.set_Ozaki_params()
-
-        if self.off_diag_corrections:
-            print('WARNING: Off-diagonal corrections are not implemented for RTDnoise')
 
         for bcharge in range(ncharge):
             for b in statesdm[bcharge]:
@@ -278,16 +293,9 @@ class ApproachPyRTDnoise(ApproachPyRTD):
         L0p,Lp1p, Lp2p, Lm2p, Lm1p = self.build_counting_kernels(self.Lpm_first_dot,self.Lpm_second_dot,countingleads)
         kern = self.kern
 
-        # auxilliary quantities
-        # right eigenvector
-        P = phi0[...,None]
-        # left eigenvector
-        O = np.ones(np.size(P))[None,...]
-        # projector
-        Q = (np.eye(np.size(P)) - P @ O)
-        # pseudoinverse
-        # eps = 1e-8
-        R = Q @ np.linalg.pinv(kern[:P.size, :P.size]) @ Q
+        P, O, Q, R = stationary_projected_pseudoinverse(
+            kern, phi0, self.norm_vec
+        )
         # derivatives of noise kernel
         Jp = 1j*(Lp1 - Lm1 + 2*Lp2 - 2*Lm2)
         Jpp = -Lp1 - Lm1 - 4*Lp2 - 4*Lm2
@@ -318,16 +326,9 @@ class ApproachPyRTDnoise(ApproachPyRTD):
         L0p,Lp1p, Lm1p = self.build_counting_kernels_first(self.Lpm_first_dot,countingleads)
         kern = self.kern_first
 
-        # auxilliary quantities
-        # right eigenvector
-        P = phi0[...,None]
-        # left eigenvector
-        O = np.ones(np.size(P))[None,...]
-        # projector
-        Q = (np.eye(np.size(P)) - P @ O)
-        # pseudoinverse
-        # eps = 1e-8
-        R = Q @ np.linalg.pinv(kern[:P.size, :P.size]) @ Q
+        P, O, Q, R = stationary_projected_pseudoinverse(
+            kern, phi0, self.norm_vec
+        )
         # derivatives of noise kernel
         Jp = 1j*(Lp1 - Lm1)
         Jpp = -Lp1 - Lm1
@@ -371,10 +372,16 @@ class ApproachPyRTDnoise(ApproachPyRTD):
         P1 = phi0_second[...,None]-phi0_first[...,None]
         P01 = P0 + P1
         # left eigenvector
-        O = np.ones(np.size(P))[None,...]
+        O = np.asarray(self.norm_vec)[None, :]
         # projector
         Q = (np.eye(np.size(P)) - P @ O)
         Q0 = (np.eye(np.size(P0)) - P0 @ O)
+        stationary_projected_pseudoinverse(
+            kern, phi0, self.norm_vec
+        )
+        stationary_projected_pseudoinverse(
+            kern_first, phi0_first, self.norm_vec
+        )
         # pseudoinverse
         # eps = 1e-8
         size = P.size

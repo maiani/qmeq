@@ -10,6 +10,7 @@ from ..wrappers.mytypes import complexnp
 
 from .kernel_handler import KernelHandler
 from .kernel_handler import KernelHandlerMatrixFree
+from .counting import generate_counting_statistics, validate_counting_request
 
 
 class Approach(object):
@@ -177,6 +178,9 @@ class Approach(object):
         self.tLba = None
         self.HLS = None
         self.kernel_handler = None
+        self._counting_kernel = None
+        self.Lpm = None
+        self.current_noise = None
 
     #region Preparation
 
@@ -422,6 +426,7 @@ class Approach(object):
         currentq : bool
             Calculate the current.
         """
+        validate_counting_request(self)
         if qdq:
             self.qd.diagonalise()
             if rotateq:
@@ -432,11 +437,17 @@ class Approach(object):
             self.generate_fct()
             if not self.funcp.mfreeq:
                 self.generate_kern()
+                if self.funcp.countingleads is not None:
+                    size = self.phi0.size
+                    self._counting_kernel = np.array(
+                        self.kern[:size, :size], copy=True
+                    )
                 self.solve_kern()
             else:
                 self.solve_matrix_free()
             if currentq:
                 self.generate_current()
+                generate_counting_statistics(self)
 
     #endregion Solution
 
@@ -641,6 +652,10 @@ class ApproachBase2vN(Approach):
             User defined function which is performed after every iteration and
             takes Approach2vN object as an input.
         """
+        if self.funcp.countingleads is not None:
+            raise NotImplementedError(
+                "Counting statistics are not implemented for the 2vN approach."
+            )
         if restartq:
             self.restart()
         if qdq:

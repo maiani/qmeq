@@ -55,6 +55,9 @@ class FunctionProperties(object):
     off_diag_corrections: bool
         Determines wether to include first oder off-diagonal corrections to the kernel in the
         RTD approach.
+    countingleads : tuple of int or None
+        Lead indices sharing one particle-counting field, or ``None`` when
+        counting statistics are disabled.
     """
 
     def __init__(self,
@@ -63,8 +66,7 @@ class FunctionProperties(object):
                  dqawc_limit=10000, mfreeq=False, phi0_init=None,
                  mtype_qd=float, mtype_leads=complex, kpnt=None, dband=None,
                  off_diag_corrections=True,
-                 countingleads=[0] #simon
-                ):
+                 countingleads=None):
         self.kerntype = kerntype
         self.symq = symq
         self.norm_row = norm_row
@@ -98,7 +100,7 @@ class FunctionProperties(object):
         #
         self.off_diag_corrections = off_diag_corrections
         #
-        self.countingleads = countingleads #simon
+        self.countingleads = countingleads
 
     def print_error(self, exept):
         if not self.suppress_err:

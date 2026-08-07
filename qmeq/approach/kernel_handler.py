@@ -328,7 +328,12 @@ class KernelHandlerRTD(KernelHandler):
     """Class used for inserting matrix elements into the matrices used in the RTD approach."""
 
     def set_matrix_list(self):
-        self.mats = [self.Wdd, self.WE1, self.WE2, self.ReWdn, self.ImWdn, self.ReWnd, self.ImWnd, self.Lnn]
+        self.mats = [
+            self.Wdd, self.WE1, self.WE2,
+            getattr(self, "ReWdn", None), getattr(self, "ImWdn", None),
+            getattr(self, "ReWnd", None), getattr(self, "ImWnd", None),
+            getattr(self, "Lnn", None),
+        ]
 
     def add_matrix_element(self, fct, l, b, bp, bcharge, a, ap, acharge, mi):
         r"""

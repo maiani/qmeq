@@ -4,6 +4,7 @@ from .._backend import load_compiled_modules
 from .builder_base import BuilderBase
 from .builder_base import attribute_map
 from .builder_base import BuilderManyBody
+from .builder_base import _UNSET
 from ..indexing import StateIndexingDM
 from ..indexing import StateIndexingDMc
 from ..baths import PhononBaths
@@ -92,7 +93,8 @@ class BuilderElPh(BuilderBase):
                  mtype_qd=complex, mtype_leads=complex,
                  symmetry=None, herm_hs=True, herm_c=False, m_less_n=True,
                  bath_func=None, eps_elph=1.0e-6,
-                 bandwidth=None, principal_part=None):
+                 bandwidth=None, principal_part=None,
+                 countingleads=None, off_diag_corrections=True):
 
         self._init_copy_data(locals())
         self._init_validate_data()
@@ -141,8 +143,12 @@ class BuilderElPh(BuilderBase):
 
     def change(self,
                hsingle=None, coulomb=None, tleads=None, mulst=None, tlst=None, dlst=None,
-               velph=None, tlst_ph=None, dlst_ph=None):
-        BuilderBase.change(self, hsingle, coulomb, tleads, mulst, tlst, dlst)
+               velph=None, tlst_ph=None, dlst_ph=None,
+               countingleads=_UNSET):
+        BuilderBase.change(
+            self, hsingle, coulomb, tleads, mulst, tlst, dlst,
+            countingleads,
+        )
         if not (velph is None and tlst_ph is None and dlst_ph is None):
             self.baths.change(velph, tlst_ph, dlst_ph)
 
@@ -178,7 +184,8 @@ class BuilderManyBodyElPh(BuilderElPh, BuilderManyBody):
                  mtype_qd=complex, mtype_leads=complex,
                  symmetry=None, herm_hs=True, herm_c=False, m_less_n=True,
                  bath_func=None, eps_elph=1.0e-6,
-                 bandwidth=None, principal_part=None):
+                 bandwidth=None, principal_part=None,
+                 countingleads=None, off_diag_corrections=True):
 
         nleads = Tba.shape[0] if Tba is not None else 0
         nbaths = Vbbp.shape[0] if Vbbp is not None else 0
@@ -193,7 +200,8 @@ class BuilderManyBodyElPh(BuilderElPh, BuilderManyBody):
             mtype_qd=mtype_qd, mtype_leads=mtype_leads,
             symmetry=symmetry, herm_hs=herm_hs, herm_c=herm_c, m_less_n=m_less_n,
             bath_func=bath_func, eps_elph=eps_elph,
-            indexing='charge')
+            indexing='charge', countingleads=countingleads,
+            off_diag_corrections=off_diag_corrections)
 
         self._init_state_indexing(Na, Ea)
 

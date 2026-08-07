@@ -1,5 +1,7 @@
 """Module containing methods for validation of input parameters."""
 
+from numbers import Integral
+
 ITYPE_OPTIONS = {
     0: ("finite", "quad"),
     1: ("infinite", "digamma"),
@@ -174,7 +176,28 @@ def validate_indexing(indexing, symmetry, kerntype):
         indexing = 'charge'
     return indexing, symmetry
 
-def validate_countingleads(countingleads): #simon
-    if len(set(countingleads)) != len(countingleads):
-        print('WARNING: The counting field gets attached more than once to at least one lead!')
-    return countingleads
+def validate_countingleads(countingleads, nleads=None):
+    """Validate and freeze the leads sharing one particle-counting field."""
+    if countingleads is None:
+        return None
+    if isinstance(countingleads, (str, bytes)):
+        raise TypeError("countingleads must be an iterable of lead indices.")
+    try:
+        leads = tuple(countingleads)
+    except TypeError as exc:
+        raise TypeError(
+            "countingleads must be an iterable of lead indices."
+        ) from exc
+    if not leads:
+        raise ValueError("countingleads must contain at least one lead index.")
+    if any(isinstance(lead, bool) or not isinstance(lead, Integral)
+           for lead in leads):
+        raise TypeError("countingleads must contain only integer lead indices.")
+    leads = tuple(int(lead) for lead in leads)
+    if len(set(leads)) != len(leads):
+        raise ValueError("countingleads must not contain duplicate lead indices.")
+    if nleads is not None and any(lead < 0 or lead >= nleads for lead in leads):
+        raise ValueError(
+            f"countingleads entries must be between 0 and {nleads - 1}."
+        )
+    return leads
