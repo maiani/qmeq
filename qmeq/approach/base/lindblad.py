@@ -201,8 +201,7 @@ class ApproachLindblad(Approach):
         heat_current : array
             (Modifies) Values of the heat current having nleads entries.
         """
-        phi0p, E, tLba, si = self.phi0, self.qd.Ea, self.tLba, self.si
-        ndm0, npauli = si.ndm0, si.npauli
+        E, tLba, si = self.qd.Ea, self.tLba, self.si
         ncharge, nleads, statesdm = si.ncharge, si.nleads, si.statesdm
 
         current = self.current

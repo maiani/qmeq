@@ -77,7 +77,7 @@ class ApproachRedfield(Approach):
         # --------------------------------------------------
 
     def generate_current(self):
-        E, Tba = self.qd.Ea, self.leads.Tba
+        Tba = self.leads.Tba
         phi1fct, phi1fct_energy = self.phi1fct, self.phi1fct_energy
 
         si = self.si

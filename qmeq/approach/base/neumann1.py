@@ -129,7 +129,7 @@ class Approach1vN(Approach):
         heat_current : array
             (Modifies) Values of the heat current having nleads entries.
         """
-        E, Tba = self.qd.Ea, self.leads.Tba
+        Tba = self.leads.Tba
         phi1fct, phi1fct_energy = self.phi1fct, self.phi1fct_energy
 
         si = self.si

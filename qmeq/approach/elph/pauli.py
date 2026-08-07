@@ -34,7 +34,7 @@ class ApproachPauli(ApproachElPh):
         ApproachPauliBase.generate_fct(self)
 
         E, Vbbp = self.qd.Ea, self.baths.Vbbp
-        si, kh = self.si_elph, self.kernel_handler
+        si = self.si_elph
         ncharge, nbaths, statesdm = si.ncharge, si.nbaths, si.statesdm
 
         func_pauli = FuncPauliElPh(self.baths.tlst_ph, self.baths.dlst_ph,

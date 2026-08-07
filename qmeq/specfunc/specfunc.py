@@ -534,7 +534,7 @@ def polygamma(U, K):
 
     if X < 0:
         V = V * PI
-        X, Y = V.real, V.imag
+        X = V.real
         A = np.sin(X)
         B = np.cos(X)
         T = np.tanh(X)

@@ -355,7 +355,7 @@ class Approach2vN(ApproachBase2vN):
         """
         phi1_phi0, e_phi1_phi0 = self.phi1_phi0, self.e_phi1_phi0
         phi0, Tba, si = self.phi0, self.leads.Tba, self.si
-        ncharge, nleads, ndm1, statesdm = si.ncharge, si.nleads, si.ndm1, si.statesdm
+        ncharge, nleads, statesdm = si.ncharge, si.nleads, si.statesdm
 
         phi1 = self.phi1
         h_phi1 = self.h_phi1

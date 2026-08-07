@@ -59,7 +59,7 @@ class ApproachLindblad(ApproachElPh):
 
         tLbbp = self.tLbbp
         si, kh = self.si, self.kernel_handler
-        nbaths, statesdm = si.nbaths, si.statesdm
+        statesdm = si.statesdm
 
         acharge = bcharge
 

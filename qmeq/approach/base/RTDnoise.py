@@ -352,9 +352,8 @@ class ApproachPyRTDnoise(ApproachPyRTD):
         phi0_second = self.phi0_second
 
         L0_1, Lp1_1, Lp2_1, Lm2_1, Lm1_1 = self.build_counting_kernels(self.Lpm_first,np.zeros(self.Lpm_second.shape),countingleads)
-        L0_2, Lp1_2, Lp2_2, Lm2_2, Lm1_2 = self.build_counting_kernels(np.zeros(self.Lpm_first.shape),self.Lpm_second,countingleads)
+        _, Lp1_2, Lp2_2, Lm2_2, Lm1_2 = self.build_counting_kernels(np.zeros(self.Lpm_first.shape),self.Lpm_second,countingleads)
         L0p_1,Lp1p_1, Lp2p_1, Lm2p_1, Lm1p_1 = self.build_counting_kernels(self.Lpm_first_dot,np.zeros(self.Lpm_second_dot.shape),countingleads)
-        L0p_2,Lp1p_2, Lp2p_2, Lm2p_2, Lm1p_2 = self.build_counting_kernels(np.zeros(self.Lpm_first_dot.shape),self.Lpm_second_dot,countingleads)
         kern = self.kern
         kern_first = self.kern_first
         kern_second = self.kern_second
@@ -368,7 +367,6 @@ class ApproachPyRTDnoise(ApproachPyRTD):
         # left eigenvector
         O = np.asarray(self.norm_vec)[None, :]
         # projector
-        Q = (np.eye(np.size(P)) - P @ O)
         Q0 = (np.eye(np.size(P0)) - P0 @ O)
         stationary_projected_pseudoinverse(
             kern, phi0, self.norm_vec
@@ -379,10 +377,8 @@ class ApproachPyRTDnoise(ApproachPyRTD):
         # pseudoinverse
         # eps = 1e-8
         size = P.size
-        kern_square = kern[:size, :size]
         kern_first_square = kern_first[:size, :size]
         kern_second_square = kern_second[:size, :size]
-        R = Q @ np.linalg.pinv(kern_square) @ Q
         Rm1 = np.linalg.pinv(kern_first_square)
         R0 = -Rm1 @ kern_second_square @ Rm1
         # derivatives of noise kernel
@@ -391,9 +387,7 @@ class ApproachPyRTDnoise(ApproachPyRTD):
         Jpp_1 = -Lp1_1 - Lm1_1 - 4*Lp2_1 - 4*Lm2_1
         Jpp_2 = -Lp1_2 - Lm1_2 - 4*Lp2_2 - 4*Lm2_2
         Jdot_1 = L0p_1 + Lp1p_1 + Lp2p_1 + Lm2p_1 + Lm1p_1
-        Jdot_2 = L0p_2 + Lp1p_2 + Lp2p_2 + Lm2p_2 + Lm1p_2
         Jdotp_1 = 1j*(Lp1p_1 - Lm1p_1 + 2*Lp2p_1 - 2*Lm2p_1)
-        Jdotp_2 = 1j*(Lp1p_2 - Lm1p_2 + 2*Lp2p_2 - 2*Lm2p_2)
         # current
         c1 = -1j*(O @ Jp_1 @ P0)
         c2 = -1j*(O @ Jp_2 @ P0) - 1j*(O @ Jp_1 @ P01)
@@ -434,13 +428,12 @@ class ApproachPyRTDnoise(ApproachPyRTD):
         """
         si, kh = self.si, self.kernel_handler
         nleads, statesdm = si.nleads, si.statesdm
-        Lpm = self.Lpm #simon
         countingleads = self.funcp.countingleads #simon
         itype = self.funcp.itype
-        pi = np.pi
 
-        (E, Tba, tleads, mulst, tlst, dlst) = (self.qd.Ea, self.leads.Tba, self.leads.tleads_array,
-                                                   self.leads.mulst, self.leads.tlst, self.leads.dlst)
+        (E, Tba, mulst, tlst, dlst) = (self.qd.Ea, self.leads.Tba,
+                                       self.leads.mulst, self.leads.tlst,
+                                       self.leads.dlst)
 
         acharge = bcharge-1
         ccharge = bcharge+1
@@ -449,7 +442,6 @@ class ApproachPyRTDnoise(ApproachPyRTD):
 
         for a in statesdm[acharge]: # careful: 1) eta=-xi from emary 2) a initial state, this adds an electron -> L+
             aa = si.get_ind_dm0(a, a, acharge)
-            ba = si.get_ind_dm1(b, a, acharge)
             dE = E[b] - E[a]
             for l in range(nleads):
                 mu, Tr, gamma = mulst[l], tlst[l], Tba[l, a, b] * Tba[l, a, b].conj()
@@ -470,7 +462,6 @@ class ApproachPyRTDnoise(ApproachPyRTD):
                     kh.set_matrix_element_lpm_pauli(2j*gamma*phi_eps, 5, bb, aa)
         for c in statesdm[ccharge]: # carefull: 1) eta=-xi from emary 2) c initial state, this takes out an electron -> L-
             cc = si.get_ind_dm0(c, c, ccharge)
-            cb = si.get_ind_dm1(c, b, bcharge)
             dE = E[c] - E[b]
             for l in range(nleads):
                 mu, Tr, gamma = mulst[l], tlst[l], Tba[l, c, b] * Tba[l, c, b].conj()
@@ -572,8 +563,6 @@ class ApproachPyRTDnoise(ApproachPyRTD):
         nleads = self.si.nleads
         b_and_R = self.Ozaki_poles_and_residues
 
-        countingleads = self.funcp.countingleads
-
         t_cutoff1 = 0.0
         t_cutoff2 = 1e-10*max(tlst)
         t_cutoff3 = 1e-20*max(tlst)**2
@@ -588,7 +577,6 @@ class ApproachPyRTDnoise(ApproachPyRTD):
 
         #eta0=1,p0=p3=1
         for r0, r1 in product(range(nleads), range(nleads)):
-            r0_c, r1_c = int(r0 in countingleads), int(r1 in countingleads)
             T1, T2 = tlst[r0], tlst[r1]
             mu1, mu2 = mulst[r0], mulst[r1]
             D = np.abs(dlst[r0, 1]) + np.abs(dlst[r0, 0])
@@ -969,7 +957,6 @@ class ApproachPyRTDnoise(ApproachPyRTD):
     def build_counting_kernels_first(self,Lpm_first,countingleads):
         """Builds the counting kernels for the given counting leads.
         """
-        nleads = self.si.nleads
         kern_size = self.get_kern_size()
         L = np.zeros((3,kern_size,kern_size),dtype=complex)
         # first order

@@ -285,8 +285,6 @@ class KernelHandlerMatrixFree(KernelHandler):
         bbp = self.si.get_ind_dm0(b, bp, bcharge)
         bbpi = self.ndm0 + bbp - self.npauli
         bbpi_bool = True if bbpi >= self.ndm0 else False
-        aap = self.si.get_ind_dm0(a, ap, acharge)
-
         phi0aap = self.get_phi0_element(a, ap, acharge)
         dphi0_dt_bbp = -1j*fct*phi0aap
 
