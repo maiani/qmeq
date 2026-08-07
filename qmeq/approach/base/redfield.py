@@ -1,11 +1,7 @@
 """Module containing python functions, which generate first order Redfield kernel.
    For docstrings see documentation of module neumann1."""
 
-import numpy as np
 import itertools
-
-from ...wrappers.mytypes import doublenp
-from ...wrappers.mytypes import complexnp
 
 from ..aprclass import Approach
 from .neumann1 import Approach1vN

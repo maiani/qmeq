@@ -7,8 +7,8 @@ from .._backend import load_compiled_modules
 from ..wrappers.mytypes import longnp
 
 from ..approach.aprclass import Approach
-from ..indexing import StateIndexingDM
-from ..indexing import StateIndexingDMc
+from ..indexing import StateIndexingDM  # noqa: F401
+from ..indexing import StateIndexingDMc  # noqa: F401
 from ..qdot import QuantumDot
 from ..leadstun import LeadsTunneling
 from .funcprop import FunctionProperties

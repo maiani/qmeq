@@ -18,8 +18,8 @@ from .specfunc import BW_Ozaki
 from .specfunc import func_pauli
 from .specfunc import func_lambshift
 from .specfunc import func_1vN
-from .specfunc import kernel_fredriksen
-from .specfunc import hilbert_fredriksen
+from .specfunc import kernel_fredriksen as kernel_fredriksen
+from .specfunc import hilbert_fredriksen as hilbert_fredriksen
 from .specfunc_elph import Func as pyFunc
 
 _compiled = load_compiled_modules(

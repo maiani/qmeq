@@ -3,22 +3,13 @@
 from itertools import product
 
 import numpy as np
-import itertools
 
 from ...wrappers.mytypes import doublenp
 from ...wrappers.mytypes import complexnp
 
-from ...specfunc.specfunc import integralD
-from ...specfunc.specfunc import integralX
 from ...specfunc.specfunc import integralD_lpm
 from ...specfunc.specfunc import integralX_lpm
-from ...specfunc.specfunc import phi
-from ...specfunc.specfunc import phi_lpm
-from ...specfunc.specfunc import fermi_func
-from ...specfunc.specfunc import delta_phi
-from ...specfunc.specfunc import BW_Ozaki
 from ...specfunc.specfunc import func_pauli
-from ...specfunc.specfunc import fermi_lpm
 from ...specfunc.specfunc import diff_phi
 from .RTD import ApproachPyRTD
 from .RTD import _warn_if_unequal_temperature_cutoff_is_small

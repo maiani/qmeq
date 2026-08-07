@@ -3,9 +3,6 @@
 import numpy as np
 import itertools
 
-from ...wrappers.mytypes import complexnp
-from ...wrappers.mytypes import doublenp
-
 from ...specfunc.specfunc import func_pauli
 from ...specfunc.specfunc import func_lambshift
 from ..aprclass import Approach

@@ -5,7 +5,7 @@ from .builder_base import BuilderBase
 from .builder_base import attribute_map
 from .builder_base import BuilderManyBody
 from .builder_base import _UNSET
-from ..indexing import StateIndexingDM
+from ..indexing import StateIndexingDM  # noqa: F401
 from ..indexing import StateIndexingDMc
 from ..baths import PhononBaths
 

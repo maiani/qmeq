@@ -1,6 +1,5 @@
 """Module containing various special functions."""
 
-from numpy import exp
 from numpy import expm1
 from numpy import pi
 from scipy.integrate import quad

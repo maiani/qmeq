@@ -34,32 +34,32 @@ duplicate existing calculations, check applicability of different methods, or
 simply discover new kind of physics using different approximate master equations.
 """
 
-from ._backend import BACKEND_ENV
-from ._backend import BackendConfigurationError
-from ._backend import BackendUnavailableError
-from ._backend import get_backend
-from ._backend import get_backend_status
-from ._backend import get_requested_backend
-from .approach.aprclass import Approach
-from .approach.aprclass import ApproachElPh
-from .approach.aprclass import ApproachBase2vN
-from .builder.builder import Builder
-from .builder.builder_base import BuilderBase
-from .builder.builder_base import BuilderManyBody
-from .builder.builder_base import ModelParameters
-from .builder.builder_elph import BuilderElPh
-from .builder.builder_elph import BuilderManyBodyElPh
-from .builder.funcprop import FunctionProperties
-from .indexing import StateIndexing
-from .indexing import StateIndexingPauli
-from .indexing import StateIndexingDM
-from .indexing import StateIndexingDMc
-from .leadstun import LeadsTunneling
-from .baths import PhononBaths
-from .qdot import QuantumDot
+from ._backend import BACKEND_ENV as BACKEND_ENV
+from ._backend import BackendConfigurationError as BackendConfigurationError
+from ._backend import BackendUnavailableError as BackendUnavailableError
+from ._backend import get_backend as get_backend
+from ._backend import get_backend_status as get_backend_status
+from ._backend import get_requested_backend as get_requested_backend
+from .approach.aprclass import Approach as Approach
+from .approach.aprclass import ApproachElPh as ApproachElPh
+from .approach.aprclass import ApproachBase2vN as ApproachBase2vN
+from .builder.builder import Builder as Builder
+from .builder.builder_base import BuilderBase as BuilderBase
+from .builder.builder_base import BuilderManyBody as BuilderManyBody
+from .builder.builder_base import ModelParameters as ModelParameters
+from .builder.builder_elph import BuilderElPh as BuilderElPh
+from .builder.builder_elph import BuilderManyBodyElPh as BuilderManyBodyElPh
+from .builder.funcprop import FunctionProperties as FunctionProperties
+from .indexing import StateIndexing as StateIndexing
+from .indexing import StateIndexingPauli as StateIndexingPauli
+from .indexing import StateIndexingDM as StateIndexingDM
+from .indexing import StateIndexingDMc as StateIndexingDMc
+from .leadstun import LeadsTunneling as LeadsTunneling
+from .baths import PhononBaths as PhononBaths
+from .qdot import QuantumDot as QuantumDot
 
 # Legacy class names
-from .builder.builder_base import BuilderManyBody as Builder_many_body
-from .builder.builder_elph import BuilderElPh as Builder_elph
+from .builder.builder_base import BuilderManyBody as Builder_many_body  # noqa: F401
+from .builder.builder_elph import BuilderElPh as Builder_elph  # noqa: F401
 
 __version__ = '1.1'

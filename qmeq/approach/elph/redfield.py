@@ -1,9 +1,6 @@
 """Module containing python functions, which generate first order Redfield kernel."""
 
-import numpy as np
 import itertools
-
-from ...wrappers.mytypes import doublenp
 
 from ..aprclass import ApproachElPh
 from ..base.redfield import ApproachRedfield as ApproachRedfieldBase
