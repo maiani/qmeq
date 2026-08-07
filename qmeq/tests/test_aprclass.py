@@ -2,9 +2,10 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from qmeq.approach.aprclass import *
-from qmeq.approach.base.neumann2 import *
 import qmeq
+from qmeq.approach.base.neumann2 import Approach2vN
+from qmeq.approach.base.neumann2 import get_htransf_phi1k
+from qmeq.specfunc.specfunc import hilbert_fredriksen
 
 
 def test_get_htransf_phi1k_matches_scalar_transforms():

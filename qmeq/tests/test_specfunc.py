@@ -2,7 +2,36 @@ import numpy as np
 from numpy.linalg import norm
 from numpy import exp
 from scipy.integrate import quad
-from qmeq.specfunc import *
+from qmeq.specfunc import BW_Ozaki
+from qmeq.specfunc import bose
+from qmeq.specfunc import c_BW_Ozaki
+from qmeq.specfunc import c_bose
+from qmeq.specfunc import c_delta_phi
+from qmeq.specfunc import c_diff2_phi
+from qmeq.specfunc import c_diff_fermi
+from qmeq.specfunc import c_diff_phi
+from qmeq.specfunc import c_digamma
+from qmeq.specfunc import c_fermi_func
+from qmeq.specfunc import c_func_1vN
+from qmeq.specfunc import c_func_lambshift
+from qmeq.specfunc import c_func_pauli
+from qmeq.specfunc import c_integralD
+from qmeq.specfunc import c_integralX
+from qmeq.specfunc import c_phi
+from qmeq.specfunc import c_polygamma
+from qmeq.specfunc import delta_phi
+from qmeq.specfunc import diff2_phi
+from qmeq.specfunc import diff_fermi
+from qmeq.specfunc import diff_phi
+from qmeq.specfunc import digamma
+from qmeq.specfunc import fermi_func
+from qmeq.specfunc import func_1vN
+from qmeq.specfunc import func_lambshift
+from qmeq.specfunc import func_pauli
+from qmeq.specfunc import integralD
+from qmeq.specfunc import integralX
+from qmeq.specfunc import phi
+from qmeq.specfunc import polygamma
 from qmeq.specfunc.specfunc_elph import FuncPauliElPh as PyFuncPauliElPh
 
 try:
