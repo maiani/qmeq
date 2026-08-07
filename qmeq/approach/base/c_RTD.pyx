@@ -14,6 +14,7 @@
 import numpy as np
 
 from ...approach.base.RTD import ApproachPyRTD as ApproachPyRTD
+from ...approach.base.RTD import _warn_if_unequal_temperature_cutoff_is_small
 from ...approach.aprclass import Approach as ApproachPy
 
 from ...wrappers.mytypes import doublenp
@@ -181,6 +182,8 @@ cdef class ApproachRTD(Approach):
         cdef long_t[:,:] statesdm = kh.statesdm
         cdef double_t[:] tlst = self._tlst
         cdef bool_t off_diag_corrections = self.funcp.off_diag_corrections
+
+        _warn_if_unequal_temperature_cutoff_is_small(self.qd, self.leads)
 
         if np.any(abs(self.leads.Tba.imag)>0):
             self.set_Ozaki_params()
@@ -970,8 +973,13 @@ cdef class ApproachRTD(Approach):
 
     cdef void set_Ozaki_params(self):
         cdef double_t[:,:] Ozaki_poles_and_residues
-
-        cdef double_t BW_T = (abs(self.leads.dlst[0][0]) + abs(self.leads.dlst[0][1])) / 2.0 / min(self.leads.tlst)
+        cdef long_t lead
+        cdef double_t bandwidth, max_bandwidth = 0.0
+        for lead in range(self._kernel_handler.nleads):
+            bandwidth = abs(self.leads.dlst[lead][0]) + abs(self.leads.dlst[lead][1])
+            if bandwidth > max_bandwidth:
+                max_bandwidth = bandwidth
+        cdef double_t BW_T = max_bandwidth / 2.0 / min(self.leads.tlst)
 
         if self.BW_Ozaki_expansion < BW_T:
             self.Ozaki_poles_and_residues = BW_Ozaki(BW_T)

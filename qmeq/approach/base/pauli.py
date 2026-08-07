@@ -1,4 +1,4 @@
-"""Module containing python functions, which generate first order Pauli kernel."""
+"""Module containing python functions, which generate first order Pauli."""
 
 import numpy as np
 import itertools
@@ -7,7 +7,6 @@ from ...wrappers.mytypes import doublenp
 
 from ...specfunc.specfunc import func_pauli
 from ..aprclass import Approach
-
 
 # ---------------------------------------------------------------------------------------------------
 # Pauli master equation
@@ -77,7 +76,6 @@ class ApproachPauli(Approach):
         paulifct = self.paulifct
         si, kh = self.si, self.kernel_handler
         nleads, statesdm = si.nleads, si.statesdm
-
         acharge = bcharge-1
         ccharge = bcharge+1
 
@@ -98,6 +96,7 @@ class ApproachPauli(Approach):
                 fctm -= paulifct[l, cb, 0]
                 fctp += paulifct[l, cb, 1]
             kh.set_matrix_element_pauli(fctm, fctp, bb, cc)
+
 
     def generate_current(self):
         """
@@ -133,4 +132,3 @@ class ApproachPauli(Approach):
                         energy_current[l] += -(E[b]-E[c])*(fct1 + fct2)
 
         self.heat_current[:] = energy_current - current*self.leads.mulst
-# ---------------------------------------------------------------------------------------------------

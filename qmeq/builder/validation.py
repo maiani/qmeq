@@ -1,5 +1,7 @@
 """Module containing methods for validation of input parameters."""
 
+from numbers import Integral
+
 ITYPE_OPTIONS = {
     0: ("finite", "quad"),
     1: ("infinite", "digamma"),
@@ -12,10 +14,10 @@ TRANSPORT_OPTIONS = {options: itype for itype, options in ITYPE_OPTIONS.items()}
 def validate_kerntype(kerntype):
     if isinstance(kerntype, str):
         if kerntype not in {'Pauli', 'Lindblad', 'Redfield', '1vN', '2vN', 'pyPauli',
-                    'pyLindblad', 'pyRedfield', 'py1vN', 'py2vN', 'pyRTD', 'RTD'}:
+                    'pyLindblad', 'pyRedfield', 'py1vN', 'py2vN', 'pyRTD', 'RTD','pyRTDnoise','RTDnoise'}:
             print("WARNING: Allowed kerntype values are: " +
                   "\'Pauli\', \'Lindblad\', \'Redfield\', \'1vN\', \'2vN\', " +
-                  "\'pyPauli\', \'pyLindblad\', \'pyRedfield\', \'py1vN\', \'py2vN\', \'RTD\'. " +
+                  "\'pyPauli\', \'pyLindblad\', \'pyRedfield\', \'py1vN\', \'py2vN\', \'RTD\', \'pyRTDnoise\', \'RTDnoise\'. " +
                   "Using default kerntype=\'Pauli\'.")
             kerntype = 'Pauli'
     return kerntype
@@ -112,11 +114,13 @@ def resolve_transport_options(itype, bandwidth, principal_part, kerntype):
             bandwidth = legacy_bandwidth
             principal_part = legacy_principal_part
 
-    if approach == "RTD" and itype != 1:
+    if approach in {"RTD", "RTDnoise"} and itype != 1:
         if descriptive_explicit:
             raise ValueError(
-                "The RTD approach requires bandwidth='infinite' and "
-                "principal_part='digamma'."
+                "The RTD approach requires bandwidth='infinite' for its "
+                "sequential rates and principal_part='digamma'. Its "
+                "second-order integrals still use dband as a finite "
+                "wide-band regulator."
             )
         if legacy_explicit:
             print("WARNING: only itype=1 is supported by the RTD approach. Using itype=1.")
@@ -141,14 +145,14 @@ def validate_itype_ph(itype_ph):
     return itype_ph
 
 def validate_mfreeq(kerntype, mfreeq):
-    if mfreeq and kerntype in {'RTD', 'pyRTD'}:
+    if mfreeq and kerntype in {'RTD', 'pyRTD','RTDnoise','pyRTDnoise'}:
         print("WARNING: mfreeq=True is not supported by the RTD approach. Using default mfreeq=False.")
         mfreeq = False
     return mfreeq
 
 def validate_indexing(indexing, symmetry, kerntype):
     if indexing is None:
-        if symmetry == 'spin' and kerntype in {'pyRTD', 'RTD'}:
+        if symmetry == 'spin' and kerntype in {'pyRTD', 'RTD', 'pyRTDnoise', 'RTDnoise'}:
             print("WARNING: symmetry=\'spin\' is not supported by the RTD approach. " +
                   "Using default indexing=\'charge\'.")
             indexing = 'charge'
@@ -168,9 +172,34 @@ def validate_indexing(indexing, symmetry, kerntype):
               "Using indexing=\'charge\' as a default.")
         indexing = 'charge'
 
-    if indexing != 'charge' and kerntype in {'pyRTD', 'RTD'}:
+    if indexing != 'charge' and kerntype in {'pyRTD', 'RTD', 'pyRTDnoise', 'RTDnoise'}:
         print("WARNING: For the RTD approach indexing needs to be \'charge\'. " +
               "Using indexing=\'charge\' as a default.")
         indexing = 'charge'
-
     return indexing, symmetry
+
+def validate_countingleads(countingleads, nleads=None):
+    """Validate and freeze the leads sharing one particle-counting field."""
+    if countingleads is None:
+        return None
+    if isinstance(countingleads, (str, bytes)):
+        raise TypeError("countingleads must be an iterable of lead indices.")
+    try:
+        leads = tuple(countingleads)
+    except TypeError as exc:
+        raise TypeError(
+            "countingleads must be an iterable of lead indices."
+        ) from exc
+    if not leads:
+        raise ValueError("countingleads must contain at least one lead index.")
+    if any(isinstance(lead, bool) or not isinstance(lead, Integral)
+           for lead in leads):
+        raise TypeError("countingleads must contain only integer lead indices.")
+    leads = tuple(int(lead) for lead in leads)
+    if len(set(leads)) != len(leads):
+        raise ValueError("countingleads must not contain duplicate lead indices.")
+    if nleads is not None and any(lead < 0 or lead >= nleads for lead in leads):
+        raise ValueError(
+            f"countingleads entries must be between 0 and {nleads - 1}."
+        )
+    return leads

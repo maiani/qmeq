@@ -10,7 +10,6 @@ from ...wrappers.mytypes import complexnp
 from ..aprclass import Approach
 from .neumann1 import Approach1vN
 
-
 # ---------------------------------------------------------------------------------------------------
 # Redfield approach
 # ---------------------------------------------------------------------------------------------------
@@ -31,7 +30,6 @@ class ApproachRedfield(Approach):
         Tba, phi1fct = self.leads.Tba, self.phi1fct
         si, kh = self.si, self.kernel_handler
         nleads, statesdm = si.nleads, si.statesdm
-
         acharge = bcharge-1
         ccharge = bcharge+1
 
@@ -133,4 +131,5 @@ class ApproachRedfield(Approach):
                     energy_current[l] += -2*energy_current_l.imag
 
         self.heat_current[:] = energy_current - current*self.leads.mulst
+
 # ---------------------------------------------------------------------------------------------------

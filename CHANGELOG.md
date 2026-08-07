@@ -4,6 +4,26 @@
 
 ### Added
 
+- Add an unequal-temperature RTD cutoff diagnostic. RTD now warns when the
+  finite ``dband`` regulator is not conservatively separated from all
+  transport scales, sizes the Ozaki expansion from the widest lead rather than
+  lead 0, and documents the required observable-level convergence check.
+- Add `AUTHORS.md`, recording the original scientific authors, major code
+  contributors, source forks, and integration work without replacing Git
+  authorship.
+- Add opt-in zero-frequency particle-current counting statistics, originally
+  implemented by Simon Wozny in his
+  [QmeQ fork](https://github.com/si8881wo/qmeq), following
+  [Emary, Phys. Rev. B 80, 235306 (2009)](https://arxiv.org/abs/0902.3544).
+  `countingleads` selects one or more leads sharing an aggregate counting
+  field, and `current_noise` reports the first two cumulants for Pauli,
+  Lindblad, Redfield, and 1vN on both Python and Cython backends. The
+  pure-Python `pyRTDnoise` approach, also available as `RTDnoise`, exposes the
+  full fourth-order-kernel result, its sequential result, and a consistently
+  fourth-order-truncated result. See `docs/source/theory/counting_statistics.rst`
+  and Simon's [example notebook](https://github.com/si8881wo/qmeq-noise-example).
+- Vendor and modernize Simon Wozny's counting-statistics notebook as tutorial
+  7, retaining his authorship, source link, and BSD-2-Clause license notice.
 - Include the Lamb shift in the Lindblad approach. The renormalisation of the
   many-body energies by the coupling to the leads is now built as a lead-resolved
   Hamiltonian `HLS` (a new attribute of the Lindblad approach, with the same shape
@@ -19,15 +39,16 @@
   `qmeq.approach.base.lindblad.generate_lamb_shift` and
   `docs/source/theory/lambshift.rst` for the implemented expressions.
 - Add a prioritized maintenance roadmap in `TODO.md`.
-- Add a six-notebook tutorial path in `examples/tutorials/`, each notebook
+- Add a seven-notebook tutorial path in `examples/tutorials/`, each notebook
   stating a prediction, building the smallest useful model, and asserting
   physical and numerical checks: a first sequential-transport calculation,
   Coulomb blockade in the Anderson model, bias-gate stability diagrams,
   coherence in a double dot with the Pauli/Lindblad/Redfield/1vN comparison,
   energy and heat transport with thermovoltage and unit conversions, and
   cotunnelling with the RTD and 2vN approaches including a quantum-dot heat
-  engine and many-body input. The path covers the material of the legacy
-  tutorials.
+  engine and many-body input, and zero-frequency current counting statistics.
+  The path covers the material of the legacy tutorials and Simon Wozny's noise
+  example.
 - Add explicit backend selection through `QMEQ_BACKEND=auto|python|cython` and
   expose `qmeq.get_backend_status()` for diagnostics and test assertions.
 - Vendor the tutorials, example scripts, and appendix notebooks (previously in

@@ -98,6 +98,13 @@ class Builder(BuilderBase):
         in the partition of the given integration interval.
     mfreeq : bool
         If mfreeq=True the matrix free solution method is used for first order methods.
+    countingleads : iterable of int or None
+        Lead indices sharing one particle-counting field. A nonempty iterable
+        enables the first two zero-frequency current cumulants for supported
+        approaches; ``None`` disables counting.
+    off_diag_corrections : bool
+        Include RTD off-diagonal corrections. These corrections are not
+        implemented for ``RTDnoise``, which requires this option to be false.
     phi0_init : array
         For mfreeq=True the initial value of zeroth order density matrix elements.
     mtype_qd : float or complex
@@ -142,6 +149,8 @@ class Builder(BuilderBase):
         stored in nleads by ndm1 numpy array.
     current : array
         Values of the current having nleads entries.
+    current_noise : array or None
+        Aggregate counted particle current and zero-frequency noise ``[I, S]``.
     energy_current : array
         Values of the energy current having nleads entries.
     heat_current : array

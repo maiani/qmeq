@@ -9,6 +9,7 @@ Subpackages
     base/qmeq.approach.base
     elph/qmeq.approach.elph
     qmeq.approach.aprclass
+    qmeq.approach.counting
     qmeq.approach.kernel_handler
 
 

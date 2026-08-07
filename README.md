@@ -1,6 +1,19 @@
 QmeQ: Quantum master equation for Quantum dot transport calculations
 ====================================================================
 
+QmeQ supports the first two zero-frequency particle-current cumulants through
+counting fields for Pauli, Lindblad, Redfield, 1vN, and RTD. Pass a nonempty
+iterable such as `countingleads=[0, 2]`; after `solve()`,
+`system.current_noise` contains `[current, noise]` for the aggregate counted
+leads. Omitting `countingleads` leaves counting disabled. See the
+[counting-statistics documentation](https://qmeq.readthedocs.io/en/latest/theory/counting_statistics.html)
+for formulas, RTD outputs, conventions, and limitations.
+
+This implementation was developed by Simon Wozny and integrated from his
+[QmeQ fork](https://github.com/si8881wo/qmeq). See his
+[example notebook](https://github.com/si8881wo/qmeq-noise-example) and
+[Emary's counting-statistics formulation](https://arxiv.org/abs/0902.3544).
+
 QmeQ is an open-source Python package for calculations of transport through
 quantum  dot devices. The so-called Anderson-type models are used to describe
 the quantum dot device, where quantum dots are coupled to the leads by
@@ -47,6 +60,14 @@ Tutorial & Examples
 For an introduction to QmeQ see the [tutorials][tutorial] and the runnable
 [example scripts][examples] in the [`examples/`][examples] directory. The
 notebooks are also rendered in the [documentation][qmeqdocs].
+
+Contributors and provenance
+---------------------------
+
+QmeQ combines the original project with later RTD, maintenance,
+counting-statistics, and tutorial histories. See [AUTHORS.md](AUTHORS.md) for
+the authors, source forks, and their specific contributions. Git authorship is
+preserved for the complete imported histories.
 
 License
 -------

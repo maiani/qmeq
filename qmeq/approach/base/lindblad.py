@@ -10,7 +10,6 @@ from ...specfunc.specfunc import func_pauli
 from ...specfunc.specfunc import func_lambshift
 from ..aprclass import Approach
 
-
 # ---------------------------------------------------------------------------------------------------
 # Lamb shift Hamiltonian
 # ---------------------------------------------------------------------------------------------------
@@ -147,7 +146,6 @@ class ApproachLindblad(Approach):
         tLba, HLS = self.tLba, self.HLS
         si, kh = self.si, self.kernel_handler
         nleads, statesdm = si.nleads, si.statesdm
-
         acharge = bcharge-1
         ccharge = bcharge+1
 
@@ -240,4 +238,5 @@ class ApproachLindblad(Approach):
                     energy_current[l] += energy_current_l.real
 
         self.heat_current[:] = energy_current - current*self.leads.mulst
+
 # ---------------------------------------------------------------------------------------------------

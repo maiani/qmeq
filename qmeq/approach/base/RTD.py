@@ -4,6 +4,7 @@ from itertools import product
 
 import numpy as np
 import itertools
+import warnings
 
 from ...wrappers.mytypes import doublenp
 
@@ -18,11 +19,57 @@ from ..aprclass import Approach
 from ..kernel_handler import KernelHandlerRTD
 
 _IMAGINARY_TUNNEL_PRODUCT_RTOL = 1e-12
+_RTD_WIDEBAND_RATIO_WARNING = 1e3
 
 
 def _has_significant_imaginary_part(value):
     """Return whether a tunnel product has a physically relevant phase."""
     return abs(value.imag) > _IMAGINARY_TUNNEL_PRODUCT_RTOL*abs(value)
+
+
+class RTDBandwidthWarning(RuntimeWarning):
+    """Warning that an unequal-temperature RTD cutoff may be too small."""
+
+
+def _rtd_bandwidth_ratio(qd, leads):
+    """Return the smallest lead cutoff divided by the largest transport scale."""
+    temperatures = np.asarray(leads.tlst, dtype=float)
+    chemical_potentials = np.asarray(leads.mulst, dtype=float)
+    bandwidths = np.sum(np.abs(np.asarray(leads.dlst, dtype=float)), axis=1)
+    scale = float(np.max(temperatures))
+    energies = np.asarray(qd.Ea, dtype=float)
+    statesdm = qd.si.statesdm
+    for charge in range(qd.si.ncharge - 1):
+        for lower in statesdm[charge]:
+            for upper in statesdm[charge + 1]:
+                transition = energies[upper] - energies[lower]
+                scale = max(
+                    scale,
+                    float(np.max(np.abs(transition - chemical_potentials))),
+                )
+    return float(np.min(bandwidths) / max(scale, np.finfo(float).tiny))
+
+
+def _warn_if_unequal_temperature_cutoff_is_small(qd, leads):
+    """Warn when the finite RTD regulator is not safely in the wide-band regime."""
+    temperatures = np.asarray(leads.tlst, dtype=float)
+    unequal = not np.allclose(
+        temperatures, temperatures[0], rtol=1e-12, atol=0.0
+    )
+    if not unequal:
+        return
+    ratio = _rtd_bandwidth_ratio(qd, leads)
+    if ratio < _RTD_WIDEBAND_RATIO_WARNING:
+        warnings.warn(
+            "Unequal-temperature RTD uses the finite cutoff in dband as a "
+            "numerical wide-band regulator. The current cutoff-to-transport-"
+            f"scale ratio is {ratio:.3g}, below the conservative diagnostic "
+            f"threshold {_RTD_WIDEBAND_RATIO_WARNING:.0f}. Repeat the "
+            "calculation with larger dband values and require convergence of "
+            "every reported observable.",
+            RTDBandwidthWarning,
+            stacklevel=3,
+        )
 
 
 class ApproachPyRTD(Approach):
@@ -129,6 +176,8 @@ class ApproachPyRTD(Approach):
         si, kh = self.si, self.kernel_handler
         ncharge, statesdm = si.ncharge, si.statesdm
         self.off_diag_corrections = self.funcp.off_diag_corrections
+
+        _warn_if_unequal_temperature_cutoff_is_small(self.qd, self.leads)
 
         if (not np.all(np.isclose(self.leads.tlst, self.leads.tlst[0]))) or np.any(abs(self.leads.Tba.imag)>0):
             self.set_Ozaki_params()
@@ -936,7 +985,8 @@ class ApproachPyRTD(Approach):
             a ndarray where the first column contains the reciprocal of the poles
             and the second columns contains the residues.
         """
-        BW_T = (abs(self.leads.dlst[0][0]) + abs(self.leads.dlst[0][1])) / 2.0 / min(self.leads.tlst)
+        bandwidth = np.max(np.sum(np.abs(self.leads.dlst), axis=1))
+        BW_T = bandwidth / 2.0 / min(self.leads.tlst)
         if self.BW_Ozaki_expansion < BW_T:
             self.Ozaki_poles_and_residues = BW_Ozaki(BW_T)
             self.BW_Ozaki_expansion = BW_T

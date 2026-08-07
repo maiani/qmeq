@@ -9,7 +9,6 @@ from ...wrappers.mytypes import doublenp
 from ...specfunc.specfunc import func_1vN
 from ..aprclass import Approach
 
-
 # ---------------------------------------------------------------------------------------------------
 # 1 von Neumann approach
 # ---------------------------------------------------------------------------------------------------
@@ -65,7 +64,6 @@ class Approach1vN(Approach):
         Tba, phi1fct = self.leads.Tba, self.phi1fct
         si, kh = self.si, self.kernel_handler
         nleads, statesdm = si.nleads, si.statesdm
-
         acharge = bcharge-1
         ccharge = bcharge+1
 
@@ -180,4 +178,5 @@ class Approach1vN(Approach):
                     energy_current[l] += -2*energy_current_l.imag
 
         self.heat_current[:] = energy_current - current*self.leads.mulst
+
 # ---------------------------------------------------------------------------------------------------
