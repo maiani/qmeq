@@ -8,11 +8,11 @@ set -e -x
 # and the Homebrew prefix differs between Intel (/usr/local) and Apple
 # Silicon (/opt/homebrew) runners.
 BREW_PREFIX=$(brew --prefix)
-GCC=$(ls "$BREW_PREFIX"/bin/gcc-* 2>/dev/null | sort -V | tail -n1)
+GCC=$(ls "$BREW_PREFIX"/bin/gcc-[0-9]* 2>/dev/null | sort -V | tail -n1)
 
 if [ -z "$GCC" ]; then
     brew install gcc
-    GCC=$(ls "$BREW_PREFIX"/bin/gcc-* | sort -V | tail -n1)
+    GCC=$(ls "$BREW_PREFIX"/bin/gcc-[0-9]* | sort -V | tail -n1)
 fi
 
 ln -sf "$GCC" "$BREW_PREFIX/bin/gcc"

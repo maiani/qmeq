@@ -1,4 +1,4 @@
-name: Test Cython 3
+name: Test Cython
 
 on:
   pull_request:

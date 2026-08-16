@@ -118,7 +118,11 @@
   CI runner images, target `cp310`-`cp314` to match `pyproject.toml`, add a
   `macos-14` (arm64) job alongside `macos-13` (Intel), and detect the
   Homebrew GCC version dynamically in `scripts/cibw_before_all_macos.sh`
-  instead of pinning to `gcc-10`.
+  instead of pinning to `gcc-10`. Split the workflow into a `build` job
+  (per-OS matrix, no elevated permissions) and a separate `publish` job that
+  only runs on tag pushes and uploads the artifacts from every completed
+  build to the release in one place, matching the build/publish split
+  already used for the Conda packages.
 - Bump `__version__` to `1.2.0.dev0` to mark ongoing modernization work past
   the released `1.1`. `docs/source/conf.py` now derives `version`/`release`
   from `qmeq.__version__` instead of a second, separately hardcoded string.
@@ -134,6 +138,13 @@
 
 ### Fixed
 
+- Fix the Homebrew GCC glob in `scripts/cibw_before_all_macos.sh`: `gcc-*`
+  also matched companion tools like `gcc-ar-15`, `gcc-nm-15`, and
+  `gcc-ranlib-15`, and `sort -V | tail -n1` could pick one of those instead
+  of the actual compiler, symlinking `gcc` to e.g. `gcc-ranlib-15` and
+  breaking the macOS wheel build (observed on `macos-14`/arm64 as
+  `gcc --version` invoking `ranlib --version`). The glob now requires a
+  digit immediately after `gcc-`.
 - Remove a dead, shadowed duplicate definition of the pure-Python 2vN
   `TermsCalculator2vN.iterate` method. The surviving implementation already
   contains the initialization performed by the removed definition.
