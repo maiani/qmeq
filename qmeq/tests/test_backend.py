@@ -7,6 +7,8 @@ from pathlib import Path
 import subprocess
 import sys
 
+import pytest
+
 import qmeq
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -92,6 +94,9 @@ def test_invalid_backend_fails_before_qmeq_import():
 
 
 def test_python_backend_disables_extensions_in_setup():
+    if not (ROOT / 'setup.py').is_file():
+        pytest.skip('requires the source-tree setup.py')
+
     code = """
 import runpy
 import setuptools

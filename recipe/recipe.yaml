@@ -1,0 +1,72 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/prefix-dev/recipe-format/main/schema.json
+
+context:
+  version: ${{ env.get("QMEQ_PACKAGE_VERSION") }}
+
+package:
+  name: qmeq
+  version: ${{ version }}
+
+source:
+  path: ..
+  use_gitignore: true
+
+build:
+  number: 0
+  script:
+    - if: unix
+      then:
+        - QMEQ_BACKEND=cython python -m pip install . --no-deps --no-build-isolation -vv
+    - if: win
+      then:
+        - set QMEQ_BACKEND=cython && python -m pip install . --no-deps --no-build-isolation -vv
+
+requirements:
+  build:
+    - ${{ compiler('c') }}
+    - ${{ stdlib('c') }}
+  host:
+    - python
+    - pip
+    - setuptools >=77
+    - cython >=3,<4
+    - numpy
+    - scipy
+    - if: osx
+      then:
+        - llvm-openmp
+  run:
+    - python >=3.10
+    - numpy
+    - scipy
+    - if: osx
+      then:
+        - llvm-openmp
+
+tests:
+  - package_contents:
+      site_packages:
+        - qmeq
+  - python:
+      imports:
+        - qmeq
+      pip_check: true
+  - script:
+      - if: unix
+        then:
+          - QMEQ_BACKEND=cython python -c "import qmeq; status = qmeq.get_backend_status(); print(status); assert status['active'] == 'cython'"
+      - if: win
+        then:
+          - set QMEQ_BACKEND=cython && python -c "import qmeq; status = qmeq.get_backend_status(); print(status); assert status['active'] == 'cython'"
+
+about:
+  homepage: https://github.com/maiani/qmeq
+  repository: https://github.com/maiani/qmeq
+  documentation: https://github.com/maiani/qmeq/tree/master/docs
+  license: BSD-2-Clause
+  license_file: LICENSE.md
+  summary: Quantum master equations for transport through quantum-dot devices
+  description: |
+    QmeQ calculates stationary particle and energy currents through quantum-dot
+    devices using approximate density-matrix and quantum master equation
+    methods.

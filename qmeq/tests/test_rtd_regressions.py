@@ -102,3 +102,48 @@ def test_RTD_unequal_temperature_python_selected_backend_parity():
         selected_system.phi0, python_system.phi0,
         rtol=1e-11, atol=1e-13,
     )
+
+
+@pytest.mark.parametrize("kerntype", ["RTD", "pyRTD"])
+def test_RTD_many_body_construction_matches_Builder(kerntype):
+    hybridization = 5.0
+    coulomb_u = 500.0
+    amplitude = 1.0/np.sqrt(2*np.pi)
+    tleads = {
+        (0, 0): amplitude, (0, 1): amplitude/10,
+        (1, 1): amplitude, (1, 0): amplitude/10,
+    }
+    lead_temperatures = [20.0, 10.0]
+
+    reference = qmeq.Builder(
+        nsingle=2, nleads=2,
+        hsingle={(0, 0): -30.0, (1, 1): -30.0, (0, 1): hybridization},
+        coulomb={(0, 1, 1, 0): coulomb_u},
+        tleads=tleads,
+        mulst=[0.0, 0.0], tlst=lead_temperatures, dband=5.0e5,
+        kerntype=kerntype, itype=1,
+    )
+    reference.solve()
+
+    amplitude_array = np.zeros((2, 2), dtype=complex)
+    for (lead, level), value in tleads.items():
+        amplitude_array[lead, level] = value
+
+    # Passing the compiled kerntype directly used to size a per-thread RTD
+    # buffer from si.npauli before the many-body state indexing (Na/Ea) was
+    # applied, corrupting the kernel and, in extreme cases, the heap.
+    system = qmeq.BuilderManyBody(
+        Ea=reference.qd.Ea, Na=[0, 1, 1, 2], Tba=reference.Tba,
+        mulst=[0.0, 0.0], tlst=lead_temperatures, dband=5.0e5,
+        kerntype=kerntype, itype=1,
+    )
+    system.nsingle = 2
+    system.tleads_array = amplitude_array
+    system.solve(qdq=False, rotateq=False)
+
+    np.testing.assert_allclose(
+        system.current, reference.current, rtol=1e-10, atol=1e-13,
+    )
+    np.testing.assert_allclose(
+        system.energy_current, reference.energy_current, rtol=1e-10, atol=1e-13,
+    )

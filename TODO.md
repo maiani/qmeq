@@ -31,14 +31,46 @@ implementations when both exist.
     uncached jobs are reproducible.
 
 - [ ] Make the extension build portable and predictable.
-  - Replace unconditional OpenMP compiler/linker flags with per-platform
+  - [ ] Replace unconditional OpenMP compiler/linker flags with per-platform
     configuration and a documented serial fallback.
-  - Verify extension builds with the toolchains used by Linux, macOS, and
+    - Still unconditional: `setup.py`'s `openmp_flag = '-fopenmp' if os.name ==
+      'posix' else '/openmp'` is applied to every extension regardless of
+      compiler capability. `os.name == 'posix'` treats macOS the same as
+      Linux, but Apple's default clang rejects `-fopenmp` outright;
+      `scripts/cibw_before_all_macos.sh` works around this only for the wheel
+      build, by symlinking in Homebrew GCC. A plain `pip install .` on macOS
+      without that workaround fails to compile. There is no compiler-
+      capability probe and no "compiled but serial" middle ground; the only
+      fallback today is skipping compiled extensions entirely
+      (`QMEQ_BACKEND=python`), a much bigger downgrade than necessary, since
+      Cython's `prange` degrades to a plain serial loop when OpenMP is not
+      enabled at compile time.
+  - [ ] Verify extension builds with the toolchains used by Linux, macOS, and
     Windows wheels.
-  - Ensure a compiler or OpenMP failure cannot leave a partially importable
-    installation.
-  - Keep `.py`, `.pyx`, and `.pxd` behavior synchronized; add parity tests for
-    shared kernels rather than relying only on build success.
+    - Still missing from routine development feedback: `test_cython.yml`
+      (PR-triggered) only builds on `ubuntu-latest`. macOS and Windows builds
+      are exercised only by `build_wheels.yml`, which triggers on tag pushes
+      or manual dispatch, not PRs, and whose smoke test
+      (`CIBW_TEST_COMMAND: pytest --pyargs qmeq`) never asserts
+      `get_backend_status()['active'] == 'cython'`, so it would not notice a
+      silent fallback to a pure-Python wheel.
+  - [ ] Ensure a compiler or OpenMP failure cannot leave a partially
+    importable installation.
+    - setuptools' default `build_ext` aborts on the first extension failure,
+      which is the right behavior and lines up with `_backend.py`'s
+      "partial installs always fail" import-time contract, but this is
+      untested and not actively guarded. Concrete gap: an incremental rebuild
+      where only some `.pyx` files changed and one newly fails to compile
+      could leave stale `.so` files from an earlier successful build sitting
+      next to freshly built ones, an inconsistent-but-importable mix nothing
+      currently detects.
+  - [x] Keep `.py`, `.pyx`, and `.pxd` behavior synchronized; add parity
+    tests for shared kernels rather than relying only on build success.
+    - `test_first_order_and_RTD_backend_parity` and
+      `test_Builder_sparse_2vN_backend_parity` in `test_builder.py` already
+      cover Pauli, Lindblad, Redfield, 1vN, RTD, and 2vN. Electron-phonon
+      approaches have no parity test yet, but that gap is already tracked
+      separately under "Build a backend-parity test layer" (P1).
 
 - [x] Standardize the compiled backend on Cython 3.
   - Declare a supported Cython 3 minimum and test both that version and the
@@ -79,6 +111,10 @@ implementations when both exist.
     run `twine check`.
   - Install each artifact into a clean environment and run import, metadata,
     fast-test, and example smoke checks against the installed copy.
+  - A source-based rattler-build recipe and prefix.dev publishing workflow now
+    cover compiled Linux, Intel macOS, and Apple Silicon packages for Python
+    3.10-3.14; Windows Conda variants remain gated on portable OpenMP
+    configuration.
 
 - [ ] Turn the declared Python range into a tested support policy.
   - Test Python 3.10 through every newer version advertised by classifiers;
@@ -100,14 +136,18 @@ implementations when both exist.
 
 ## P1: runtime and public API hygiene
 
-- [ ] Remove mutable defaults without changing call semantics.
-  - Cover `BuilderBase`, `BuilderManyBody`, `BuilderElPh`,
-    `BuilderManyBodyElPh`, and helper functions such as `multiarray_sort`.
-  - Replace dictionary/list defaults with `None` and create fresh values inside
-    the function.
-  - Add tests proving that two instances or calls cannot share mutated default
-    state.
-  - Preserve legacy builder aliases and accepted input forms.
+- [x] Remove mutable defaults without changing call semantics.
+  - Replaced every `={}`/`=[]`/`=[0]` default with `None`, normalized to a
+    fresh literal inside the function body, in `BuilderBase`, `BuilderManyBody`
+    (`builder_base.py`), `BuilderElPh`, `BuilderManyBodyElPh`
+    (`builder_elph.py`), and `multiarray_sort` (`various.py`).
+  - No dedicated sharing regression test was added: `BuilderBase._init_copy_data`
+    already deep-copies every constructor argument before storage, so
+    cross-instance sharing was structurally impossible before this change too;
+    the fix is about not relying on that deep-copy as the only safeguard, and
+    about the style/lint hygiene of the signatures themselves.
+  - Legacy builder aliases and accepted input forms (dict/list/array) are
+    unaffected; full fast suite passes on both backends.
 
 - [ ] Replace warning-like `print` calls with structured warnings.
   - Introduce package warning classes or use appropriate standard warning
@@ -119,26 +159,50 @@ implementations when both exist.
   - Test warning category and message content where callers may need to filter
     or capture it.
 
-- [ ] Make optional-extension imports precise.
-  - Avoid broad `ImportError` handling that can hide a broken binary extension
-    or an unrelated import failure.
-  - Centralize backend discovery instead of repeating fallback logic in
-    builders, approaches, indexing, and special functions.
-  - Report the original load failure when compiled mode is required.
-  - Keep importing QmeQ quiet during a normal, intentional pure-Python run.
+- [x] Make optional-extension imports precise.
+  - Already satisfied by the existing `qmeq._backend.load_compiled_modules`
+    centralization: every compiled-extension import (`builder_base.py`,
+    `builder_elph.py`, `approach/__init__.py`, `specfunc/__init__.py`) goes
+    through it, distinguishes a cleanly-missing extension
+    (`ModuleNotFoundError` with a matching module name) from a broken/partial
+    one, and chains the original exception (`raise ... from exc`) instead of
+    swallowing it.
+  - Verified by removing one compiled `.so` from an otherwise-complete
+    extension set: both `auto` and `cython` modes raise
+    `BackendUnavailableError` naming the missing module and chaining the
+    original `ModuleNotFoundError`, matching the documented "partial installs
+    always fail" contract; a normal pure-Python run stays quiet.
+  - `indexing.py` has no compiled twin, so there is no fallback logic to
+    centralize there; its own `except ImportError` is an unrelated
+    `scipy.misc.factorial` legacy-SciPy compatibility shim, tracked instead
+    under "Clear deprecated and fragile dependency usage" below.
 
-- [ ] Fix `BuilderManyBody` construction with the compiled RTD approach.
-  - `BuilderManyBody(..., kerntype='RTD')` ignores `nsingle` and
-    `tleads_array` assigned after construction, so the single-particle
-    corrections to the RTD energy current are silently dropped and the energy
-    and heat currents are wrong; the particle current is unaffected.
-  - Building with `kerntype='pyRTD'` and then assigning `kerntype='RTD'` gives
-    the correct result, and is the workaround used in Tutorial 6
-    (`examples/tutorials/06_cotunnelling_and_second_order.ipynb`) and in the
-    legacy RTD notebook.
-  - Fix the construction path so both spellings agree, add a regression test
-    comparing many-body input against the equivalent `Builder` system, and drop
-    the workaround from the tutorial.
+- [x] Fix `BuilderManyBody` construction with the compiled RTD approach.
+  - Root cause was more serious than wrong numbers: `ApproachRTD.__init__`
+    (compiled RTD) sizes a per-thread kernel buffer (`nbr_Wdd2_copies`) from
+    `si.npauli` at construction time. `BuilderManyBody` used to construct the
+    `Approach` object *before* applying the many-body state indexing
+    (`Na`/`Ea`), so the buffer was sized from a placeholder `si.npauli == 1`
+    instead of the real many-body state count. Besides silently dropping the
+    single-particle energy-current correction, this caused out-of-bounds
+    writes into that buffer whenever the real system had more diagonal states
+    than 1 and more than one OpenMP thread was available — reproduced as a
+    `free(): invalid size` heap-corruption crash on interpreter exit, with a
+    `BuilderManyBody(..., kerntype='RTD')` system alone, no `nsingle`/
+    `tleads_array` assignment required to trigger it.
+  - Fixed by adding a `BuilderBase._init_before_appr()` hook (no-op by
+    default) called after `_init_create_setup()` but before
+    `_init_create_appr()`; `BuilderManyBody` overrides it to run
+    `_init_state_indexing` before the `Approach` object exists. Pure-Python
+    `ApproachPyRTD` was unaffected (it reads `si` live, not at construction),
+    which is why the bug was compiled-RTD-specific.
+  - Added `test_RTD_many_body_construction_matches_Builder` (parametrized over
+    `RTD`/`pyRTD`) comparing many-body construction against an equivalent
+    `Builder` system, and dropped the `kerntype='pyRTD'`-then-switch
+    workaround from Tutorial 6. The unexecuted, reference-only legacy RTD
+    notebook (`examples/legacy_tutorials/RTD_tutorial.ipynb`) still describes
+    and uses the old workaround; left as-is since that notebook is historical
+    material, not maintained or run as a test.
 
 - [ ] Clear deprecated and fragile dependency usage.
   - Run tests with deprecations visible under the oldest and newest supported
@@ -198,8 +262,12 @@ implementations when both exist.
     tests, building docs, and validating artifacts.
   - Document which files must be changed together when a Python/Cython pair is
     modified.
-  - Replace the destructive, repository-specific assumptions in `clean.py`
-    with explicit, reviewable cleanup targets.
+  - [x] Replace the destructive, repository-specific assumptions in `clean.py`
+    with explicit, reviewable cleanup targets. Paths are now resolved from the
+    script's own location rather than the current working directory, the
+    hardcoded per-subpackage directory list was replaced with a recursive
+    scan under `qmeq/`, and `--dry-run` lists every target without deleting
+    anything.
 
 ## Release gate
 

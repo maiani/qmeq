@@ -83,9 +83,9 @@ class BuilderElPh(BuilderBase):
     """
 
     def __init__(self,
-                 nsingle=0, hsingle={}, coulomb={},
-                 nleads=0, tleads={}, mulst={}, tlst={}, dband={},
-                 nbaths=0, velph={}, tlst_ph={}, dband_ph={},
+                 nsingle=0, hsingle=None, coulomb=None,
+                 nleads=0, tleads=None, mulst=None, tlst=None, dband=None,
+                 nbaths=0, velph=None, tlst_ph=None, dband_ph=None,
                  indexing=None, kpnt=None,
                  kerntype='Pauli', symq=True, norm_row=0, solmethod=None,
                  itype=None, itype_ph=0, dqawc_limit=10000,
@@ -95,6 +95,25 @@ class BuilderElPh(BuilderBase):
                  bath_func=None, eps_elph=1.0e-6,
                  bandwidth=None, principal_part=None,
                  countingleads=None, off_diag_corrections=True):
+
+        if hsingle is None:
+            hsingle = {}
+        if coulomb is None:
+            coulomb = {}
+        if tleads is None:
+            tleads = {}
+        if mulst is None:
+            mulst = {}
+        if tlst is None:
+            tlst = {}
+        if dband is None:
+            dband = {}
+        if velph is None:
+            velph = {}
+        if tlst_ph is None:
+            tlst_ph = {}
+        if dband_ph is None:
+            dband_ph = {}
 
         self._init_copy_data(locals())
         self._init_validate_data()
@@ -177,8 +196,8 @@ class BuilderManyBodyElPh(BuilderElPh, BuilderManyBody):
     """
 
     def __init__(self,
-                 Ea=None, Na=[0], Tba=None, Vbbp=None,
-                 mulst={}, tlst={}, dband={}, tlst_ph={}, dband_ph={}, kpnt=None,
+                 Ea=None, Na=None, Tba=None, Vbbp=None,
+                 mulst=None, tlst=None, dband=None, tlst_ph=None, dband_ph=None, kpnt=None,
                  kerntype='Pauli', symq=True, norm_row=0, solmethod=None,
                  itype=None, dqawc_limit=10000, mfreeq=False, phi0_init=None,
                  mtype_qd=complex, mtype_leads=complex,
@@ -186,6 +205,9 @@ class BuilderManyBodyElPh(BuilderElPh, BuilderManyBody):
                  bath_func=None, eps_elph=1.0e-6,
                  bandwidth=None, principal_part=None,
                  countingleads=None, off_diag_corrections=True):
+
+        if Na is None:
+            Na = [0]
 
         nleads = Tba.shape[0] if Tba is not None else 0
         nbaths = Vbbp.shape[0] if Vbbp is not None else 0

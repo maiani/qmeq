@@ -109,8 +109,8 @@ class BuilderBase(object):
     """
 
     def __init__(self,
-                 nsingle=0, hsingle={}, coulomb={},
-                 nleads=0, tleads={}, mulst={}, tlst={}, dband={},
+                 nsingle=0, hsingle=None, coulomb=None,
+                 nleads=0, tleads=None, mulst=None, tlst=None, dband=None,
                  indexing=None, kpnt=None,
                  kerntype='Pauli', symq=True, norm_row=0, solmethod=None,
                  itype=None, dqawc_limit=10000, mfreeq=False, phi0_init=None,
@@ -119,15 +119,36 @@ class BuilderBase(object):
                  bandwidth=None, principal_part=None,
                  countingleads=None, off_diag_corrections=True):
 
+        if hsingle is None:
+            hsingle = {}
+        if coulomb is None:
+            coulomb = {}
+        if tleads is None:
+            tleads = {}
+        if mulst is None:
+            mulst = {}
+        if tlst is None:
+            tlst = {}
+        if dband is None:
+            dband = {}
+
         self._init_copy_data(locals())
         self._init_validate_data()
         self._init_set_globals()
         self._init_set_approach_class()
         self._init_create_setup()
+        self._init_before_appr()
         self._init_create_appr()
 
     def _init_copy_data(self, data):
         self.data = ModelParameters(data)
+
+    def _init_before_appr(self):
+        """Hook for subclasses that must finish setting up ``si``/``qd``/``leads``
+        after :meth:`_init_create_setup` but before the ``Approach`` object is
+        constructed. Some compiled approaches (e.g. RTD) size per-thread buffers
+        from ``si`` at construction time, so any state not yet reflected in
+        ``si`` here will be built for the wrong system size."""
 
     def _init_validate_data(self):
         data = self.data
@@ -361,8 +382,8 @@ class BuilderManyBody(BuilderBase):
     """
 
     def __init__(self,
-                 Ea=None, Na=[0], Tba=None,
-                 mulst={}, tlst={}, dband={}, kpnt=None,
+                 Ea=None, Na=None, Tba=None,
+                 mulst=None, tlst=None, dband=None, kpnt=None,
                  kerntype='Pauli', symq=True, norm_row=0, solmethod=None,
                  itype=None, dqawc_limit=10000, mfreeq=False, phi0_init=None,
                  mtype_qd=complex, mtype_leads=complex,
@@ -370,7 +391,17 @@ class BuilderManyBody(BuilderBase):
                  bandwidth=None, principal_part=None,
                  countingleads=None, off_diag_corrections=True):
 
+        if Na is None:
+            Na = [0]
+
         nleads = Tba.shape[0] if Tba is not None else 0
+
+        # Stashed for _init_before_appr, which must run before the Approach
+        # object is constructed: RTD sizes a per-thread buffer from si.npauli
+        # at that point, so si has to already reflect the many-body input.
+        self._many_body_Na = Na
+        self._many_body_Ea = Ea
+        self._many_body_Tba = Tba
 
         # noinspection PyPep8
         BuilderBase.__init__(self,
@@ -382,6 +413,10 @@ class BuilderManyBody(BuilderBase):
             symmetry=symmetry, herm_hs=herm_hs, herm_c=herm_c, m_less_n=m_less_n,
             indexing='charge', countingleads=countingleads,
             off_diag_corrections=off_diag_corrections)
+
+    def _init_before_appr(self):
+        Na, Ea, Tba = self._many_body_Na, self._many_body_Ea, self._many_body_Tba
+        del self._many_body_Na, self._many_body_Ea, self._many_body_Tba
 
         self._init_state_indexing(Na, Ea)
 

@@ -1,44 +1,70 @@
-import os
+"""Remove build artifacts and generated files from the repository.
+
+Run with ``--dry-run`` to list what would be removed without deleting
+anything. All paths are resolved relative to this script's location, not the
+current working directory, so the cleanup targets stay the same regardless of
+where the script is invoked from.
+"""
+
+import argparse
 import shutil
-from glob import glob
+from pathlib import Path
 
-dirs = [
-    './.cache',
-    './.pytest_cache',
-    './build',
-    './dist',
-    './docs/build',
-    './qmeq.egg-info',
-    './qmeq/build',
-    ]
+ROOT = Path(__file__).resolve().parent
 
-for directory, _, _ in os.walk('./'):
-    if '__pycache__' in directory:
-        dirs.append(directory)
+# Top-level build/cache directories.
+TOP_LEVEL_DIRS = [
+    ROOT / '.cache',
+    ROOT / '.pytest_cache',
+    ROOT / 'build',
+    ROOT / 'dist',
+    ROOT / 'docs' / 'build',
+    ROOT / 'qmeq.egg-info',
+    ROOT / 'qmeq' / 'build',
+]
 
-for dr in dirs:
-    if os.path.exists(dr):
-        shutil.rmtree(dr)
-    else:
-        pass
+# Generated Cython/build artifacts, wherever they occur under qmeq/.
+GENERATED_FILE_PATTERNS = [
+    '*.o', '*.so', '*.pyd', '*.dll', '*.pyc', '*.c', '*.html',
+]
 
-dirs = [
-    './qmeq/',
-    './qmeq/approach/',
-    './qmeq/approach/base/',
-    './qmeq/approach/elph/',
-    './qmeq/builder/',
-    './qmeq/specfunc/',
-    './qmeq/tests/',
-    './qmeq/wrappers/',
-    ]
 
-exts = ['*.o', '*.so', '*.pyd', '*.dll', '*.pyc', '*.c', '*.html']
+def find_targets():
+    """Return the directories and files this script would remove."""
 
-files = []
-for dr in dirs:
-    for ext in exts:
-        files += glob(dr+ext)
+    dirs = [d for d in TOP_LEVEL_DIRS if d.is_dir()]
+    dirs += [p for p in (ROOT / 'qmeq').rglob('__pycache__') if p.is_dir()]
 
-for f in files:
-    os.remove(f)
+    files = []
+    for pattern in GENERATED_FILE_PATTERNS:
+        files += (ROOT / 'qmeq').rglob(pattern)
+    # Drop files that live inside a directory already slated for removal
+    # (e.g. *.pyc under a __pycache__/ that rmtree will take with it).
+    files = [f for f in files if not any(d in f.parents for d in dirs)]
+
+    return dirs, files
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        '--dry-run', action='store_true',
+        help='List what would be removed without deleting anything.',
+    )
+    args = parser.parse_args()
+
+    dirs, files = find_targets()
+
+    for d in dirs:
+        print(('would remove' if args.dry_run else 'removing') + f' directory {d}')
+        if not args.dry_run:
+            shutil.rmtree(d)
+
+    for f in files:
+        print(('would remove' if args.dry_run else 'removing') + f' file {f}')
+        if not args.dry_run:
+            f.unlink()
+
+
+if __name__ == '__main__':
+    main()

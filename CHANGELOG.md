@@ -4,6 +4,14 @@
 
 ### Added
 
+- Add a source-based Conda recipe for compiled Python 3.10-3.14 Linux, Intel
+  macOS, and Apple Silicon packages, plus a tag/manual GitHub Actions workflow
+  that builds each Python/platform variant independently, runs the fast suite
+  against the installed artifacts, and uploads them to a namespaced prefix.dev
+  channel only after every build succeeds. Generated C build artifacts are no
+  longer installed as package data; the canonical `.pyx` and `.pxd` extension
+  sources remain included. The setup-configuration regression test now skips
+  outside a source checkout so the installed suite remains runnable.
 - Add a narrowly scoped Ruff correctness gate for Python files and notebooks,
   available through the development dependencies and enforced in CI.
   Repository-wide automatic formatting remains intentionally disabled while
@@ -114,6 +122,15 @@
 - Bump `__version__` to `1.2.0.dev0` to mark ongoing modernization work past
   the released `1.1`. `docs/source/conf.py` now derives `version`/`release`
   from `qmeq.__version__` instead of a second, separately hardcoded string.
+- Replace mutable default arguments (`={}`, `=[]`, `=[0]`) with `None`,
+  normalized to a fresh literal inside the function body, in `BuilderBase`,
+  `BuilderManyBody`, `BuilderElPh`, `BuilderManyBodyElPh`, and
+  `multiarray_sort`. Call semantics and accepted input forms are unchanged.
+- Rewrite `clean.py`: paths are resolved relative to the script's own
+  location instead of the current working directory, generated-file discovery
+  under `qmeq/` is now recursive instead of a hardcoded per-subpackage
+  directory list, and `--dry-run` lists every target without deleting
+  anything.
 
 ### Fixed
 
@@ -134,6 +151,27 @@
   cimports `scipy.linalg.cython_lapack`, so an isolated PEP 517 build (e.g.
   `pip install git+https://...`) failed without it declared as a build-time
   dependency.
+- Make the pure-Python RTD `off_diag_corrections` handling match the compiled
+  backend: `ApproachPyRTD` no longer caches a separate `self.off_diag_corrections`
+  snapshot at construction time; `prepare_arrays`, `clean_arrays`, and
+  `generate_kern` all read `funcp.off_diag_corrections` directly, as `c_RTD.pyx`
+  already did. Previously the cached copy could desync from `funcp` (e.g. after
+  directly mutating the approach object), leaving allocated arrays inconsistent
+  with what `generate_kern` expected and raising `TypeError`/`AttributeError`
+  only on the pure-Python backend.
+- Fix `BuilderManyBody` construction with the compiled RTD approach
+  (`kerntype="RTD"`): the many-body state indexing (`Na`/`Ea`) previously ran
+  after the `Approach` object was constructed, so `ApproachRTD.__init__` sized
+  a per-thread kernel buffer (`nbr_Wdd2_copies`) from a placeholder
+  `si.npauli == 1` instead of the real many-body state count. This produced
+  wrong currents and, for systems with more diagonal states than the sized
+  buffer, out-of-bounds writes that corrupted the heap (observed as a
+  `free(): invalid size` crash on interpreter exit). `BuilderBase` now runs
+  a `_init_before_appr` hook, overridden by `BuilderManyBody`, that finishes
+  the many-body state setup before the `Approach` object is built. The
+  previously required `kerntype="pyRTD"`-then-switch workaround (used in
+  `examples/tutorials/06_cotunnelling_and_second_order.ipynb`) is no longer
+  necessary and has been removed from the tutorial.
 - Use `expm1` in the pure-Python and Cython Bose functions for accuracy near
   zero, and guard the electron-phonon forms against large positive arguments.
 - Define all compiled special-function names through pure-Python fallbacks when

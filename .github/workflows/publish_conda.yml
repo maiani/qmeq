@@ -1,0 +1,105 @@
+name: Publish Conda packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Namespaced prefix.dev channel
+        required: true
+        default: andmai/science
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+env:
+  PREFIX_CHANNEL: ${{ inputs.channel || 'andmai/science' }}
+
+jobs:
+  build:
+    name: Build ${{ matrix.target-platform }} packages
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        runner: [ubuntu-24.04, macos-15-intel, macos-15]
+        include:
+          - runner: ubuntu-24.04
+            target-platform: linux-64
+          - runner: macos-15-intel
+            target-platform: osx-64
+          - runner: macos-15
+            target-platform: osx-arm64
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: prefix-dev/setup-pixi@v0.10.1
+        with:
+          pixi-version: latest
+
+      - name: Read package version
+        run: echo "QMEQ_PACKAGE_VERSION=$(python scripts/qmeq_version.py)" >> "$GITHUB_ENV"
+
+      - name: Check tag matches package version
+        if: github.event_name == 'push'
+        run: test "${GITHUB_REF_NAME#v}" = "$QMEQ_PACKAGE_VERSION"
+
+      - name: Build and test the Conda packages
+        run: >-
+          pixi publish
+          --clean
+          --path recipe/recipe.yaml
+          --variant "python=${{ matrix.python-version }}"
+          --target-platform "${{ matrix.target-platform }}"
+          --target-dir "${{ runner.temp }}/qmeq-conda"
+          --build-dir "${{ runner.temp }}/qmeq-pixi-build"
+
+      - name: Test the installed Conda package
+        working-directory: ${{ runner.temp }}
+        env:
+          QMEQ_BACKEND: cython
+        run: >-
+          pixi exec
+          --force-reinstall
+          --spec "${{ runner.temp }}"/qmeq-conda/*.conda
+          --spec pytest
+          --spec matplotlib
+          --spec nbclient
+          --spec ipykernel
+          pytest --pyargs qmeq
+
+      - name: Save the tested Conda packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: qmeq-conda-${{ matrix.target-platform }}-py${{ matrix.python-version }}
+          path: ${{ runner.temp }}/qmeq-conda/*.conda
+
+  publish:
+    name: Publish tested packages
+    needs: build
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: prefix-dev/setup-pixi@v0.10.1
+        with:
+          pixi-version: latest
+          auth-host: prefix.dev
+          auth-token: ${{ secrets.PREFIX_API_KEY }}
+
+      - name: Download the tested Conda packages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: qmeq-conda-*
+          path: ${{ runner.temp }}/qmeq-conda
+          merge-multiple: true
+
+      - name: Upload the Conda packages to prefix.dev
+        run: >-
+          pixi upload prefix
+          --channel "$PREFIX_CHANNEL"
+          --skip-existing
+          "${{ runner.temp }}"/qmeq-conda/*.conda

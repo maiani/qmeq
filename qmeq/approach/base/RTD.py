@@ -80,7 +80,6 @@ class ApproachPyRTD(Approach):
         super().__init__(*args, **kwargs)
         self.BW_Ozaki_expansion = 0
         self.Ozaki_poles_and_residues = None
-        self.off_diag_corrections = self.funcp.off_diag_corrections
         self.ImGamma = False
         self.printed_warning_ImGamma = False
         self.nsingle_warning_printed = False
@@ -124,7 +123,7 @@ class ApproachPyRTD(Approach):
         self.generate_LN()
         self.LE = np.zeros((kern_size, kern_size), dtype=self.dtype)
 
-        if self.off_diag_corrections:
+        if self.funcp.off_diag_corrections:
             kern_size2 = 2 * self.si.ndm0 - 2 * self.si.npauli
             self.ReWnd = np.zeros((nleads, kern_size2, kern_size), dtype=self.dtype)
             self.ImWnd = np.zeros((nleads, kern_size2, kern_size), dtype=self.dtype)
@@ -151,7 +150,7 @@ class ApproachPyRTD(Approach):
         self.W2.fill(0.0)
         self.LE.fill(0.0)
 
-        if self.off_diag_corrections:
+        if self.funcp.off_diag_corrections:
             self.ReWnd.fill(0.0)
             self.ImWnd.fill(0.0)
             self.ReWdn.fill(0.0)
@@ -175,7 +174,7 @@ class ApproachPyRTD(Approach):
         """
         si, kh = self.si, self.kernel_handler
         ncharge, statesdm = si.ncharge, si.statesdm
-        self.off_diag_corrections = self.funcp.off_diag_corrections
+        off_diag_corrections = self.funcp.off_diag_corrections
 
         _warn_if_unequal_temperature_cutoff_is_small(self.qd, self.leads)
 
@@ -191,13 +190,13 @@ class ApproachPyRTD(Approach):
                 self.generate_row_1st_energy_kernel(b, bcharge)
                 self.generate_row_2nd_energy_kernel(b, bcharge)
 
-                if self.off_diag_corrections:
+                if off_diag_corrections:
                     self.generate_col_nondiag_kern_1st_order_nd(b, bcharge)
 
         kern_size = self.get_kern_size()
         self.kern[:kern_size, :kern_size] += np.sum(self.Wdd, 0)
 
-        if self.off_diag_corrections:
+        if off_diag_corrections:
             for bcharge in range(ncharge):
                 for b in statesdm[bcharge]:
                     for bp in statesdm[bcharge]:

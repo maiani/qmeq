@@ -27,7 +27,7 @@ def get_charge(self, b):
     return sum(self.si.get_state(b))
 
 
-def multiarray_sort(arr, srt=[0]):
+def multiarray_sort(arr, srt=None):
     """
     Sort rows of a two-dimensional array for a given
     hierarchy of rows.
@@ -44,6 +44,8 @@ def multiarray_sort(arr, srt=[0]):
     ndarray
         A sorted array.
     """
+    if srt is None:
+        srt = [0]
     ind = np.lexsort([arr[i] for i in reversed(srt)])
     return (arr.T[ind]).T
 
