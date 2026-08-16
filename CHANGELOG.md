@@ -145,11 +145,15 @@
   breaking the macOS wheel build (observed on `macos-14`/arm64 as
   `gcc --version` invoking `ranlib --version`). The glob now requires a
   digit immediately after `gcc-`.
-- Set `CIBW_ENVIRONMENT_MACOS: "CC=gcc"` in `build_wheels.yml`. Symlinking
+- Set `CC=gcc` via `CIBW_ENVIRONMENT_MACOS` in `build_wheels.yml`. Symlinking
   Homebrew's GCC as `gcc` in `CIBW_BEFORE_ALL_MACOS` was not enough on its
   own: cibuildwheel's actual build step runs in a separate subprocess that
   still defaulted to Apple clang, which fails with
-  `clang: error: unsupported option '-fopenmp'`.
+  `clang: error: unsupported option '-fopenmp'`. The same variable also sets
+  `MACOSX_DEPLOYMENT_TARGET` from the host's own macOS version: Homebrew's
+  GCC bundles an OpenMP runtime (`libgomp`) built for the host it runs on, so
+  `delocate-wheel` refused to repair a wheel targeting the cibuildwheel
+  default (`macosx_11_0`/`macosx_10_9`), which is older.
 - Replace the `macos-13` wheel-build runner with `macos-15-intel` in
   `build_wheels.yml`; the former is a retired GitHub-hosted image and the
   build job for it would queue indefinitely instead of running.
