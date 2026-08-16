@@ -5,6 +5,8 @@ import os
 sys.path.insert(0, os.path.abspath('../../qmeq/'))
 sys.path.insert(0, os.path.abspath('../..'))
 
+import qmeq
+
 # -- General configuration ------------------------------------------------
 needs_sphinx = '1.3'
 
@@ -67,8 +69,8 @@ project = u'qmeq'
 copyright = u'2019, Gediminas Kirsanskas'
 author = u'Gediminas Kirsanskas'
 
-version = u'1.1'
-release = u'1.1'
+version = qmeq.__version__
+release = qmeq.__version__
 
 language = 'en'
 #today = ''

@@ -105,8 +105,8 @@ QMEQ_BACKEND=cython pip install -e '.[dev]'
 # Editable pure-Python install
 QMEQ_BACKEND=python pip install -e '.[test]'
 
-# Force regeneration of generated C from .pyx/.pxd
-QMEQ_BACKEND=cython python setup.py build_ext --inplace --cython
+# Regenerate C from .pyx/.pxd and build in place
+QMEQ_BACKEND=cython python setup.py build_ext --inplace
 
 # Run the fast suite against each backend in separate processes
 QMEQ_BACKEND=python pytest qmeq/tests
@@ -130,10 +130,10 @@ untracked output files.
 
 Build details live in [setup.py](setup.py) (extension list, OpenMP flags) and
 [pyproject.toml](pyproject.toml). The `.pyx`/`.pxd` files are the canonical
-extension sources. Generated `.c` files are ignored and untracked; a clean
-build regenerates them, while the legacy `--cython` option forces regeneration
-when local generated files already exist. The roadmap tracks removal or
-formalization of that legacy path.
+extension sources and are always cythonized on build; generated `.c` files are
+build artifacts, ignored and untracked. `cimport scipy.linalg.cython_lapack`
+in `c_lapack.pyx` means `scipy` must be present at build time (declared in
+`[build-system] requires`), not just at runtime.
 
 The supported build range is Cython `>=3.0,<4`; CI regenerates all extensions
 with both Cython 3.0.0 and the current Cython 3 release. Compiler directives

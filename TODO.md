@@ -50,15 +50,21 @@ implementations when both exist.
   - Regenerate every extension from the canonical `.pyx`/`.pxd` sources in a
     clean build and run the compiled and backend-parity suites.
 
-- [ ] Define one source-build policy and make the repository match it.
-  - Treat `.pyx`/`.pxd` files as the canonical extension sources: generated
-    `.c` files are currently ignored and untracked.
-  - Remove the dead “reuse checked-in C files” path and the custom `--cython`
-    switch from `setup.py`, or explicitly reverse this policy by tracking and
-    validating all generated C files.
-  - Keep build requirements, `INSTALL.md`, `clean.py`, package data, and source
-    distribution contents consistent with the chosen policy.
-  - Test an isolated PEP 517 build rather than only editable installs.
+- [x] Define one source-build policy and make the repository match it.
+  - Chose `.pyx`/`.pxd` as the canonical extension sources: generated `.c`
+    files are build artifacts, ignored and untracked.
+  - Removed the dead "reuse checked-in C files" path and the custom
+    `--cython` switch from `setup.py` (unreachable in practice: the `.c`
+    files are never present in a fresh checkout, so every real build already
+    took the cythonize branch).
+  - Isolated PEP 517 builds (`pip install .` and `pip install git+https://...`)
+    surfaced that `scipy` was missing from `[build-system] requires`, even
+    though `c_lapack.pyx` cimports `scipy.linalg.cython_lapack` at cythonize
+    time; added it. Verified both `QMEQ_BACKEND=cython` and `=python` builds
+    in clean venvs after the fix.
+  - `INSTALL.md` and `clean.py` didn't reference the removed path and needed
+    no changes; full sdist/package-data consistency is tracked separately
+    under "Make wheels and source distributions self-consistent" (P1).
 
 ## P1: distribution and support contract
 

@@ -69,6 +69,9 @@
   ones are marked `slow` and run only with `pytest --runslow`.
 - The example scripts now save figures as PNG (instead of PDF); the generated
   figures and data files are gitignored.
+- Run the pure-Python backend test suite in CI (`test_cython.yml`), not only
+  the compiled backend, so a pure-Python-only regression cannot slip through
+  unnoticed.
 
 ### Changed
 
@@ -99,6 +102,18 @@
   update stale toolchain guidance and links.
 - Point the `README.md` and `INSTALL.md` tutorial/example links at the vendored
   `examples/` directory instead of the former external repository.
+- Remove the dead "reuse checked-in C files" build path and the `--cython`
+  `setup.py` flag; the `.pyx`/`.pxd` sources are now always cythonized. The
+  removed path was unreachable in practice: generated `.c` files are
+  gitignored and never present in a fresh checkout.
+- Modernize `build_wheels.yml`: bump `cibuildwheel` (v1.11 -> v4.2.0) and the
+  CI runner images, target `cp310`-`cp314` to match `pyproject.toml`, add a
+  `macos-14` (arm64) job alongside `macos-13` (Intel), and detect the
+  Homebrew GCC version dynamically in `scripts/cibw_before_all_macos.sh`
+  instead of pinning to `gcc-10`.
+- Bump `__version__` to `1.2.0.dev0` to mark ongoing modernization work past
+  the released `1.1`. `docs/source/conf.py` now derives `version`/`release`
+  from `qmeq.__version__` instead of a second, separately hardcoded string.
 
 ### Fixed
 
@@ -115,14 +130,10 @@
 - Resolve ambiguous ``Approach`` cross-references between the pure-Python and
   Cython modules via ``napoleon_type_aliases`` so the documentation builds
   cleanly with warnings treated as errors (``-W``).
-
-### Removed
-
-- Remove the outdated `README.rst`; `README.md` is now the canonical README and
-  is used as the package long description.
-
-### Fixed
-
+- Add `scipy` to `[build-system] requires` in `pyproject.toml`. `c_lapack.pyx`
+  cimports `scipy.linalg.cython_lapack`, so an isolated PEP 517 build (e.g.
+  `pip install git+https://...`) failed without it declared as a build-time
+  dependency.
 - Use `expm1` in the pure-Python and Cython Bose functions for accuracy near
   zero, and guard the electron-phonon forms against large positive arguments.
 - Define all compiled special-function names through pure-Python fallbacks when
@@ -130,6 +141,11 @@
 - Fix string comparisons used when expanding spin-symmetric input data.
 - Fix Sphinx configuration, duplicate API metadata, malformed docstring
   references, and wrapper-page headings so documentation builds cleanly.
+
+### Removed
+
+- Remove the outdated `README.rst`; `README.md` is now the canonical README and
+  is used as the package long description.
 
 ## [1.1] - 2021-06-04
 

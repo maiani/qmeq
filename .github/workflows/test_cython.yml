@@ -31,10 +31,16 @@ jobs:
           QMEQ_BACKEND=python python -m pip install -e ".[test]" --no-build-isolation
 
       - name: Regenerate and build all extensions
-        run: QMEQ_BACKEND=cython python setup.py build_ext --inplace --cython
+        run: QMEQ_BACKEND=cython python setup.py build_ext --inplace
 
       - name: Confirm the compiled backend
         run: QMEQ_BACKEND=cython python -c "import qmeq; status = qmeq.get_backend_status(); print(status); assert status['active'] == 'cython'"
 
       - name: Run the compiled test suite
         run: QMEQ_BACKEND=cython pytest qmeq/tests
+
+      - name: Confirm the pure-Python backend
+        run: QMEQ_BACKEND=python python -c "import qmeq; status = qmeq.get_backend_status(); print(status); assert status['active'] == 'python'"
+
+      - name: Run the pure-Python test suite
+        run: QMEQ_BACKEND=python pytest qmeq/tests
