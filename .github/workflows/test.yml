@@ -13,14 +13,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
       - name: Install test dependencies
-        run: QMEQ_BACKEND=python python -m pip install -e ".[test]" --no-build-isolation
+        # Build isolation is left on here, unlike the cython job below: this
+        # job builds no extensions, so it has no preinstalled Cython version
+        # that needs to survive into the build environment, and setup.py
+        # imports numpy unconditionally.
+        run: QMEQ_BACKEND=python python -m pip install -e ".[test]"
 
       - name: Confirm the pure-Python backend
         run: QMEQ_BACKEND=python python -c "import qmeq; status = qmeq.get_backend_status(); print(status); assert status['active'] == 'python'"
@@ -39,9 +43,9 @@ jobs:
           - ">=3,<4"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
