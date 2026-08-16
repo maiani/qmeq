@@ -4,7 +4,7 @@ Installation of QmeQ
 QmeQ can be installed through [pip][pip] or by building it from source.
 To be able to use and build QmeQ you need to have:
 
-* [Python][Python] 3.10 or newer,
+* [Python][Python] 3.11 or newer,
 * [NumPy][NumPy] package,
 * [SciPy][SciPy] package.
 

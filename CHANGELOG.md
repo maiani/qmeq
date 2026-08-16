@@ -4,7 +4,7 @@
 
 ### Added
 
-- Add a source-based Conda recipe for compiled Python 3.10-3.14 Linux x86-64,
+- Add a source-based Conda recipe for compiled Python 3.11-3.14 Linux x86-64,
   Linux aarch64, Intel macOS, and Apple Silicon packages, plus a tag/manual
   GitHub Actions workflow that builds each Python/platform variant
   independently, runs the fast suite against the installed artifacts, and
@@ -99,7 +99,7 @@
 - Allow the Sphinx documentation to build without optional Cython extensions.
 - Modernize packaging: move static project metadata to `pyproject.toml`,
   derive the version dynamically from `qmeq.__version__`, use automatic package
-  discovery, declare a supported-Python range of `>=3.10`, and reduce `setup.py`
+  discovery, declare a supported-Python range of `>=3.11`, and reduce `setup.py`
   to building the Cython extensions.
 - Configure pytest `testpaths` in `pyproject.toml` so `pytest` discovers the
   suite from the project root.
@@ -116,8 +116,8 @@
   removed path was unreachable in practice: generated `.c` files are
   gitignored and never present in a fresh checkout.
 - Modernize `build_wheels.yml`: bump `cibuildwheel` (v1.11 -> v4.2.0) and the
-  CI runner images, target `cp310`-`cp314` to match `pyproject.toml`, add a
-  `macos-14` (arm64) job alongside `macos-13` (Intel), and detect the
+  CI runner images, target `cp311`-`cp314` to match `pyproject.toml`, add a
+  `macos-14` (arm64) job alongside `macos-15-intel` (Intel), and detect the
   Homebrew GCC version dynamically in `scripts/cibw_before_all_macos.sh`
   instead of pinning to `gcc-10`. Split the workflow into a `build` job
   (per-OS matrix, no elevated permissions) and a separate `publish` job that
@@ -136,6 +136,20 @@
   under `qmeq/` is now recursive instead of a hardcoded per-subpackage
   directory list, and `--dry-run` lists every target without deleting
   anything.
+- Drop Python 3.10 support ahead of the `1.2.0` release; the floor is now
+  `>=3.11`. Python 3.10 is in security-only mode and reaches end-of-life in
+  October 2026, close enough that shipping `1.2.0` with it and dropping it
+  again shortly after was not worth the churn. Updated everywhere the floor
+  was declared: `pyproject.toml` (`requires-python`, classifiers, Ruff
+  `target-version`), `recipe/recipe.yaml`, `recipe/variants.yaml`,
+  `build_wheels.yml` (`CIBW_BUILD`), `release.yml`, `test.yml`, `lint.yml`,
+  `INSTALL.md`, and `AGENTS.md`.
+- Rename `test_cython.yml` to `test.yml` and split its single matrix job
+  into `python` (pure-Python backend, run once) and `cython` (compiled
+  backend, matrix over Cython versions). The old name was misleading and the
+  single-job structure ran the full pure-Python suite once per Cython-version
+  matrix leg for no reason, since it does not depend on Cython at all.
+- Rename `publish_conda.yml` to `release.yml`.
 
 ### Fixed
 
@@ -154,7 +168,11 @@
   `MACOSX_DEPLOYMENT_TARGET` from the host's own macOS version: Homebrew's
   GCC bundles an OpenMP runtime (`libgomp`) built for the host it runs on, so
   `delocate-wheel` refused to repair a wheel targeting the cibuildwheel
-  default (`macosx_11_0`/`macosx_10_9`), which is older.
+  default (`macosx_11_0`/`macosx_10_9`), which is older. The major-version
+  extraction runs in `cibw_before_all_macos.sh` and is handed off through a
+  plain file, since `CIBW_ENVIRONMENT_MACOS` is evaluated by cibuildwheel's
+  own restricted shell-subset parser, which rejected a pipe inside `$(...)`
+  with `ValueError: Unsupported bash construct: 'command'`.
 - Replace the `macos-13` wheel-build runner with `macos-15-intel` in
   `build_wheels.yml`; the former is a retired GitHub-hosted image and the
   build job for it would queue indefinitely instead of running.

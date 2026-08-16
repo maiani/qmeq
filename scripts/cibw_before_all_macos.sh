@@ -17,3 +17,11 @@ fi
 
 ln -sf "$GCC" "$BREW_PREFIX/bin/gcc"
 gcc --version
+
+# Homebrew's GCC bundles an OpenMP runtime (libgomp) built for the host's own
+# macOS version, so the wheel's deployment target must be raised to match it
+# or delocate-wheel refuses to repair the wheel later. cibuildwheel's
+# CIBW_ENVIRONMENT_MACOS is evaluated by a restricted shell-subset parser that
+# does not support pipes inside $(...), so the major-version extraction has
+# to happen here instead, with the result handed off through a plain file.
+sw_vers -productVersion | cut -d. -f1 > /tmp/qmeq_macosx_deployment_target_major

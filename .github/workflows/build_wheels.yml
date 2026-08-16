@@ -33,11 +33,14 @@ jobs:
           # deployment target must be raised to match it (delocate-wheel
           # otherwise refuses to repair the wheel); derive it from the host
           # rather than hardcoding a version that will drift on the next
-          # runner-image bump.
+          # runner-image bump. The major version is computed in
+          # cibw_before_all_macos.sh and handed off via a plain file, since
+          # this variable is evaluated by a restricted shell-subset parser
+          # that does not support pipes inside $(...).
           CIBW_ENVIRONMENT_MACOS: >-
             CC=gcc
-            MACOSX_DEPLOYMENT_TARGET=$(sw_vers -productVersion | cut -d. -f1).0
-          CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-* cp314-*"
+            MACOSX_DEPLOYMENT_TARGET=$(cat /tmp/qmeq_macosx_deployment_target_major).0
+          CIBW_BUILD: "cp311-* cp312-* cp313-* cp314-*"
           CIBW_SKIP: "*-win32 *-manylinux_i686 *-musllinux_*"
           CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: pytest --pyargs qmeq

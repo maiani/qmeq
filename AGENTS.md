@@ -23,7 +23,7 @@ prioritized roadmap lives in [TODO.md](TODO.md) and user-facing changes go in
 they are the source of truth for what is in flight.
 
 Done recently (see the changelog): the newer `cvsvensson/qmeq` maintenance
-history was merged; packaging moved to `pyproject.toml` with a `>=3.10` Python
+history was merged; packaging moved to `pyproject.toml` with a `>=3.11` Python
 floor and dependency extras (`test`, `docs`, `dev`); tutorials and example
 scripts were vendored into [examples/](examples/), rendered in the Sphinx docs,
 and run as tests; the docs build cleanly with warnings-as-errors; and backend
@@ -143,7 +143,7 @@ error needs to propagate.
 
 ## Conventions & gotchas
 
-- Python 3.10 or newer; runtime dependencies are NumPy and SciPy.
+- Python 3.11 or newer; runtime dependencies are NumPy and SciPy.
 - Use `doublenp` / `complexnp` from [qmeq/wrappers/mytypes.py](qmeq/wrappers/mytypes.py)
   for array dtypes rather than hard-coding, to stay consistent with the Cython side.
 - Legacy class aliases (`Builder_many_body`, `Builder_elph`) are kept for

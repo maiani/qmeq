@@ -19,10 +19,17 @@ implementations when both exist.
     implementation.
 
 - [ ] Replace the tag-only wheel workflow with pull-request and branch CI.
-  - Run the fast test suite on every pull request and relevant branch push.
+  - [x] Run the fast test suite on every pull request and relevant branch
+    push. `test.yml` (renamed from `test_cython.yml`, which already ran the
+    full suite under both backends despite the name) triggers on
+    `pull_request` and `push` to `master`.
   - Test every Python version currently claimed in `pyproject.toml` on Linux,
     and representative supported versions on macOS and Windows.
-  - Give pure-Python and compiled-extension tests separate jobs.
+  - [x] Give pure-Python and compiled-extension tests separate jobs. Split
+    the single matrix job into `python` (pure-Python backend, run once) and
+    `cython` (compiled backend, matrix over Cython versions); previously the
+    pure-Python suite ran once per Cython-version matrix leg for no reason,
+    since it doesn't depend on Cython at all.
   - Build the documentation with
     `sphinx-build -b html -W --keep-going source build/html`.
   - Run the slow example suite on a scheduled or manually dispatched job so it
@@ -112,12 +119,12 @@ implementations when both exist.
   - Install each artifact into a clean environment and run import, metadata,
     fast-test, and example smoke checks against the installed copy.
   - A source-based rattler-build recipe and prefix.dev publishing workflow now
-    cover compiled Linux, Intel macOS, and Apple Silicon packages for Python
-    3.10-3.14; Windows Conda variants remain gated on portable OpenMP
-    configuration.
+    cover compiled Linux (x86-64 and aarch64), Intel macOS, and Apple Silicon
+    packages for Python 3.11-3.14; Windows Conda variants remain gated on
+    portable OpenMP configuration.
 
 - [ ] Turn the declared Python range into a tested support policy.
-  - Test Python 3.10 through every newer version advertised by classifiers;
+  - Test Python 3.11 through every newer version advertised by classifiers;
     remove classifiers that cannot be exercised reliably.
   - Add a lowest-supported dependency job and a current-dependency job for
     NumPy, SciPy, Cython, and the build backend.
@@ -126,12 +133,17 @@ implementations when both exist.
     incompatibilities with an issue and regression test.
 
 - [ ] Decide the next release line before publishing.
-  - Reconcile the Python `>=3.10` floor and other compatibility changes with
-    semantic versioning; the next release may need to be a major release.
-  - Single-source the package, documentation, and release version instead of
-    keeping `docs/source/conf.py` fixed at `1.1`.
-  - Verify that project URLs, supported versions, authorship, citation text,
-    and the physics disclaimer are consistent across package metadata,
+  - [x] Dropped Python 3.10 (security-only, end-of-life October 2026) ahead
+    of the `1.2.0` release rather than shipping it and dropping it again
+    shortly after; the floor is now `>=3.11`.
+  - [ ] Reconcile the Python `>=3.11` floor and other compatibility changes
+    with semantic versioning; the next release may need to be a major
+    release.
+  - [x] Single-source the package, documentation, and release version:
+    `docs/source/conf.py` now derives `version`/`release` from
+    `qmeq.__version__` instead of a separately hardcoded string.
+  - [ ] Verify that project URLs, supported versions, authorship, citation
+    text, and the physics disclaimer are consistent across package metadata,
     `README.md`, `INSTALL.md`, and the documentation.
 
 ## P1: runtime and public API hygiene
