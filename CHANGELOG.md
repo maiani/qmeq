@@ -145,6 +145,19 @@
   breaking the macOS wheel build (observed on `macos-14`/arm64 as
   `gcc --version` invoking `ranlib --version`). The glob now requires a
   digit immediately after `gcc-`.
+- Set `CIBW_ENVIRONMENT_MACOS: "CC=gcc"` in `build_wheels.yml`. Symlinking
+  Homebrew's GCC as `gcc` in `CIBW_BEFORE_ALL_MACOS` was not enough on its
+  own: cibuildwheel's actual build step runs in a separate subprocess that
+  still defaulted to Apple clang, which fails with
+  `clang: error: unsupported option '-fopenmp'`.
+- Replace the `macos-13` wheel-build runner with `macos-15-intel` in
+  `build_wheels.yml`; the former is a retired GitHub-hosted image and the
+  build job for it would queue indefinitely instead of running.
+- Set `run-install: false` on the `setup-pixi` step in `publish_conda.yml`'s
+  `publish` job. That job never checks out the repository, so pixi's
+  automatic manifest detection defaulted to a nonexistent
+  `<workspace>/pixi.toml` and `pixi install` failed before the job could
+  reach the download/upload steps; the job only needs the `pixi` CLI itself.
 - Remove a dead, shadowed duplicate definition of the pure-Python 2vN
   `TermsCalculator2vN.iterate` method. The surviving implementation already
   contains the initialization performed by the removed definition.

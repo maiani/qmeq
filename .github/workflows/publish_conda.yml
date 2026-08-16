@@ -87,6 +87,7 @@ jobs:
       - uses: prefix-dev/setup-pixi@v0.10.1
         with:
           pixi-version: latest
+          run-install: false
           auth-host: prefix.dev
           auth-token: ${{ secrets.PREFIX_API_KEY }}
 

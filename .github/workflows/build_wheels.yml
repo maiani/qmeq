@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-2022, macos-13, macos-14]
+        os: [ubuntu-24.04, windows-2022, macos-15-intel, macos-14]
 
     steps:
       - uses: actions/checkout@v7
@@ -25,6 +25,11 @@ jobs:
         uses: pypa/cibuildwheel@v4.2.0
         env:
           CIBW_BEFORE_ALL_MACOS: bash scripts/cibw_before_all_macos.sh
+          # Apple clang rejects -fopenmp; cibw_before_all_macos.sh symlinks the
+          # Homebrew GCC it finds as plain "gcc" on PATH, but the build step
+          # runs in its own subprocess and still defaults to clang unless CC
+          # is set explicitly here.
+          CIBW_ENVIRONMENT_MACOS: "CC=gcc"
           CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-* cp314-*"
           CIBW_SKIP: "*-win32 *-manylinux_i686 *-musllinux_*"
           CIBW_TEST_REQUIRES: pytest
