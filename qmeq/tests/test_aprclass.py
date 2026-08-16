@@ -26,7 +26,10 @@ def test_get_htransf_phi1k_matches_scalar_transforms():
         )
 
     assert np.array_equal(phi1k, original)
-    assert np.array_equal(transformed, expected)
+    # FFT-based Hilbert transforms can round differently between the batched
+    # call and the per-slice reference loop, and across architectures (this
+    # surfaced as an exact-equality failure on linux-aarch64 only).
+    assert np.allclose(transformed, expected)
     assert len(funcp.ht_ker) == 2*len(padded)
 
 

@@ -189,6 +189,12 @@
   alone was not enough: `pixi install` refused to run at all on that
   architecture with `unsupported-platform`, since the workspace itself
   never declared it as installable.
+- Use `np.allclose` instead of exact `np.array_equal` for the Hilbert-
+  transform comparison in `test_get_htransf_phi1k_matches_scalar_transforms`.
+  The batched call and the per-slice reference loop it is checked against
+  can round FFT results differently, which only surfaced as a failure on
+  `linux-aarch64` (the first time the suite ran there) even though the
+  printed arrays were identical to the displayed precision.
 - Remove a dead, shadowed duplicate definition of the pure-Python 2vN
   `TermsCalculator2vN.iterate` method. The surviving implementation already
   contains the initialization performed by the removed definition.
