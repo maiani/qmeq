@@ -21,6 +21,21 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Determine the macOS deployment target
+        if: runner.os == 'macOS'
+        # Homebrew's GCC bundles an OpenMP runtime (libgomp) built for the
+        # host's own macOS version, so the wheel's deployment target must be
+        # raised to match it (delocate-wheel otherwise refuses to repair the
+        # wheel); derive it from the host rather than hardcoding a version
+        # that will drift on the next runner-image bump. Computed as a
+        # regular step, with GitHub Actions substituting the value via
+        # ${{ }} below, rather than inside CIBW_ENVIRONMENT_MACOS: that
+        # variable is evaluated by cibuildwheel's own restricted shell-subset
+        # parser, which rejects a pipe inside $(...), and is evaluated to
+        # build CIBW_BEFORE_ALL_MACOS's own environment before that script
+        # has even run, so it cannot depend on anything the script produces.
+        run: echo "MACOSX_DEPLOYMENT_TARGET=$(sw_vers -productVersion | cut -d. -f1).0" >> "$GITHUB_ENV"
+
       - name: Build wheels
         uses: pypa/cibuildwheel@v4.2.0
         env:
@@ -28,18 +43,8 @@ jobs:
           # Apple clang rejects -fopenmp; cibw_before_all_macos.sh symlinks the
           # Homebrew GCC it finds as plain "gcc" on PATH, but the build step
           # runs in its own subprocess and still defaults to clang unless CC
-          # is set explicitly here. Homebrew's GCC bundles an OpenMP runtime
-          # (libgomp) built for the host's own macOS version, so the wheel's
-          # deployment target must be raised to match it (delocate-wheel
-          # otherwise refuses to repair the wheel); derive it from the host
-          # rather than hardcoding a version that will drift on the next
-          # runner-image bump. The major version is computed in
-          # cibw_before_all_macos.sh and handed off via a plain file, since
-          # this variable is evaluated by a restricted shell-subset parser
-          # that does not support pipes inside $(...).
-          CIBW_ENVIRONMENT_MACOS: >-
-            CC=gcc
-            MACOSX_DEPLOYMENT_TARGET=$(cat /tmp/qmeq_macosx_deployment_target_major).0
+          # is set explicitly here.
+          CIBW_ENVIRONMENT_MACOS: "CC=gcc MACOSX_DEPLOYMENT_TARGET=${{ env.MACOSX_DEPLOYMENT_TARGET }}"
           CIBW_BUILD: "cp311-* cp312-* cp313-* cp314-*"
           CIBW_SKIP: "*-win32 *-manylinux_i686 *-musllinux_*"
           CIBW_TEST_REQUIRES: pytest

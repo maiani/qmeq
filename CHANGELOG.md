@@ -164,15 +164,18 @@
   Homebrew's GCC as `gcc` in `CIBW_BEFORE_ALL_MACOS` was not enough on its
   own: cibuildwheel's actual build step runs in a separate subprocess that
   still defaulted to Apple clang, which fails with
-  `clang: error: unsupported option '-fopenmp'`. The same variable also sets
-  `MACOSX_DEPLOYMENT_TARGET` from the host's own macOS version: Homebrew's
-  GCC bundles an OpenMP runtime (`libgomp`) built for the host it runs on, so
-  `delocate-wheel` refused to repair a wheel targeting the cibuildwheel
-  default (`macosx_11_0`/`macosx_10_9`), which is older. The major-version
-  extraction runs in `cibw_before_all_macos.sh` and is handed off through a
-  plain file, since `CIBW_ENVIRONMENT_MACOS` is evaluated by cibuildwheel's
-  own restricted shell-subset parser, which rejected a pipe inside `$(...)`
-  with `ValueError: Unsupported bash construct: 'command'`.
+  `clang: error: unsupported option '-fopenmp'`.
+- Add a "Determine the macOS deployment target" step to `build_wheels.yml`
+  that sets `MACOSX_DEPLOYMENT_TARGET` from the host's own macOS version, fed
+  into `CIBW_ENVIRONMENT_MACOS` via `${{ env.MACOSX_DEPLOYMENT_TARGET }}`.
+  Homebrew's GCC bundles an OpenMP runtime (`libgomp`) built for the host it
+  runs on, so `delocate-wheel` refused to repair a wheel targeting the
+  cibuildwheel default (`macosx_11_0`/`macosx_10_9`), which is older.
+  Computing the value inside `CIBW_ENVIRONMENT_MACOS` itself does not work:
+  that variable is evaluated by cibuildwheel's own restricted shell-subset
+  parser (which rejects a pipe inside `$(...)`) to build
+  `CIBW_BEFORE_ALL_MACOS`'s own environment, before that script has run, so
+  it cannot even depend on anything the script produces via a hand-off file.
 - Replace the `macos-13` wheel-build runner with `macos-15-intel` in
   `build_wheels.yml`; the former is a retired GitHub-hosted image and the
   build job for it would queue indefinitely instead of running.
@@ -181,6 +184,11 @@
   automatic manifest detection defaulted to a nonexistent
   `<workspace>/pixi.toml` and `pixi install` failed before the job could
   reach the download/upload steps; the job only needs the `pixi` CLI itself.
+- Add `linux-aarch64` to `[tool.pixi.workspace] platforms` in
+  `pyproject.toml`. Adding the platform to `release.yml`'s build matrix
+  alone was not enough: `pixi install` refused to run at all on that
+  architecture with `unsupported-platform`, since the workspace itself
+  never declared it as installable.
 - Remove a dead, shadowed duplicate definition of the pure-Python 2vN
   `TermsCalculator2vN.iterate` method. The surviving implementation already
   contains the initialization performed by the removed definition.
