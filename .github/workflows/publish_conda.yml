@@ -25,10 +25,12 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
-        runner: [ubuntu-24.04, macos-15-intel, macos-15]
+        runner: [ubuntu-24.04, ubuntu-24.04-arm, macos-15-intel, macos-15]
         include:
           - runner: ubuntu-24.04
             target-platform: linux-64
+          - runner: ubuntu-24.04-arm
+            target-platform: linux-aarch64
           - runner: macos-15-intel
             target-platform: osx-64
           - runner: macos-15

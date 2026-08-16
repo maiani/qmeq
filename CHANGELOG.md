@@ -4,14 +4,15 @@
 
 ### Added
 
-- Add a source-based Conda recipe for compiled Python 3.10-3.14 Linux, Intel
-  macOS, and Apple Silicon packages, plus a tag/manual GitHub Actions workflow
-  that builds each Python/platform variant independently, runs the fast suite
-  against the installed artifacts, and uploads them to a namespaced prefix.dev
-  channel only after every build succeeds. Generated C build artifacts are no
-  longer installed as package data; the canonical `.pyx` and `.pxd` extension
-  sources remain included. The setup-configuration regression test now skips
-  outside a source checkout so the installed suite remains runnable.
+- Add a source-based Conda recipe for compiled Python 3.10-3.14 Linux x86-64,
+  Linux aarch64, Intel macOS, and Apple Silicon packages, plus a tag/manual
+  GitHub Actions workflow that builds each Python/platform variant
+  independently, runs the fast suite against the installed artifacts, and
+  uploads them to a namespaced prefix.dev channel only after every build
+  succeeds. Generated C build artifacts are no longer installed as package
+  data; the canonical `.pyx` and `.pxd` extension sources remain included.
+  The setup-configuration regression test now skips outside a source
+  checkout so the installed suite remains runnable.
 - Add a narrowly scoped Ruff correctness gate for Python files and notebooks,
   available through the development dependencies and enforced in CI.
   Repository-wide automatic formatting remains intentionally disabled while
