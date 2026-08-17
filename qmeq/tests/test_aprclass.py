@@ -26,10 +26,15 @@ def test_get_htransf_phi1k_matches_scalar_transforms():
         )
 
     assert np.array_equal(phi1k, original)
-    # FFT-based Hilbert transforms can round differently between the batched
-    # call and the per-slice reference loop, and across architectures (this
-    # surfaced as an exact-equality failure on linux-aarch64 only).
-    assert np.allclose(transformed, expected)
+    # The batched transform and the per-slice reference loop are the same
+    # computation, so they agree exactly on x86-64. They are only required to
+    # agree to floating-point roundoff, because the FFT pair underneath may
+    # associate operations differently between a batched and a 1-D call: on
+    # linux-aarch64 this shows up as a last-bit disagreement. The tolerance is
+    # therefore set a few orders of magnitude above the ~1e-16 relative scale
+    # of a double-precision ULP, and deliberately nowhere near loose enough to
+    # accept a genuine error in the batching itself.
+    np.testing.assert_allclose(transformed, expected, rtol=1e-13, atol=1e-15)
     assert len(funcp.ht_ker) == 2*len(padded)
 
 

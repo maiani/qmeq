@@ -189,12 +189,23 @@
   alone was not enough: `pixi install` refused to run at all on that
   architecture with `unsupported-platform`, since the workspace itself
   never declared it as installable.
-- Use `np.allclose` instead of exact `np.array_equal` for the Hilbert-
-  transform comparison in `test_get_htransf_phi1k_matches_scalar_transforms`.
-  The batched call and the per-slice reference loop it is checked against
-  can round FFT results differently, which only surfaced as a failure on
-  `linux-aarch64` (the first time the suite ran there) even though the
-  printed arrays were identical to the displayed precision.
+- Compare the Hilbert transforms in
+  `test_get_htransf_phi1k_matches_scalar_transforms` with
+  `assert_allclose(rtol=1e-13, atol=1e-15)` instead of exact
+  `np.array_equal`. The batched call and the per-slice reference loop it is
+  checked against can associate the underlying FFT operations differently,
+  which surfaced as a last-bit failure on `linux-aarch64` (the first time the
+  suite ran there) even though the two agree exactly on x86-64. The tolerance
+  is a few orders of magnitude above a double-precision ULP and still rejects
+  a genuine error in the batching.
+- Call `_init_before_appr` from `BuilderElPh.__init__` as well, and give
+  `BuilderManyBodyElPh` its own override. That builder repeats
+  `BuilderBase.__init__`'s sequence rather than delegating to it, so the hook
+  added for the compiled-RTD many-body fix never ran on the electron-phonon
+  path: `BuilderManyBodyElPh` still applied its state indexing after the
+  `Approach` object was built, and its inherited hook would have raised
+  `AttributeError` had anything invoked it. Covered by
+  `test_every_builder_runs_the_pre_approach_hook`.
 - Remove a dead, shadowed duplicate definition of the pure-Python 2vN
   `TermsCalculator2vN.iterate` method. The surviving implementation already
   contains the initialization performed by the removed definition.

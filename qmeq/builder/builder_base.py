@@ -148,7 +148,12 @@ class BuilderBase(object):
         after :meth:`_init_create_setup` but before the ``Approach`` object is
         constructed. Some compiled approaches (e.g. RTD) size per-thread buffers
         from ``si`` at construction time, so any state not yet reflected in
-        ``si`` here will be built for the wrong system size."""
+        ``si`` here will be built for the wrong system size.
+
+        Every builder ``__init__`` must call this between
+        :meth:`_init_create_setup` and :meth:`_init_create_appr`;
+        :class:`BuilderElPh` repeats that sequence rather than delegating here,
+        so the two have to be kept in step."""
 
     def _init_validate_data(self):
         data = self.data

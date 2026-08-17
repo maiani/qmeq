@@ -120,6 +120,7 @@ class BuilderElPh(BuilderBase):
         self._init_set_globals()
         self._init_set_approach_class()
         self._init_create_setup()
+        self._init_before_appr()
         self._init_create_appr()
 
     def _init_validate_data(self):
@@ -212,6 +213,13 @@ class BuilderManyBodyElPh(BuilderElPh, BuilderManyBody):
         nleads = Tba.shape[0] if Tba is not None else 0
         nbaths = Vbbp.shape[0] if Vbbp is not None else 0
 
+        # See BuilderManyBody.__init__: these are consumed by
+        # _init_before_appr, which runs before the Approach object exists.
+        self._many_body_Na = Na
+        self._many_body_Ea = Ea
+        self._many_body_Tba = Tba
+        self._many_body_Vbbp = Vbbp
+
         # noinspection PyPep8
         BuilderElPh.__init__(self,
             nleads=nleads, mulst=mulst, tlst=tlst, dband=dband,
@@ -225,8 +233,10 @@ class BuilderManyBodyElPh(BuilderElPh, BuilderManyBody):
             indexing='charge', countingleads=countingleads,
             off_diag_corrections=off_diag_corrections)
 
-        self._init_state_indexing(Na, Ea)
+    def _init_before_appr(self):
+        Vbbp = self._many_body_Vbbp
+        del self._many_body_Vbbp
 
-        self.qd.Ea = Ea
-        self.leads.Tba = Tba
+        BuilderManyBody._init_before_appr(self)
+
         self.baths.Vbbp = Vbbp

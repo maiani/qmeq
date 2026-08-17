@@ -192,3 +192,63 @@ def test_Builder_elph_double_dot_spinful():
             attr = kerntype+str(itype)+str(itype_ph)
             for param in ['current', 'energy_current']:
                 assert norm(getattr(system, param) - data[attr+param]) < EPS
+
+
+def test_every_builder_runs_the_pre_approach_hook():
+    """``_init_before_appr`` must fire for every builder.
+
+    ``BuilderElPh.__init__`` repeats ``BuilderBase.__init__``'s sequence rather
+    than delegating to it, so the hook call is easy to drop there. When that
+    happens the many-body state indexing lands after the ``Approach`` object is
+    built, and a compiled approach that sizes buffers from ``si`` at
+    construction time (RTD) gets the wrong size -- see
+    ``test_RTD_many_body_construction_matches_Builder``.
+    """
+    import numpy as np
+
+    from qmeq import Builder
+    from qmeq import BuilderElPh
+    from qmeq import BuilderManyBody
+    from qmeq import BuilderManyBodyElPh
+
+    hook_ran = []
+
+    common = dict(mulst=[0.0, 0.0], tlst=[1.0, 1.0], dband=100.0,
+                  kerntype='pyPauli')
+    elph = dict(tlst_ph=[1.0], dband_ph=[100.0])
+    many_body = dict(Ea=np.array([0.0, 1.0, 1.2, 2.5]), Na=[0, 1, 1, 2],
+                     Tba=np.zeros((2, 4, 4), dtype=complex))
+    Vbbp = np.zeros((1, 4, 4), dtype=complex)
+
+    cases = [
+        (Builder, dict(nsingle=1, nleads=2, tleads={(0, 0): 0.1}, **common)),
+        (BuilderElPh, dict(nsingle=1, nleads=2, tleads={(0, 0): 0.1},
+                           nbaths=1, velph={(0, 0, 0): 0.1},
+                           **common, **elph)),
+        (BuilderManyBody, dict(**many_body, **common)),
+        (BuilderManyBodyElPh, dict(**many_body, Vbbp=Vbbp, **common, **elph)),
+    ]
+
+    for cls, kwargs in cases:
+        # Restore by putting the original back when the class defined its own,
+        # and only delete when the attribute was inherited. Deleting
+        # unconditionally would strip the real override off, say,
+        # BuilderManyBody and silently disable it for every later test.
+        defines_its_own = '_init_before_appr' in cls.__dict__
+        original = cls._init_before_appr
+
+        def spy(self, _cls=cls, _original=original):
+            hook_ran.append(_cls.__name__)
+            return _original(self)
+
+        cls._init_before_appr = spy
+        try:
+            cls(**kwargs)
+        finally:
+            if defines_its_own:
+                cls._init_before_appr = original
+            else:
+                del cls._init_before_appr
+
+    assert hook_ran == ['Builder', 'BuilderElPh',
+                        'BuilderManyBody', 'BuilderManyBodyElPh']
