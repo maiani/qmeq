@@ -35,6 +35,15 @@ qmeq/wrappers/c_mytypes.c
 # Output produced by running the example scripts (figures and data dumps).
 *.png
 *.dat
+# The legacy notebooks embed these three statically and nothing regenerates
+# them, so they are required assets: without them a fresh clone cannot build the
+# docs ("image file not readable"). QD_load and dot_transistor are drawings;
+# RTD_2vN_comp1 is a pre-rendered comparison plot kept as a figure. Listed one by
+# one on purpose, so that genuinely generated figures dropped into the same
+# directory stay ignored.
+!examples/legacy_tutorials/images/QD_load.png
+!examples/legacy_tutorials/images/RTD_2vN_comp1.png
+!examples/legacy_tutorials/images/dot_transistor.png
 
 ### Directories
 

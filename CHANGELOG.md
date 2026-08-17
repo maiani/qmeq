@@ -91,10 +91,9 @@
   launching one FFT pair for every density-matrix trace.
 - Skip interpolation work for exactly zero tunnelling products in the compiled
   2vN iteration while preserving parity with the pure-Python implementation.
-- Standardize extension generation on Cython 3 (`>=3.0,<4`), make the Python
-  language level and Cython 3 exception semantics explicit, and test compiled
-  builds against both Cython 3.0 and the current Cython 3 release. Backend
-  parity tests cover Pauli, Lindblad, Redfield, 1vN, 2vN, and RTD.
+- Standardize extension generation on Cython 3 (`>=3.0,<4`) and make the Python
+  language level and Cython 3 exception semantics explicit. Backend parity tests
+  cover Pauli, Lindblad, Redfield, 1vN, 2vN, and RTD.
 - Use NumPy for `pi` and `exp` constants removed from the public SciPy API.
 - Allow the Sphinx documentation to build without optional Cython extensions.
 - Modernize packaging: move static project metadata to `pyproject.toml`,
@@ -184,6 +183,23 @@
 
 ### Fixed
 
+- Track the three images the legacy notebooks embed
+  (`examples/legacy_tutorials/images/`). A blanket `*.png` rule, meant for the
+  figures the example scripts generate, also ignored them, so they existed only
+  in working trees that predated the rule: from a fresh clone the documentation
+  build failed with `image file not readable`. The negations are listed per
+  file, so genuinely generated figures dropped into the same directory stay
+  ignored.
+- Add `ipython-pygments-lexers` to the `docs` extra. The notebooks declare the
+  `ipython3` Pygments lexer, which Pygments itself does not provide, so a
+  docs-only install failed under `-W` with
+  `Pygments lexer name 'ipython3' is not known`. It happened to work in any
+  environment that also had the `test` extra installed, which is why it went
+  unnoticed.
+- Add `setuptools>=77` to the `test` extra. The backend tests introspect
+  `setup.py` in a subprocess, and Python 3.12 and newer no longer provide
+  setuptools alongside the interpreter, so those tests failed on 3.12-3.14.
+  They now also skip cleanly when it is missing rather than erroring.
 - Constrain the CI `setuptools` install to `>=77`, matching
   `[build-system] requires`. The compiled jobs install their build dependencies
   by hand and then use `--no-build-isolation`, but a bare

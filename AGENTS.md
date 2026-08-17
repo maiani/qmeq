@@ -163,9 +163,10 @@ already loaded an OpenMP runtime. Serial and threaded builds can differ in the
 last bits of reduced quantities (the RTD energy current), because the number of
 per-thread accumulation buffers changes the summation order.
 
-The supported build range is Cython `>=3.0,<4`; CI regenerates all extensions
-with both Cython 3.0.0 and the current Cython 3 release. Compiler directives
-are explicit in `setup.py`. Treat future exception/`nogil` warning cleanup as
+The supported build range is Cython `>=3.0,<4`, but CI only regenerates the
+extensions with the current Cython 3 release — the declared floor is not
+exercised (tracked under "Test the dependency floors" in [TODO.md](TODO.md)).
+Compiler directives are explicit in `setup.py`. Treat future exception/`nogil` warning cleanup as
 semantic work: do not add `noexcept` merely to silence a diagnostic when an
 error needs to propagate.
 

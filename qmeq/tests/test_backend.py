@@ -4,7 +4,6 @@ import importlib.util
 import json
 import os
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 
@@ -94,9 +93,22 @@ def test_invalid_backend_fails_before_qmeq_import():
     assert "expected one of: auto, python, cython" in result.stderr
 
 
-def test_python_backend_disables_extensions_in_setup():
+def _require_setup_py():
+    """Skip unless setup.py can actually be introspected here.
+
+    The file is absent when the suite runs against an installed package, and
+    setuptools is absent from a bare environment on Python 3.12+, where it is no
+    longer installed alongside the interpreter. Declared in the `test` extra, so
+    a missing setuptools means the suite was invoked without it.
+    """
     if not (ROOT / 'setup.py').is_file():
         pytest.skip('requires the source-tree setup.py')
+    if importlib.util.find_spec('setuptools') is None:
+        pytest.skip('requires setuptools (install the "test" extra)')
+
+
+def test_python_backend_disables_extensions_in_setup():
+    _require_setup_py()
 
     code = """
 import runpy
@@ -139,8 +151,7 @@ def test_openmp_off_builds_without_openmp_flags():
     makes -- and the macOS wheels are built this way so they stay installable on
     older macOS releases.
     """
-    if not (ROOT / 'setup.py').is_file():
-        pytest.skip('requires the source-tree setup.py')
+    _require_setup_py()
 
     result = _run_setup_python(_REPORT_OPENMP_ARGS, QMEQ_OPENMP='off')
 
@@ -149,8 +160,7 @@ def test_openmp_off_builds_without_openmp_flags():
 
 
 def test_invalid_openmp_mode_is_rejected():
-    if not (ROOT / 'setup.py').is_file():
-        pytest.skip('requires the source-tree setup.py')
+    _require_setup_py()
 
     result = _run_setup_python(_REPORT_OPENMP_ARGS, QMEQ_OPENMP='sometimes')
 
@@ -159,7 +169,7 @@ def test_invalid_openmp_mode_is_rejected():
 
 
 @pytest.mark.parametrize('backend', ['auto', 'cython'])
-def test_partial_extension_set_never_imports(backend, tmp_path):
+def test_partial_extension_set_never_imports(backend):
     """A half-built extension set must fail, not silently degrade.
 
     ``build_ext`` aborts on the first extension that fails to compile, but an
@@ -172,13 +182,21 @@ def test_partial_extension_set_never_imports(backend, tmp_path):
     if victim is None or victim.origin is None:
         pytest.skip('requires the compiled extensions')
 
+    # Renamed alongside the original rather than moved into a tmp_path: this
+    # process has the extension loaded, and on Windows that means the file
+    # cannot be deleted (so a cross-volume move, which is a copy plus delete,
+    # fails with a PermissionError). A same-directory rename keeps a single
+    # filesystem operation, which Windows does allow on an open file.
     origin = Path(victim.origin)
-    hidden = tmp_path / origin.name
-    shutil.move(origin, hidden)
+    hidden = origin.with_name(origin.name + '.hidden')
+    try:
+        origin.rename(hidden)
+    except OSError as exc:  # pragma: no cover - platform dependent
+        pytest.skip(f'cannot relocate a loaded extension here: {exc}')
     try:
         result = _run_python('import qmeq', backend)
     finally:
-        shutil.move(hidden, origin)
+        hidden.rename(origin)
 
     assert result.returncode != 0, result.stdout
     assert 'BackendUnavailableError' in result.stderr

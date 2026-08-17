@@ -1,323 +1,189 @@
-# QmeQ modernization roadmap
+# QmeQ roadmap
 
-This roadmap covers maintenance and modernization, not new physics. Changes
-must preserve the documented approximations, reference results, and public
-compatibility aliases unless a deliberate breaking release says otherwise.
-Every numerical change should be exercised in both the pure-Python and Cython
-implementations when both exist.
+Open work only. Completed work is recorded in [CHANGELOG.md](CHANGELOG.md)
+under `[Unreleased]`; this file is deliberately not a history.
 
-## P0: trustworthy builds and continuous integration
+Ground rules for anything below:
 
-- [x] Make **backend selection** explicit and testable.
-  - Provide a supported way to force a pure-Python installation/runtime and a
-    supported way to require compiled extensions.
-  - Expose enough backend information for tests and bug reports to state which
-    implementation is active.
-  - Fail clearly when compiled extensions are explicitly requested but cannot
-    be built or imported; do not silently fall back in that mode.
-  - Add a small backend smoke test that cannot pass while exercising the wrong
-    implementation.
+- This is a scientific library: **physics correctness comes before
+  convenience**, and different approximations are expected to disagree with
+  each other. A change that is easy to verify against the existing tests and
+  reference data beats a cleverer one that is not.
+- Every numerical change must be exercised in both the pure-Python and Cython
+  implementations where both exist, and tolerances must be justified rather
+  than widened until they pass.
+- Public compatibility aliases and accepted input forms stay unless a
+  deliberate breaking release says otherwise.
 
-- [x] Replace the tag-only wheel workflow with pull-request and branch CI.
-  - [x] Run the fast test suite on every pull request and relevant branch
-    push. `test.yml` (renamed from `test_cython.yml`, which already ran the
-    full suite under both backends despite the name) triggers on
-    `pull_request` and `push` to `master`.
-  - [x] Test every Python version currently claimed in `pyproject.toml` on
-    Linux, and representative supported versions on macOS and Windows. The
-    `python` job sweeps 3.11-3.14 (it is the cheap job, so the version sweep
-    lives there), and the `cython` job covers one representative version on
-    each of Linux, macOS, and Windows.
-  - [x] Give pure-Python and compiled-extension tests separate jobs. Split
-    the single matrix job into `python` (pure-Python backend, run once) and
-    `cython` (compiled backend, matrix over Cython versions); previously the
-    pure-Python suite ran once per Cython-version matrix leg for no reason,
-    since it doesn't depend on Cython at all.
-  - [x] Build the documentation with
-    `sphinx-build -b html -W --keep-going source build/html`, as the `docs`
-    job in `test.yml` (which also installs the `pandoc` binary nbsphinx
-    needs).
-  - [x] Run the slow example suite on a scheduled or manually dispatched job so
-    it remains a release gate without delaying every small pull request:
-    `slow.yml`, weekly plus `workflow_dispatch`, over both backends.
+## P0: results a user can trust
 
-- [ ] Make the extension build portable and predictable.
-  - [x] Replace unconditional OpenMP compiler/linker flags with per-platform
-    configuration and a documented serial fallback.
-    - `setup.py` now selects OpenMP through `QMEQ_OPENMP=auto|on|off` (default
-      `auto`), probing candidate flag sets against the *active compiler* rather
-      than guessing from `os.name`: `/openmp` for MSVC, `-fopenmp` for GCC, and
-      `-Xpreprocessor -fopenmp` with an explicit `-lomp` for Apple clang,
-      including variants that add the include/lib directories of a prefix given
-      by `QMEQ_OPENMP_PREFIX`, `sys.prefix`, or `brew --prefix libomp`. `auto`
-      falls back to a serial build with a warning, `on` makes that an error,
-      `off` skips OpenMP outright.
-    - The serial fallback required a source change: `c_RTD.pyx` called
-      `omp_get_max_threads` and `omp_get_thread_num` directly, which are hard
-      link errors on macOS and, on Linux, produced a module that imported only
-      because SciPy had already pulled `libiomp5` into the process. Both now go
-      through a `#ifdef _OPENMP` shim reporting a single thread.
-    - The Homebrew-GCC symlink hack (`scripts/cibw_before_all_macos.sh`) and the
-      deployment-target juggling it forced are gone; macOS wheels build with
-      Apple clang and `QMEQ_OPENMP=off`, which is what makes them installable on
-      older macOS again.
-  - [x] Verify extension builds with the toolchains used by Linux, macOS, and
-    Windows wheels.
-    - `test.yml`'s compiled job is now a matrix over `ubuntu-latest`,
-      `windows-latest`, and `macos-14`, so GCC, MSVC, and Apple clang are all
-      exercised on every push rather than only when a release tag is built. The
-      oldest-supported-Cython leg stays Linux-only, since it exists to catch
-      Cython-version regressions rather than to re-test each toolchain.
-    - Still open: `build_wheels.yml`'s smoke test
-      (`CIBW_TEST_COMMAND: pytest --pyargs qmeq`) does not assert
-      `get_backend_status()['active'] == 'cython'`, so it would not notice a
-      wheel that silently fell back to pure Python.
-  - [x] Ensure a compiler or OpenMP failure cannot leave a partially
-    importable installation.
-    - setuptools' default `build_ext` aborts on the first extension failure,
-      which lines up with `_backend.py`'s "partial installs always fail"
-      import-time contract, but that contract was untested: the gap was an
-      incremental rebuild leaving stale `.so` files next to freshly built ones,
-      an inconsistent-but-importable mix.
-    - `test_partial_extension_set_never_imports` now removes one compiled
-      module from an otherwise-complete set and asserts that importing raises
-      `BackendUnavailableError` naming the missing module, under both `auto`
-      and `cython`. `auto` is included on purpose: its quiet fallback is only
-      for a *cleanly* absent extension set, never a partial one.
-  - [x] Keep `.py`, `.pyx`, and `.pxd` behavior synchronized; add parity
-    tests for shared kernels rather than relying only on build success.
-    - `test_first_order_and_RTD_backend_parity` and
-      `test_Builder_sparse_2vN_backend_parity` in `test_builder.py` already
-      cover Pauli, Lindblad, Redfield, 1vN, RTD, and 2vN. Electron-phonon
-      approaches have no parity test yet, but that gap is already tracked
-      separately under "Build a backend-parity test layer" (P1).
+The library's own disclaimer says these approximations can fail. Right now they
+fail *silently*, which is the most expensive kind of bug in a package whose
+output ends up in papers.
 
-- [x] Standardize the compiled backend on Cython 3.
-  - Declare a supported Cython 3 minimum and test both that version and the
-    current release instead of leaving the build dependency unconstrained.
-  - Set language level and other compiler directives explicitly so builds do
-    not depend on changing Cython defaults.
-  - Audit Cython 3 exception and `nogil` diagnostics; add `noexcept` only where
-    failure is genuinely impossible and does not need to propagate.
-  - Regenerate every extension from the canonical `.pyx`/`.pxd` sources in a
-    clean build and run the compiled and backend-parity suites.
+- [ ] Flag unphysical stationary solutions instead of returning them.
+  - Redfield, 1vN, 2vN, and RTD can all violate positivity of the reduced
+    density matrix. Measured `min(phi0) = -0.81` with `sum(phi0) == 1` and a
+    current that looks unremarkable (`bug_report.md` issue 5).
+  - Check negative populations, trace deviation, and solver conditioning; emit
+    a warning *and* expose the result as a queryable diagnostic, so scripted
+    sweeps can filter on it rather than parsing stderr.
+  - Keep the behaviour identical between backends and approaches.
+  - Cheapest available guard against publishing a wrong number; do this first.
 
-- [x] Define one source-build policy and make the repository match it.
-  - Chose `.pyx`/`.pxd` as the canonical extension sources: generated `.c`
-    files are build artifacts, ignored and untracked.
-  - Removed the dead "reuse checked-in C files" path and the custom
-    `--cython` switch from `setup.py` (unreachable in practice: the `.c`
-    files are never present in a fresh checkout, so every real build already
-    took the cythonize branch).
-  - Isolated PEP 517 builds (`pip install .` and `pip install git+https://...`)
-    surfaced that `scipy` was missing from `[build-system] requires`, even
-    though `c_lapack.pyx` cimports `scipy.linalg.cython_lapack` at cythonize
-    time; added it. Verified both `QMEQ_BACKEND=cython` and `=python` builds
-    in clean venvs after the fix.
-  - `INSTALL.md` and `clean.py` didn't reference the removed path and needed
-    no changes; full sdist/package-data consistency is tracked separately
-    under "Make wheels and source distributions self-consistent" (P1).
+- [ ] Warn when RTD is used outside the regime where a diagonal density matrix
+      is justified.
+  - `generate_row_inverse_Liouvillian` inverts a bare `1/(E_a - E_b)` clamped
+    at `minE = 1e-10` and carrying no broadening. Eliminating the coherences is
+    only valid when intra-sector splittings are large compared with the tunnel
+    broadening; a DQD tuned near orbital degeneracy reached `0.07 Γ` with
+    nothing in the output saying so (`bug_report.md` issue 4).
+  - Needs a defensible Γ estimate and threshold, applied in both `RTD.py` and
+    `c_RTD.pyx`. Choosing the threshold is physics, not a lint fix.
+
+- [ ] Give the reference data in `qmeq/tests/data_*.py` a provenance record.
+  - `data_builder.py` and `data_builder_elph.py` are bare dictionaries of
+    expected numbers. When one fails there is no way to tell a regression from
+    a reference that was never right.
+  - `data_counting.py` already does this properly (provenance header plus
+    `generate_counting_reference.py`) — follow that precedent for the rest.
+
+- [ ] Collect each approach's validity domain and known failure modes in one
+      documented place.
+  - The material exists but is scattered across tutorial 6's validity table,
+    the `qmeq/__init__.py` disclaimer, and the RTD bandwidth warnings. Promote
+    it into `docs/source/theory/` as one reference keyed by approach, and point
+    the warnings at it.
+
+## P1: correctness gaps in shipped features
+
+- [ ] Make `BuilderManyBodyElPh` work, or declare it unsupported.
+  - It constructs, but `solve(qdq=False, rotateq=False)` raises `IndexError` in
+    `get_ind_dm0`: `si_elph` is never set up for many-body input. Reproduced on
+    both backends, and unchanged by the recent initialisation-order fix, so this
+    is longstanding rather than a regression.
+  - Either fix the indexing path and add a regression test, or raise a clear
+    `NotImplementedError` at construction instead of failing deep inside a
+    solve.
+
+- [ ] Extend backend parity to the electron-phonon approaches.
+  - `test_builder.py` covers Pauli, Lindblad, Redfield, 1vN, 2vN, and RTD. The
+    elph `.py`/`.pyx` twins have none, so a divergence between them is
+    invisible.
+  - Compare kernels, stationary states, and currents on small reference
+    systems, within the same approximation only.
+
+- [ ] Support the RTD energy and heat currents for complex tunnel amplitudes.
+  - Both are currently filled with `nan` and a warning while the charge current
+    is computed. That is a sharp edge for any model with flux or interference.
+
+- [ ] Reconcile `RTDnoise` with the default RTD kernel.
+  - `RTDnoise` refuses to run unless `off_diag_corrections=False`, so its noise
+    comes from a kernel that differs from the one RTD uses by default. Either
+    implement the corrections there or quantify and document the discrepancy.
+
+- [ ] Turn the unequal-temperature RTD cutoff warning into an answer.
+  - Thermal-bias results depend on `dband` at percent-to-tens-of-percent level
+    and the user is simply told to rerun with larger values. A helper that
+    sweeps `dband` and reports observable-level convergence would make the
+    documented requirement actually followable.
+
+- [ ] Expand numerical edge-case coverage.
+  - Zero and extreme temperatures, narrow and wide bands, nearly degenerate
+    states, complex amplitudes, and empty or removed state sectors; plus the
+    limiting behaviour of the special functions and integration cutoffs.
 
 ## P1: distribution and support contract
 
-- [ ] Make wheels and source distributions self-consistent.
-  - Tighten `MANIFEST.in` to include required documentation, tests, Cython
-    sources, and vendored examples without including `docs/build` or other
-    generated artifacts.
-  - Keep examples out of the installed wheel unless they become a supported
-    runtime resource, but include them in the source archive used for release
-    validation.
-  - Build wheel and sdist artifacts, inspect their file lists and sizes, and
-    run `twine check`.
-  - Install each artifact into a clean environment and run import, metadata,
-    fast-test, and example smoke checks against the installed copy.
-  - A source-based rattler-build recipe and prefix.dev publishing workflow now
-    cover compiled Linux (x86-64 and aarch64), Intel macOS, and Apple Silicon
-    packages for Python 3.11-3.14; Windows Conda variants remain gated on
-    portable OpenMP configuration.
+- [ ] Decide how users are meant to install this fork.
+  - Nothing publishes to PyPI, yet `INSTALL.md` tells users `pip install qmeq`,
+    which resolves to the upstream project rather than this one. Either publish
+    under a name you own (Trusted Publishing, no token) or point the
+    instructions at the release assets or a git URL.
 
-- [ ] Turn the declared Python range into a tested support policy.
-  - Test Python 3.11 through every newer version advertised by classifiers;
-    remove classifiers that cannot be exercised reliably.
-  - Add a lowest-supported dependency job and a current-dependency job for
-    NumPy, SciPy, Cython, and the build backend.
-  - Document how and when old Python and dependency versions are retired.
-  - Avoid speculative upper bounds; add them only for demonstrated
-    incompatibilities with an issue and regression test.
+- [ ] Make wheels and source distributions self-consistent and verified.
+  - Tighten `MANIFEST.in` so the sdist carries docs, tests, Cython sources, and
+    examples without `docs/build` or other generated artifacts; keep examples
+    out of the installed wheel.
+  - Build both artifacts, inspect their file lists and sizes, run
+    `twine check`, then install each into a clean environment and run import,
+    metadata, and fast-test checks against the installed copy.
+  - `build_wheels.yml`'s smoke test never asserts
+    `get_backend_status()['active'] == 'cython'`, so a wheel that silently fell
+    back to pure Python would ship unnoticed.
 
-- [ ] Decide the next release line before publishing.
-  - [x] Dropped Python 3.10 (security-only, end-of-life October 2026) ahead
-    of the `1.2.0` release rather than shipping it and dropping it again
-    shortly after; the floor is now `>=3.11`.
-  - [x] Single-source the package, documentation, and release version:
-    `docs/source/conf.py` now derives `version`/`release` from
-    `qmeq.__version__` instead of a separately hardcoded string.
-  - [ ] Verify that project URLs, supported versions, authorship, citation
-    text, and the physics disclaimer are consistent across package metadata,
-    `README.md`, `INSTALL.md`, and the documentation.
+- [ ] Test the dependency floors, not just the current releases.
+  - NumPy, SciPy, Cython, and the build backend are unpinned and only ever
+    exercised at their newest versions. Add a lowest-supported job so the
+    declared range means something, and avoid speculative upper bounds unless a
+    demonstrated incompatibility justifies one.
 
-## P1: runtime and public API hygiene
+- [ ] Verify metadata consistency before publishing.
+  - Project URLs, supported versions, authorship, citation text, and the physics
+    disclaimer should agree across package metadata, `README.md`, `INSTALL.md`,
+    `AUTHORS.md`, and the documentation.
 
-- [x] Remove mutable defaults without changing call semantics.
-  - Replaced every `={}`/`=[]`/`=[0]` default with `None`, normalized to a
-    fresh literal inside the function body, in `BuilderBase`, `BuilderManyBody`
-    (`builder_base.py`), `BuilderElPh`, `BuilderManyBodyElPh`
-    (`builder_elph.py`), and `multiarray_sort` (`various.py`).
-  - No dedicated sharing regression test was added: `BuilderBase._init_copy_data`
-    already deep-copies every constructor argument before storage, so
-    cross-instance sharing was structurally impossible before this change too;
-    the fix is about not relying on that deep-copy as the only safeguard, and
-    about the style/lint hygiene of the signatures themselves.
-  - Legacy builder aliases and accepted input forms (dict/list/array) are
-    unaffected; full fast suite passes on both backends.
+## P1: API and runtime hygiene
 
 - [ ] Replace warning-like `print` calls with structured warnings.
-  - Introduce package warning classes or use appropriate standard warning
-    categories for fallback, validation, convergence, and unsupported-feature
-    notices.
-  - Preserve intentional output helpers such as state-printing utilities.
-  - Make warning behavior consistent between Python and Cython approaches,
-    including RTD and 2vN.
-  - Test warning category and message content where callers may need to filter
-    or capture it.
+  - Cover fallback, validation, convergence, and unsupported-feature notices;
+    keep deliberate output helpers such as the state-printing utilities.
+  - Behaviour must match between the Python and Cython approaches, RTD and 2vN
+    included, and the category and message should be assertable so callers can
+    filter or capture them. This is a prerequisite for the P0 diagnostics above.
 
-- [x] Make optional-extension imports precise.
-  - Already satisfied by the existing `qmeq._backend.load_compiled_modules`
-    centralization: every compiled-extension import (`builder_base.py`,
-    `builder_elph.py`, `approach/__init__.py`, `specfunc/__init__.py`) goes
-    through it, distinguishes a cleanly-missing extension
-    (`ModuleNotFoundError` with a matching module name) from a broken/partial
-    one, and chains the original exception (`raise ... from exc`) instead of
-    swallowing it.
-  - Verified by removing one compiled `.so` from an otherwise-complete
-    extension set: both `auto` and `cython` modes raise
-    `BackendUnavailableError` naming the missing module and chaining the
-    original `ModuleNotFoundError`, matching the documented "partial installs
-    always fail" contract; a normal pure-Python run stays quiet.
-  - `indexing.py` has no compiled twin, so there is no fallback logic to
-    centralize there; its own `except ImportError` is an unrelated
-    `scipy.misc.factorial` legacy-SciPy compatibility shim, tracked instead
-    under "Clear deprecated and fragile dependency usage" below.
-
-- [x] Fix `BuilderManyBody` construction with the compiled RTD approach.
-  - Root cause was more serious than wrong numbers: `ApproachRTD.__init__`
-    (compiled RTD) sizes a per-thread kernel buffer (`nbr_Wdd2_copies`) from
-    `si.npauli` at construction time. `BuilderManyBody` used to construct the
-    `Approach` object *before* applying the many-body state indexing
-    (`Na`/`Ea`), so the buffer was sized from a placeholder `si.npauli == 1`
-    instead of the real many-body state count. Besides silently dropping the
-    single-particle energy-current correction, this caused out-of-bounds
-    writes into that buffer whenever the real system had more diagonal states
-    than 1 and more than one OpenMP thread was available — reproduced as a
-    `free(): invalid size` heap-corruption crash on interpreter exit, with a
-    `BuilderManyBody(..., kerntype='RTD')` system alone, no `nsingle`/
-    `tleads_array` assignment required to trigger it.
-  - Fixed by adding a `BuilderBase._init_before_appr()` hook (no-op by
-    default) called after `_init_create_setup()` but before
-    `_init_create_appr()`; `BuilderManyBody` overrides it to run
-    `_init_state_indexing` before the `Approach` object exists. Pure-Python
-    `ApproachPyRTD` was unaffected (it reads `si` live, not at construction),
-    which is why the bug was compiled-RTD-specific.
-  - Added `test_RTD_many_body_construction_matches_Builder` (parametrized over
-    `RTD`/`pyRTD`) comparing many-body construction against an equivalent
-    `Builder` system, and dropped the `kerntype='pyRTD'`-then-switch
-    workaround from Tutorial 6. The unexecuted, reference-only legacy RTD
-    notebook (`examples/legacy_tutorials/RTD_tutorial.ipynb`) still describes
-    and uses the old workaround; left as-is since that notebook is historical
-    material, not maintained or run as a test.
+- [ ] Plan the `itype` deprecation.
+  - `itype` and the descriptive `bandwidth`/`principal_part` options now express
+    the same thing, and every approach documents both. Decide whether `itype`
+    becomes a warned-on alias or stays indefinitely, and write it down either
+    way.
 
 - [ ] Clear deprecated and fragile dependency usage.
-  - Run tests with deprecations visible under the oldest and newest supported
-    NumPy, SciPy, and Cython versions.
-  - Remove stale compatibility comments and APIs such as the old NumPy scalar
-    aliases after verifying dtype behavior.
-  - Keep Cython exception/no-GIL diagnostics clean as dependencies evolve; do
-    not add `noexcept` without checking the physics kernels' error behavior.
-  - Add focused tests before changing numerical types, integration behavior,
-    tolerances, or solver defaults.
+  - `indexing.py` still falls back to `scipy.misc.factorial`, removed in SciPy
+    1.3 — dead code against any supported SciPy.
+  - Run the suite with deprecations visible under the oldest and newest
+    supported NumPy, SciPy, and Cython; drop stale NumPy scalar aliases after
+    verifying dtype behaviour.
+  - Keep Cython exception and `nogil` diagnostics clean, but treat `noexcept` as
+    semantics rather than noise suppression: do not add it where an error needs
+    to propagate out of a physics kernel.
 
-## P1: scientific regression coverage
+## P2: performance
 
-- [ ] Build a backend-parity test layer.
-  - Run the same small reference systems through Python and Cython Pauli,
-    Lindblad, Redfield, 1vN, 2vN, RTD, and electron-phonon implementations
-    where both are available.
-  - Compare kernels, stationary states, particle currents, energy currents, and
-    convergence status with method-specific tolerances.
-  - Keep comparisons within the same approximation; disagreement between
-    different physical approaches is expected and is not a regression.
-  - Record tolerances with a numerical justification rather than weakening
-    assertions only to accommodate a platform.
-
-- [ ] Expand numerical edge-case tests.
-  - Cover zero and extreme temperatures, narrow and wide bands, nearly
-    degenerate states, complex tunneling amplitudes, and empty/removed state
-    sectors where supported.
-  - Add limiting-behavior tests for special functions and integration cutoffs.
-  - Turn diagnostic `print` blocks in tests into useful assertion messages.
-  - Separate genuinely slow physics regressions from fast unit tests with
-    explicit markers and documented runtime expectations.
-
-- [ ] Add lightweight quality gates for maintenance changes.
-  - [x] Add a narrowly configured linter before adopting any repository-wide
-    formatter.
-  - [ ] Add lightweight import and compile checks.
-  - Keep generated files, notebooks, and scientific data out of broad
-    mechanical rewrites.
-  - Add coverage reporting to identify untested maintenance paths, without
-    treating a single percentage target as evidence of physics correctness.
+- [ ] Establish a benchmark baseline.
+  - Nothing is measured: not whether OpenMP threading helps, not where RTD and
+    2vN time actually goes, not whether the 2vN Hilbert-transform chunking paid
+    off. Without a baseline every "optimisation" is unfalsifiable — and the
+    macOS wheels were just made serial without being able to quantify what that
+    costs a user.
+  - A handful of representative systems, timed reproducibly, is enough to start.
 
 ## P2: documentation and contributor workflow
 
 - [ ] Simplify and refresh the Sphinx documentation.
-  - Remove duplicate toctree entries while preserving pure-Python and Cython
-    API access.
-  - Derive documentation version information from the package.
-  - Verify a clean warnings-as-errors build both with extensions unavailable
-    and, where useful, with compiled APIs importable.
-  - Keep notebook rendering non-executing in Sphinx; execution belongs in the
-    example test jobs.
+  - Remove duplicate toctree entries while keeping both the pure-Python and
+    Cython API reachable, and keep notebook rendering non-executing (execution
+    belongs to the example test jobs).
 
 - [ ] Document the supported development workflow.
-  - Add concise contributor instructions for editable installs, selecting a
-    backend, regenerating Cython outputs if applicable, running fast/slow
-    tests, building docs, and validating artifacts.
-  - Document which files must be changed together when a Python/Cython pair is
-    modified.
-  - [x] Replace the destructive, repository-specific assumptions in `clean.py`
-    with explicit, reviewable cleanup targets. Paths are now resolved from the
-    script's own location rather than the current working directory, the
-    hardcoded per-subpackage directory list was replaced with a recursive
-    scan under `qmeq/`, and `--dry-run` lists every target without deleting
-    anything.
+  - Editable installs, backend and OpenMP selection, regenerating Cython
+    output, running the fast and slow suites, building the docs, validating
+    artifacts — and which files must change together when a `.py`/`.pyx` pair is
+    touched.
 
 ## Release gate
 
-A release is ready only when all of the following are true:
+A release is ready only when all of the following hold:
 
-- [ ] Fast pure-Python and compiled suites pass on the supported CI matrix.
-- [ ] The scheduled/manual `--runslow` example suite passes.
-- [ ] Documentation builds from a clean checkout with warnings as errors.
-- [ ] Wheel and sdist contents have been inspected and both artifacts tested
-      after installation in clean environments.
-- [ ] `CHANGELOG.md` has one coherent `[Unreleased]` section and describes all
-      user-visible changes.
+- [ ] The fast pure-Python and compiled suites pass across the CI matrix.
+- [ ] The `--runslow` example suite passes (`slow.yml`).
+- [ ] The documentation builds from a clean checkout with warnings as errors.
+- [ ] Wheel and sdist contents have been inspected, and both artifacts tested
+      after installation into clean environments.
+- [ ] `CHANGELOG.md` has one coherent `[Unreleased]` section covering every
+      user-visible change.
 - [ ] Package, documentation, and tag versions agree.
-- [ ] Release artifacts are produced by the tested revision and published only
+- [ ] No P0 item above is open, or each open one is a documented, accepted
+      limitation rather than a silent one.
+- [ ] Release artifacts come from the tested revision and are published only
       after those checks succeed.
-
-## Completed foundation
-
-- [x] Merge the newer `cvsvensson/qmeq` maintenance history and reconcile it
-      with the local modernization work.
-- [x] Move static package metadata to `pyproject.toml`, adopt automatic package
-      discovery, and declare Python `>=3.10`.
-- [x] Make `README.md` canonical and refresh installation guidance.
-- [x] Vendor examples and notebooks, render them in the documentation, and run
-      fast and slow subsets through pytest.
-- [x] Make the documentation build cleanly with warnings as errors when
-      optional extensions are unavailable.
-- [x] Restore pure-Python special-function fallbacks and replace removed SciPy
-      constants.
-- [x] Stabilize the Python and Cython Bose functions with `expm1` and
-      large-positive-argument guards.

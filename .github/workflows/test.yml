@@ -78,11 +78,6 @@ jobs:
         # on every push instead of only when a release tag is built.
         os: [ubuntu-latest, windows-latest, macos-14]
         cython: [">=3,<4"]
-        include:
-          # The oldest supported Cython is pinned on Linux only: that leg exists
-          # to catch Cython-version regressions, not to re-test every toolchain.
-          - os: ubuntu-latest
-            cython: "==3.0.0"
 
     steps:
       - uses: actions/checkout@v7
