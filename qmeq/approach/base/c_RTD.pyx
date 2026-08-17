@@ -36,9 +36,28 @@ from ...specfunc.c_specfunc cimport pi
 from ...specfunc.c_specfunc cimport cabs
 from ...specfunc.c_specfunc cimport diag_matrix_multiply
 
-cimport openmp
 cimport numpy as np
 cimport cython
+
+cdef extern from *:
+    """
+    #ifdef _OPENMP
+    #include <omp.h>
+    #define QMEQ_OMP_MAX_THREADS() omp_get_max_threads()
+    #define QMEQ_OMP_THREAD_NUM() omp_get_thread_num()
+    #else
+    /* Built without OpenMP: Cython lowers prange to an ordinary serial loop,
+       so there is exactly one thread and its index is always 0.
+       These two calls are shimmed rather than called directly because an
+       unresolved omp_* symbol is a hard link error on macOS, and on Linux it
+       silently yields a module that imports only when some other library
+       happens to have loaded an OpenMP runtime into the process first. */
+    #define QMEQ_OMP_MAX_THREADS() 1
+    #define QMEQ_OMP_THREAD_NUM() 0
+    #endif
+    """
+    int QMEQ_OMP_MAX_THREADS() noexcept nogil
+    int QMEQ_OMP_THREAD_NUM() noexcept nogil
 
 from ..c_aprclass cimport Approach
 from ..c_kernel_handler cimport KernelHandlerRTD
@@ -66,7 +85,7 @@ cdef class ApproachRTD(Approach):
         self.printed_warning_ImGamma = False
         self.nsingle_warning_printed = False
         # For parallel
-        self.nbr_Wdd2_copies = min(self.si.npauli, openmp.omp_get_max_threads())
+        self.nbr_Wdd2_copies = min(self.si.npauli, QMEQ_OMP_MAX_THREADS())
 
     cpdef long_t get_kern_size(self):
         return self._kernel_handler.npauli
@@ -523,7 +542,7 @@ cdef class ApproachRTD(Approach):
         cdef bint ImGamma
 
         # For parallel
-        t_id = openmp.omp_get_thread_num()
+        t_id = QMEQ_OMP_THREAD_NUM()
 
         E = self._Ea
         Tba = self._Tba

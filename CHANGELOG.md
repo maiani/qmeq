@@ -136,6 +136,30 @@
   under `qmeq/` is now recursive instead of a hardcoded per-subpackage
   directory list, and `--dry-run` lists every target without deleting
   anything.
+- Make OpenMP optional and compiler-aware, selected by
+  `QMEQ_OPENMP=auto|on|off` (default `auto`). `setup.py` no longer guesses a
+  flag from `os.name`; it probes candidate flag sets against the active
+  compiler — `/openmp` for MSVC, `-fopenmp` for GCC, and
+  `-Xpreprocessor -fopenmp` with an explicit `-lomp` for Apple clang, including
+  variants that add the include and library directories of a prefix taken from
+  `QMEQ_OPENMP_PREFIX`, `sys.prefix`, or `brew --prefix libomp`. `auto` falls
+  back to a serial build with a warning, `on` makes that fallback an error, and
+  `off` skips OpenMP outright. This makes `pip install .` work with an
+  unmodified Apple clang toolchain, which previously failed outright.
+  A serial build is fully functional: Cython lowers `prange` to an ordinary
+  loop. Note that serial and threaded builds can differ in the last bits of
+  reduced quantities (observed on the RTD energy current), because the number
+  of per-thread accumulation buffers changes the summation order.
+- Test the compiled build against all three wheel toolchains on every push:
+  `test.yml`'s compiled job is now a matrix over `ubuntu-latest`,
+  `windows-latest`, and `macos-14`, instead of only `ubuntu-latest`. The
+  oldest-supported-Cython leg stays Linux-only.
+- Guard the `setup()` call in `setup.py` with `if __name__ == '__main__'` so its
+  helpers can be introspected without triggering a build. Build frontends run
+  the file as `__main__`, so installs are unaffected.
+- Build the macOS wheels serially and drop the Homebrew-GCC symlink script
+  (`scripts/cibw_before_all_macos.sh`) along with the deployment-target
+  juggling it required. See the corresponding entry under Fixed.
 - Drop Python 3.10 support ahead of the `1.2.0` release; the floor is now
   `>=3.11`. Python 3.10 is in security-only mode and reaches end-of-life in
   October 2026, close enough that shipping `1.2.0` with it and dropping it
@@ -153,29 +177,23 @@
 
 ### Fixed
 
-- Fix the Homebrew GCC glob in `scripts/cibw_before_all_macos.sh`: `gcc-*`
-  also matched companion tools like `gcc-ar-15`, `gcc-nm-15`, and
-  `gcc-ranlib-15`, and `sort -V | tail -n1` could pick one of those instead
-  of the actual compiler, symlinking `gcc` to e.g. `gcc-ranlib-15` and
-  breaking the macOS wheel build (observed on `macos-14`/arm64 as
-  `gcc --version` invoking `ranlib --version`). The glob now requires a
-  digit immediately after `gcc-`.
-- Set `CC=gcc` via `CIBW_ENVIRONMENT_MACOS` in `build_wheels.yml`. Symlinking
-  Homebrew's GCC as `gcc` in `CIBW_BEFORE_ALL_MACOS` was not enough on its
-  own: cibuildwheel's actual build step runs in a separate subprocess that
-  still defaulted to Apple clang, which fails with
-  `clang: error: unsupported option '-fopenmp'`.
-- Add a "Determine the macOS deployment target" step to `build_wheels.yml`
-  that sets `MACOSX_DEPLOYMENT_TARGET` from the host's own macOS version, fed
-  into `CIBW_ENVIRONMENT_MACOS` via `${{ env.MACOSX_DEPLOYMENT_TARGET }}`.
-  Homebrew's GCC bundles an OpenMP runtime (`libgomp`) built for the host it
-  runs on, so `delocate-wheel` refused to repair a wheel targeting the
-  cibuildwheel default (`macosx_11_0`/`macosx_10_9`), which is older.
-  Computing the value inside `CIBW_ENVIRONMENT_MACOS` itself does not work:
-  that variable is evaluated by cibuildwheel's own restricted shell-subset
-  parser (which rejects a pipe inside `$(...)`) to build
-  `CIBW_BEFORE_ALL_MACOS`'s own environment, before that script has run, so
-  it cannot even depend on anything the script produces via a hand-off file.
+- Fix the macOS wheels, which could not be built at all and then could not be
+  installed on most Intel Macs. The build depended on symlinking a Homebrew GCC
+  over `gcc` (Apple clang rejects `-fopenmp`), which broke when the glob started
+  matching companion tools like `gcc-ranlib-15`; and because Homebrew's GCC
+  bundles a `libgomp` built for the *runner's* macOS version, `delocate-wheel`
+  then forced the wheel's deployment target up to match, producing
+  `macosx_15_0` Intel wheels that macOS 12-14 cannot install (with no working
+  source fallback, since the sdist build hit the same clang failure). macOS
+  wheels are now built with Apple clang and `QMEQ_OPENMP=off`, so they carry no
+  bundled OpenMP runtime, keep cibuildwheel's low deployment target, and stay
+  installable on older macOS. The kernels remain compiled; only the threading is
+  lost, and the Conda packages still ship with OpenMP.
+- Stop `c_RTD.pyx` from calling `omp_get_max_threads` and `omp_get_thread_num`
+  directly; both now go through a `#ifdef _OPENMP` shim that reports a single
+  thread. Calling them directly made a non-OpenMP build a hard link error on
+  macOS and, on Linux, produced an extension with unresolved OpenMP symbols that
+  imported only because SciPy had already loaded `libiomp5` into the process.
 - Replace the `macos-13` wheel-build runner with `macos-15-intel` in
   `build_wheels.yml`; the former is a retired GitHub-hosted image and the
   build job for it would queue indefinitely instead of running.

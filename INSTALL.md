@@ -13,6 +13,19 @@ Building the compiled backend from source additionally requires Cython 3
 build dependencies are declared in `pyproject.toml` and are installed
 automatically by `pip`.
 
+OpenMP is optional. By default the build detects whether the compiler can use
+it and falls back to a serial build (with a warning) when it cannot; set
+`QMEQ_OPENMP=on` to turn that fallback into an error, or `QMEQ_OPENMP=off` to
+skip OpenMP outright. A serial build gives the same results, but the RTD and
+2vN kernels do not run in parallel. Apple's clang has no OpenMP runtime of its
+own, so on macOS you need `brew install libomp` (point `QMEQ_OPENMP_PREFIX` at
+it if it is installed somewhere unusual) to build with OpenMP.
+
+Note that the published macOS **wheels** are built serially, so that they stay
+installable on older macOS releases; the Conda packages are built with OpenMP.
+For threaded kernels on macOS, use the Conda package or build from source with
+`QMEQ_OPENMP=on`.
+
 The tutorial and [examples][examples] are included in the `examples/` directory
 and are also rendered in the documentation. Running the notebooks requires
 [Matplotlib][Matplotlib] and [Jupyter][Jupyter], which can be installed with

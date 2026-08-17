@@ -13,13 +13,17 @@ source:
 
 build:
   number: 0
+  # QMEQ_OPENMP=on because an OpenMP runtime is an explicit host and run
+  # dependency here (llvm-openmp on macOS, the compiler's own elsewhere): if the
+  # build cannot find it, the recipe is wrong and should fail rather than
+  # quietly produce a serial package.
   script:
     - if: unix
       then:
-        - QMEQ_BACKEND=cython python -m pip install . --no-deps --no-build-isolation -vv
+        - QMEQ_BACKEND=cython QMEQ_OPENMP=on python -m pip install . --no-deps --no-build-isolation -vv
     - if: win
       then:
-        - set QMEQ_BACKEND=cython && python -m pip install . --no-deps --no-build-isolation -vv
+        - set QMEQ_BACKEND=cython && set QMEQ_OPENMP=on && python -m pip install . --no-deps --no-build-isolation -vv
 
 requirements:
   build:

@@ -33,14 +33,26 @@ jobs:
         run: QMEQ_BACKEND=python pytest qmeq/tests
 
   cython:
-    name: Cython ${{ matrix.cython }}
-    runs-on: ubuntu-latest
+    name: Cython ${{ matrix.cython }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        # Windows runners default to PowerShell, which does not understand the
+        # `VAR=value command` prefix used throughout these steps.
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
-        cython:
-          - "==3.0.0"
-          - ">=3,<4"
+        # One leg per wheel toolchain (GCC, MSVC, Apple clang), so a change to
+        # a .pyx or to the OpenMP configuration is exercised against all three
+        # on every push instead of only when a release tag is built.
+        os: [ubuntu-latest, windows-latest, macos-14]
+        cython: [">=3,<4"]
+        include:
+          # The oldest supported Cython is pinned on Linux only: that leg exists
+          # to catch Cython-version regressions, not to re-test every toolchain.
+          - os: ubuntu-latest
+            cython: "==3.0.0"
 
     steps:
       - uses: actions/checkout@v7
@@ -55,6 +67,10 @@ jobs:
           QMEQ_BACKEND=python python -m pip install -e ".[test]" --no-build-isolation
 
       - name: Regenerate and build all extensions
+        # QMEQ_OPENMP is left at its default here so that a toolchain without a
+        # usable OpenMP runtime (Apple clang) still builds; the chosen flags are
+        # printed by setup.py, and the wheel build sets QMEQ_OPENMP=on where
+        # OpenMP is required.
         run: QMEQ_BACKEND=cython python setup.py build_ext --inplace
 
       - name: Confirm the compiled backend

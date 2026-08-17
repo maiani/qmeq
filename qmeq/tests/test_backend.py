@@ -108,3 +108,50 @@ runpy.run_path('setup.py', run_name='__main__')
 
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == '0'
+
+
+def _run_setup_python(code, **extra_env):
+    env = dict(os.environ, QMEQ_BACKEND='cython', **extra_env)
+    return subprocess.run(
+        [sys.executable, '-c', code],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+
+_REPORT_OPENMP_ARGS = """
+import runpy
+import sys
+
+module = runpy.run_path('setup.py', run_name='not_main')
+print(module['get_openmp_args']())
+"""
+
+
+def test_openmp_off_builds_without_openmp_flags():
+    """``QMEQ_OPENMP=off`` must not put any OpenMP flag on the extensions.
+
+    The compiled kernels stay correct without OpenMP -- Cython lowers ``prange``
+    to an ordinary loop and ``c_RTD.pyx`` shims the two OpenMP API calls it
+    makes -- and the macOS wheels are built this way so they stay installable on
+    older macOS releases.
+    """
+    if not (ROOT / 'setup.py').is_file():
+        pytest.skip('requires the source-tree setup.py')
+
+    result = _run_setup_python(_REPORT_OPENMP_ARGS, QMEQ_OPENMP='off')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip().splitlines()[-1] == '([], [])'
+
+
+def test_invalid_openmp_mode_is_rejected():
+    if not (ROOT / 'setup.py').is_file():
+        pytest.skip('requires the source-tree setup.py')
+
+    result = _run_setup_python(_REPORT_OPENMP_ARGS, QMEQ_OPENMP='sometimes')
+
+    assert result.returncode != 0
+    assert 'expected one of: auto, off, on' in result.stderr

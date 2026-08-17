@@ -38,29 +38,36 @@ implementations when both exist.
     uncached jobs are reproducible.
 
 - [ ] Make the extension build portable and predictable.
-  - [ ] Replace unconditional OpenMP compiler/linker flags with per-platform
+  - [x] Replace unconditional OpenMP compiler/linker flags with per-platform
     configuration and a documented serial fallback.
-    - Still unconditional: `setup.py`'s `openmp_flag = '-fopenmp' if os.name ==
-      'posix' else '/openmp'` is applied to every extension regardless of
-      compiler capability. `os.name == 'posix'` treats macOS the same as
-      Linux, but Apple's default clang rejects `-fopenmp` outright;
-      `scripts/cibw_before_all_macos.sh` works around this only for the wheel
-      build, by symlinking in Homebrew GCC. A plain `pip install .` on macOS
-      without that workaround fails to compile. There is no compiler-
-      capability probe and no "compiled but serial" middle ground; the only
-      fallback today is skipping compiled extensions entirely
-      (`QMEQ_BACKEND=python`), a much bigger downgrade than necessary, since
-      Cython's `prange` degrades to a plain serial loop when OpenMP is not
-      enabled at compile time.
-  - [ ] Verify extension builds with the toolchains used by Linux, macOS, and
+    - `setup.py` now selects OpenMP through `QMEQ_OPENMP=auto|on|off` (default
+      `auto`), probing candidate flag sets against the *active compiler* rather
+      than guessing from `os.name`: `/openmp` for MSVC, `-fopenmp` for GCC, and
+      `-Xpreprocessor -fopenmp` with an explicit `-lomp` for Apple clang,
+      including variants that add the include/lib directories of a prefix given
+      by `QMEQ_OPENMP_PREFIX`, `sys.prefix`, or `brew --prefix libomp`. `auto`
+      falls back to a serial build with a warning, `on` makes that an error,
+      `off` skips OpenMP outright.
+    - The serial fallback required a source change: `c_RTD.pyx` called
+      `omp_get_max_threads` and `omp_get_thread_num` directly, which are hard
+      link errors on macOS and, on Linux, produced a module that imported only
+      because SciPy had already pulled `libiomp5` into the process. Both now go
+      through a `#ifdef _OPENMP` shim reporting a single thread.
+    - The Homebrew-GCC symlink hack (`scripts/cibw_before_all_macos.sh`) and the
+      deployment-target juggling it forced are gone; macOS wheels build with
+      Apple clang and `QMEQ_OPENMP=off`, which is what makes them installable on
+      older macOS again.
+  - [x] Verify extension builds with the toolchains used by Linux, macOS, and
     Windows wheels.
-    - Still missing from routine development feedback: `test_cython.yml`
-      (PR-triggered) only builds on `ubuntu-latest`. macOS and Windows builds
-      are exercised only by `build_wheels.yml`, which triggers on tag pushes
-      or manual dispatch, not PRs, and whose smoke test
-      (`CIBW_TEST_COMMAND: pytest --pyargs qmeq`) never asserts
+    - `test.yml`'s compiled job is now a matrix over `ubuntu-latest`,
+      `windows-latest`, and `macos-14`, so GCC, MSVC, and Apple clang are all
+      exercised on every push rather than only when a release tag is built. The
+      oldest-supported-Cython leg stays Linux-only, since it exists to catch
+      Cython-version regressions rather than to re-test each toolchain.
+    - Still open: `build_wheels.yml`'s smoke test
+      (`CIBW_TEST_COMMAND: pytest --pyargs qmeq`) does not assert
       `get_backend_status()['active'] == 'cython'`, so it would not notice a
-      silent fallback to a pure-Python wheel.
+      wheel that silently fell back to pure Python.
   - [ ] Ensure a compiler or OpenMP failure cannot leave a partially
     importable installation.
     - setuptools' default `build_ext` aborts on the first extension failure,

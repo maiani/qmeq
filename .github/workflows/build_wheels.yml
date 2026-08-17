@@ -21,30 +21,24 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Determine the macOS deployment target
-        if: runner.os == 'macOS'
-        # Homebrew's GCC bundles an OpenMP runtime (libgomp) built for the
-        # host's own macOS version, so the wheel's deployment target must be
-        # raised to match it (delocate-wheel otherwise refuses to repair the
-        # wheel); derive it from the host rather than hardcoding a version
-        # that will drift on the next runner-image bump. Computed as a
-        # regular step, with GitHub Actions substituting the value via
-        # ${{ }} below, rather than inside CIBW_ENVIRONMENT_MACOS: that
-        # variable is evaluated by cibuildwheel's own restricted shell-subset
-        # parser, which rejects a pipe inside $(...), and is evaluated to
-        # build CIBW_BEFORE_ALL_MACOS's own environment before that script
-        # has even run, so it cannot depend on anything the script produces.
-        run: echo "MACOSX_DEPLOYMENT_TARGET=$(sw_vers -productVersion | cut -d. -f1).0" >> "$GITHUB_ENV"
-
       - name: Build wheels
         uses: pypa/cibuildwheel@v4.2.0
         env:
-          CIBW_BEFORE_ALL_MACOS: bash scripts/cibw_before_all_macos.sh
-          # Apple clang rejects -fopenmp; cibw_before_all_macos.sh symlinks the
-          # Homebrew GCC it finds as plain "gcc" on PATH, but the build step
-          # runs in its own subprocess and still defaults to clang unless CC
-          # is set explicitly here.
-          CIBW_ENVIRONMENT_MACOS: "CC=gcc MACOSX_DEPLOYMENT_TARGET=${{ env.MACOSX_DEPLOYMENT_TARGET }}"
+          # macOS wheels are built serially, on purpose. Apple clang has no
+          # OpenMP runtime of its own, and the alternatives all bundle one that
+          # is built for the *runner's* macOS version: doing that forced the
+          # wheel's deployment target up to match (delocate-wheel refuses to
+          # repair it otherwise), which produced macosx_15_0 Intel wheels that
+          # most Intel Macs cannot install. A serial build keeps the compiled
+          # kernels and stays installable on older macOS; `prange` lowers to an
+          # ordinary loop and results are unchanged to roundoff. Threaded macOS
+          # builds are available from the Conda packages or by building from
+          # source with QMEQ_OPENMP=on and a libomp installed.
+          CIBW_ENVIRONMENT_MACOS: "QMEQ_OPENMP=off"
+          # Linux and Windows get OpenMP; make its absence a build failure
+          # rather than a silent downgrade to a serial wheel.
+          CIBW_ENVIRONMENT_LINUX: "QMEQ_OPENMP=on"
+          CIBW_ENVIRONMENT_WINDOWS: "QMEQ_OPENMP=on"
           CIBW_BUILD: "cp311-* cp312-* cp313-* cp314-*"
           CIBW_SKIP: "*-win32 *-manylinux_i686 *-musllinux_*"
           CIBW_TEST_REQUIRES: pytest
