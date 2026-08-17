@@ -4,6 +4,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 
@@ -155,3 +156,32 @@ def test_invalid_openmp_mode_is_rejected():
 
     assert result.returncode != 0
     assert 'expected one of: auto, off, on' in result.stderr
+
+
+@pytest.mark.parametrize('backend', ['auto', 'cython'])
+def test_partial_extension_set_never_imports(backend, tmp_path):
+    """A half-built extension set must fail, not silently degrade.
+
+    ``build_ext`` aborts on the first extension that fails to compile, but an
+    incremental rebuild can still leave freshly built modules next to stale ones
+    from an earlier build. Importing such a tree must raise rather than mix
+    compiled and pure-Python implementations, in ``auto`` just as much as in
+    ``cython``: the fallback is only for a *cleanly* absent extension set.
+    """
+    victim = importlib.util.find_spec('qmeq.approach.base.c_pauli')
+    if victim is None or victim.origin is None:
+        pytest.skip('requires the compiled extensions')
+
+    origin = Path(victim.origin)
+    hidden = tmp_path / origin.name
+    shutil.move(origin, hidden)
+    try:
+        result = _run_python('import qmeq', backend)
+    finally:
+        shutil.move(hidden, origin)
+
+    assert result.returncode != 0, result.stdout
+    assert 'BackendUnavailableError' in result.stderr
+    # The message has to name the module that could not be loaded, otherwise a
+    # broken install is undiagnosable from the traceback alone.
+    assert 'c_pauli' in result.stderr

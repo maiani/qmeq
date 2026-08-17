@@ -1,0 +1,52 @@
+name: Slow examples
+
+# The vendored example scripts and notebooks take minutes per backend, so they
+# are a release gate rather than a per-push check: run them on a schedule and on
+# demand, and before tagging a release.
+on:
+  schedule:
+    # Mondays, 04:17 UTC. Off the hour because scheduled runs bunch up (and get
+    # dropped) on the hour.
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  examples:
+    name: --runslow examples (${{ matrix.backend }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [python, cython]
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install pandoc
+        # The notebook examples are executed through nbclient, which needs the
+        # kernel, and the docs-style notebooks need pandoc.
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends pandoc
+
+      - name: Install test dependencies
+        run: |
+          # Constrained to match [build-system] requires; see test.yml.
+          python -m pip install "cython>=3,<4" numpy "setuptools>=77"
+          QMEQ_BACKEND=python python -m pip install -e ".[test]" --no-build-isolation
+
+      - name: Build the extensions
+        if: matrix.backend == 'cython'
+        run: QMEQ_BACKEND=cython python setup.py build_ext --inplace
+
+      - name: Confirm the backend
+        run: |
+          QMEQ_BACKEND=${{ matrix.backend }} python -c "import qmeq; status = qmeq.get_backend_status(); print(status); assert status['active'] == '${{ matrix.backend }}'"
+
+      - name: Run the full suite including the slow examples
+        run: QMEQ_BACKEND=${{ matrix.backend }} pytest qmeq/tests --runslow

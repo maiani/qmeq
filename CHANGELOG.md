@@ -154,6 +154,13 @@
   `test.yml`'s compiled job is now a matrix over `ubuntu-latest`,
   `windows-latest`, and `macos-14`, instead of only `ubuntu-latest`. The
   oldest-supported-Cython leg stays Linux-only.
+- Sweep the whole declared Python range in CI: the pure-Python job now runs on
+  3.11, 3.12, 3.13, and 3.14, matching `pyproject.toml`'s classifiers.
+- Build the documentation in CI as a `docs` job in `test.yml`, with
+  `sphinx-build -W --keep-going`, so a documentation warning fails the build.
+- Add `slow.yml`, running the `--runslow` example suite over both backends
+  weekly and on demand, so the long-running notebooks stay a release gate
+  without slowing down every push.
 - Guard the `setup()` call in `setup.py` with `if __name__ == '__main__'` so its
   helpers can be introspected without triggering a build. Build frontends run
   the file as `__main__`, so installs are unaffected.
@@ -177,6 +184,19 @@
 
 ### Fixed
 
+- Constrain the CI `setuptools` install to `>=77`, matching
+  `[build-system] requires`. The compiled jobs install their build dependencies
+  by hand and then use `--no-build-isolation`, but a bare
+  `pip install setuptools` is a no-op when an older one is already present, so
+  those jobs silently reused the runner image's version. That is new enough on
+  the Ubuntu images and too old on the macOS and Windows ones, where it cannot
+  parse the PEP 639 `license = "BSD-2-Clause"` metadata and fails with
+  ``invalid pyproject.toml config: `project.license` ``.
+- Add `test_partial_extension_set_never_imports`, covering the documented
+  contract that a *partially* built extension set must fail to import rather
+  than mixing compiled and pure-Python implementations -- under `auto` as well
+  as `cython`, since `auto`'s quiet fallback is only meant for a cleanly absent
+  extension set.
 - Fix the macOS wheels, which could not be built at all and then could not be
   installed on most Intel Macs. The build depended on symlinking a Homebrew GCC
   over `gcc` (Apple clang rejects `-fopenmp`), which broke when the glob started

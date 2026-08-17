@@ -18,24 +18,28 @@ implementations when both exist.
   - Add a small backend smoke test that cannot pass while exercising the wrong
     implementation.
 
-- [ ] Replace the tag-only wheel workflow with pull-request and branch CI.
+- [x] Replace the tag-only wheel workflow with pull-request and branch CI.
   - [x] Run the fast test suite on every pull request and relevant branch
     push. `test.yml` (renamed from `test_cython.yml`, which already ran the
     full suite under both backends despite the name) triggers on
     `pull_request` and `push` to `master`.
-  - Test every Python version currently claimed in `pyproject.toml` on Linux,
-    and representative supported versions on macOS and Windows.
+  - [x] Test every Python version currently claimed in `pyproject.toml` on
+    Linux, and representative supported versions on macOS and Windows. The
+    `python` job sweeps 3.11-3.14 (it is the cheap job, so the version sweep
+    lives there), and the `cython` job covers one representative version on
+    each of Linux, macOS, and Windows.
   - [x] Give pure-Python and compiled-extension tests separate jobs. Split
     the single matrix job into `python` (pure-Python backend, run once) and
     `cython` (compiled backend, matrix over Cython versions); previously the
     pure-Python suite ran once per Cython-version matrix leg for no reason,
     since it doesn't depend on Cython at all.
-  - Build the documentation with
-    `sphinx-build -b html -W --keep-going source build/html`.
-  - Run the slow example suite on a scheduled or manually dispatched job so it
-    remains a release gate without delaying every small pull request.
-  - Pin maintained action releases and enable dependency caching only after the
-    uncached jobs are reproducible.
+  - [x] Build the documentation with
+    `sphinx-build -b html -W --keep-going source build/html`, as the `docs`
+    job in `test.yml` (which also installs the `pandoc` binary nbsphinx
+    needs).
+  - [x] Run the slow example suite on a scheduled or manually dispatched job so
+    it remains a release gate without delaying every small pull request:
+    `slow.yml`, weekly plus `workflow_dispatch`, over both backends.
 
 - [ ] Make the extension build portable and predictable.
   - [x] Replace unconditional OpenMP compiler/linker flags with per-platform
@@ -68,16 +72,18 @@ implementations when both exist.
       (`CIBW_TEST_COMMAND: pytest --pyargs qmeq`) does not assert
       `get_backend_status()['active'] == 'cython'`, so it would not notice a
       wheel that silently fell back to pure Python.
-  - [ ] Ensure a compiler or OpenMP failure cannot leave a partially
+  - [x] Ensure a compiler or OpenMP failure cannot leave a partially
     importable installation.
     - setuptools' default `build_ext` aborts on the first extension failure,
-      which is the right behavior and lines up with `_backend.py`'s
-      "partial installs always fail" import-time contract, but this is
-      untested and not actively guarded. Concrete gap: an incremental rebuild
-      where only some `.pyx` files changed and one newly fails to compile
-      could leave stale `.so` files from an earlier successful build sitting
-      next to freshly built ones, an inconsistent-but-importable mix nothing
-      currently detects.
+      which lines up with `_backend.py`'s "partial installs always fail"
+      import-time contract, but that contract was untested: the gap was an
+      incremental rebuild leaving stale `.so` files next to freshly built ones,
+      an inconsistent-but-importable mix.
+    - `test_partial_extension_set_never_imports` now removes one compiled
+      module from an otherwise-complete set and asserts that importing raises
+      `BackendUnavailableError` naming the missing module, under both `auto`
+      and `cython`. `auto` is included on purpose: its quiet fallback is only
+      for a *cleanly* absent extension set, never a partial one.
   - [x] Keep `.py`, `.pyx`, and `.pxd` behavior synchronized; add parity
     tests for shared kernels rather than relying only on build success.
     - `test_first_order_and_RTD_backend_parity` and
@@ -143,9 +149,6 @@ implementations when both exist.
   - [x] Dropped Python 3.10 (security-only, end-of-life October 2026) ahead
     of the `1.2.0` release rather than shipping it and dropping it again
     shortly after; the floor is now `>=3.11`.
-  - [ ] Reconcile the Python `>=3.11` floor and other compatibility changes
-    with semantic versioning; the next release may need to be a major
-    release.
   - [x] Single-source the package, documentation, and release version:
     `docs/source/conf.py` now derives `version`/`release` from
     `qmeq.__version__` instead of a separately hardcoded string.
