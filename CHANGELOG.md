@@ -123,9 +123,13 @@
   only runs on tag pushes and uploads the artifacts from every completed
   build to the release in one place, matching the build/publish split
   already used for the Conda packages.
-- Bump `__version__` to `1.2.0.dev0` to mark ongoing modernization work past
+- Bump `__version__` to `1.2.0.dev1` to mark ongoing modernization work past
   the released `1.1`. `docs/source/conf.py` now derives `version`/`release`
   from `qmeq.__version__` instead of a second, separately hardcoded string.
+- Check the tag against the package version in `build_wheels.yml`, the guard
+  `release.yml` already had. Without it a tag whose name disagrees with
+  `qmeq.__version__` still built, and the publish job attached wheels carrying
+  the package version to a release named after the tag.
 - Replace mutable default arguments (`={}`, `=[]`, `=[0]`) with `None`,
   normalized to a fresh literal inside the function body, in `BuilderBase`,
   `BuilderManyBody`, `BuilderElPh`, `BuilderManyBodyElPh`, and
