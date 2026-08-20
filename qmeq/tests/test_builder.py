@@ -5,10 +5,17 @@ import qmeq
 import itertools
 import pytest
 
+from qmeq.tests.reference_data import load_reference_bundle
+
 EPS = 1e-11
 CHECK_PY = False
 PRNTQ = False
 SERIAL_TRIPLE_DOT = False
+
+_LEGACY_BUNDLE = load_reference_bundle("legacy")
+LEGACY_BUILDER_REFERENCE = _LEGACY_BUNDLE.resolve(
+    _LEGACY_BUNDLE.manifest["snapshots"]["builder"]
+)
 
 
 class ParametersDoubleDotSpinful(object):
@@ -203,39 +210,8 @@ def test_transport_options_can_be_changed_on_existing_lindblad():
     assert system.principal_part == "digamma"
 
 
-def save_Builder_double_dot_spinful(fname='data_builder.py'):
-    p = ParametersDoubleDotSpinful()
-    # data = {}
-    kerns = ['Pauli', 'Redfield', '1vN', 'Lindblad', 'pyPauli', 'pyRedfield', 'py1vN', 'pyLindblad']
-    # kerns = ['Pauli']
-    itypes = [0, 1, 2]
-    data = 'data = {\n'
-    for kerntype, itype in itertools.product(kerns, itypes):
-        if kerntype in {'Pauli', 'pyPauli'} and itype in [0, 1]:
-            continue
-
-        principal_part = (
-            "digamma"
-            if kerntype in {'Lindblad', 'pyLindblad'} and itype in {0, 1}
-            else None
-        )
-        system = Builder(
-            p.nsingle, p.hsingle, p.coulomb, p.nleads, p.tleads,
-            p.mulst, p.tlst, p.dlst, kerntype=kerntype, itype=itype,
-            principal_part=principal_part
-        )
-        system.solve()
-        attr = kerntype+str(itype)
-        data = data+' '*4+'\''+attr+'current\': '+str(system.current.tolist())+',\n'
-        data = data+' '*4+'\''+attr+'energy_current\': '+str(system.energy_current.tolist())
-        data = data + ('\n    }' if kerntype == 'pyLindblad' and itype == 2 else ',\n')
-    #
-    with open(fname, 'w') as f:
-        f.write(data)
-
-
 def test_Builder_double_dot_spinful():
-    from qmeq.tests.data_builder import data
+    data = LEGACY_BUILDER_REFERENCE
     p = ParametersDoubleDotSpinful()
     calcs = Calcs()
 

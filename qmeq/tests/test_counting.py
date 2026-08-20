@@ -9,12 +9,17 @@ import qmeq
 from qmeq.approach.counting import markovian_current_noise
 from qmeq.approach.counting import markovian_current_noise_matrix
 from qmeq.approach.counting import stationary_projected_pseudoinverse
-from qmeq.tests.data_counting import (
-    FIRST_ORDER_POINTS,
-    FIRST_ORDER_REFERENCE,
-    RTD_POINTS,
-    RTD_REFERENCE,
+from qmeq.tests.reference_data import load_reference_bundle
+
+
+_COUNTING_BUNDLE = load_reference_bundle("counting_simon")
+_COUNTING_SNAPSHOTS = _COUNTING_BUNDLE.resolve(
+    _COUNTING_BUNDLE.manifest["snapshots"]
 )
+FIRST_ORDER_POINTS = _COUNTING_SNAPSHOTS["first_order_points"]
+FIRST_ORDER_REFERENCE = _COUNTING_SNAPSHOTS["first_order"]
+RTD_POINTS = _COUNTING_SNAPSHOTS["rtd_points"]
+RTD_REFERENCE = _COUNTING_SNAPSHOTS["rtd"]
 
 
 def _first_order_system(kerntype, gate, bias, countingleads=(0,)):

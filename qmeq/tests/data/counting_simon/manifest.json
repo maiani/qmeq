@@ -1,0 +1,145 @@
+{
+  "array_archive": "references.npz",
+  "arrays": {
+    "first_order_1vN": {
+      "dtype": "float64",
+      "shape": [
+        3,
+        2
+      ]
+    },
+    "first_order_Lindblad": {
+      "dtype": "float64",
+      "shape": [
+        3,
+        2
+      ]
+    },
+    "first_order_Pauli": {
+      "dtype": "float64",
+      "shape": [
+        3,
+        2
+      ]
+    },
+    "first_order_Redfield": {
+      "dtype": "float64",
+      "shape": [
+        3,
+        2
+      ]
+    },
+    "first_order_points": {
+      "dtype": "float64",
+      "shape": [
+        3,
+        2
+      ]
+    },
+    "rtd_0_first": {
+      "dtype": "complex128",
+      "shape": [
+        2
+      ]
+    },
+    "rtd_0_full": {
+      "dtype": "complex128",
+      "shape": [
+        2
+      ]
+    },
+    "rtd_0_o4trunc": {
+      "dtype": "complex128",
+      "shape": [
+        4
+      ]
+    },
+    "rtd_1_first": {
+      "dtype": "complex128",
+      "shape": [
+        2
+      ]
+    },
+    "rtd_1_full": {
+      "dtype": "complex128",
+      "shape": [
+        2
+      ]
+    },
+    "rtd_1_o4trunc": {
+      "dtype": "complex128",
+      "shape": [
+        4
+      ]
+    },
+    "rtd_2_first": {
+      "dtype": "complex128",
+      "shape": [
+        2
+      ]
+    },
+    "rtd_2_full": {
+      "dtype": "complex128",
+      "shape": [
+        2
+      ]
+    },
+    "rtd_2_o4trunc": {
+      "dtype": "complex128",
+      "shape": [
+        4
+      ]
+    },
+    "rtd_points": {
+      "dtype": "float64",
+      "shape": [
+        3,
+        2
+      ]
+    }
+  },
+  "bundle_id": "counting_simon",
+  "description": "Counting-statistics snapshots from Simon Wozny's final source commit.",
+  "migration": {
+    "method": "Lossless np.asarray conversion of existing literals; no solver was run."
+  },
+  "provenance": {
+    "classification": "pinned historical source",
+    "generation_environment": {
+      "numpy": "2.2.6",
+      "python": "3.13",
+      "scipy": "1.15.3"
+    },
+    "source": "si8881wo/qmeq",
+    "source_commit": "aa1af46dd687c271505d28dbfb7ccce03a8a1739",
+    "status": "recorded"
+  },
+  "reference_bundle_schema": 1,
+  "snapshots": {
+    "first_order": {
+      "1vN": "first_order_1vN",
+      "Lindblad": "first_order_Lindblad",
+      "Pauli": "first_order_Pauli",
+      "Redfield": "first_order_Redfield"
+    },
+    "first_order_points": "first_order_points",
+    "rtd": [
+      {
+        "first": "rtd_0_first",
+        "full": "rtd_0_full",
+        "o4trunc": "rtd_0_o4trunc"
+      },
+      {
+        "first": "rtd_1_first",
+        "full": "rtd_1_full",
+        "o4trunc": "rtd_1_o4trunc"
+      },
+      {
+        "first": "rtd_2_first",
+        "full": "rtd_2_full",
+        "o4trunc": "rtd_2_o4trunc"
+      }
+    ],
+    "rtd_points": "rtd_points"
+  }
+}

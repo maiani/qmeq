@@ -1,0 +1,722 @@
+{
+  "array_archive": "references.npz",
+  "arrays": {
+    "builder_000": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_001": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_002": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_003": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_004": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_005": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_006": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_007": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_008": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_009": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_010": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_011": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_012": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_013": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_014": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_015": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_016": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_017": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_018": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_019": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_020": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_021": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_022": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_023": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_024": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_025": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_026": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_027": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_028": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_029": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_030": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_031": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_032": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_033": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_034": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_035": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_036": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_037": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_038": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_039": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_040": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_041": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_042": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_043": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_000": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_001": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_002": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_003": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_004": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_005": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_006": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_007": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_008": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_009": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_010": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_011": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_012": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_013": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_014": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_015": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_016": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_017": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_018": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_019": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_020": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_021": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_022": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_023": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_024": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_025": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_026": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_027": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_028": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_029": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_030": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_031": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_032": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_033": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_034": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_035": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_036": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_037": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_038": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_039": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_040": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_041": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_042": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_043": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_044": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_045": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_046": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_047": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_048": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_049": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_050": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_051": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_052": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_053": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_054": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    },
+    "builder_elph_055": {
+      "dtype": "float64",
+      "shape": [
+        4
+      ]
+    }
+  },
+  "bundle_id": "legacy",
+  "description": "Legacy builder test snapshots preserved without numerical recomputation.",
+  "migration": {
+    "method": "Lossless np.asarray conversion of existing literals; no solver was run."
+  },
+  "provenance": {
+    "classification": "legacy snapshots",
+    "note": "Original generating revisions and environments were not recorded.",
+    "status": "unknown"
+  },
+  "reference_bundle_schema": 1,
+  "snapshots": {
+    "builder": {
+      "1vN0current": "builder_000",
+      "1vN0energy_current": "builder_001",
+      "1vN1current": "builder_002",
+      "1vN1energy_current": "builder_003",
+      "1vN2current": "builder_004",
+      "1vN2energy_current": "builder_005",
+      "Lindblad0current": "builder_006",
+      "Lindblad0energy_current": "builder_007",
+      "Lindblad1current": "builder_008",
+      "Lindblad1energy_current": "builder_009",
+      "Lindblad2current": "builder_010",
+      "Lindblad2energy_current": "builder_011",
+      "Pauli2current": "builder_012",
+      "Pauli2energy_current": "builder_013",
+      "RTD1current": "builder_014",
+      "RTD1energy_current": "builder_015",
+      "Redfield0current": "builder_016",
+      "Redfield0energy_current": "builder_017",
+      "Redfield1current": "builder_018",
+      "Redfield1energy_current": "builder_019",
+      "Redfield2current": "builder_020",
+      "Redfield2energy_current": "builder_021",
+      "py1vN0current": "builder_022",
+      "py1vN0energy_current": "builder_023",
+      "py1vN1current": "builder_024",
+      "py1vN1energy_current": "builder_025",
+      "py1vN2current": "builder_026",
+      "py1vN2energy_current": "builder_027",
+      "pyLindblad0current": "builder_028",
+      "pyLindblad0energy_current": "builder_029",
+      "pyLindblad1current": "builder_030",
+      "pyLindblad1energy_current": "builder_031",
+      "pyLindblad2current": "builder_032",
+      "pyLindblad2energy_current": "builder_033",
+      "pyPauli2current": "builder_034",
+      "pyPauli2energy_current": "builder_035",
+      "pyRTD1current": "builder_036",
+      "pyRTD1energy_current": "builder_037",
+      "pyRedfield0current": "builder_038",
+      "pyRedfield0energy_current": "builder_039",
+      "pyRedfield1current": "builder_040",
+      "pyRedfield1energy_current": "builder_041",
+      "pyRedfield2current": "builder_042",
+      "pyRedfield2energy_current": "builder_043"
+    },
+    "builder_elph": {
+      "1vN00current": "builder_elph_000",
+      "1vN00energy_current": "builder_elph_001",
+      "1vN02current": "builder_elph_002",
+      "1vN02energy_current": "builder_elph_003",
+      "1vN10current": "builder_elph_004",
+      "1vN10energy_current": "builder_elph_005",
+      "1vN12current": "builder_elph_006",
+      "1vN12energy_current": "builder_elph_007",
+      "1vN20current": "builder_elph_008",
+      "1vN20energy_current": "builder_elph_009",
+      "1vN22current": "builder_elph_010",
+      "1vN22energy_current": "builder_elph_011",
+      "Lindblad22current": "builder_elph_012",
+      "Lindblad22energy_current": "builder_elph_013",
+      "Pauli22current": "builder_elph_014",
+      "Pauli22energy_current": "builder_elph_015",
+      "Redfield00current": "builder_elph_016",
+      "Redfield00energy_current": "builder_elph_017",
+      "Redfield02current": "builder_elph_018",
+      "Redfield02energy_current": "builder_elph_019",
+      "Redfield10current": "builder_elph_020",
+      "Redfield10energy_current": "builder_elph_021",
+      "Redfield12current": "builder_elph_022",
+      "Redfield12energy_current": "builder_elph_023",
+      "Redfield20current": "builder_elph_024",
+      "Redfield20energy_current": "builder_elph_025",
+      "Redfield22current": "builder_elph_026",
+      "Redfield22energy_current": "builder_elph_027",
+      "py1vN00current": "builder_elph_028",
+      "py1vN00energy_current": "builder_elph_029",
+      "py1vN02current": "builder_elph_030",
+      "py1vN02energy_current": "builder_elph_031",
+      "py1vN10current": "builder_elph_032",
+      "py1vN10energy_current": "builder_elph_033",
+      "py1vN12current": "builder_elph_034",
+      "py1vN12energy_current": "builder_elph_035",
+      "py1vN20current": "builder_elph_036",
+      "py1vN20energy_current": "builder_elph_037",
+      "py1vN22current": "builder_elph_038",
+      "py1vN22energy_current": "builder_elph_039",
+      "pyLindblad22current": "builder_elph_040",
+      "pyLindblad22energy_current": "builder_elph_041",
+      "pyPauli22current": "builder_elph_042",
+      "pyPauli22energy_current": "builder_elph_043",
+      "pyRedfield00current": "builder_elph_044",
+      "pyRedfield00energy_current": "builder_elph_045",
+      "pyRedfield02current": "builder_elph_046",
+      "pyRedfield02energy_current": "builder_elph_047",
+      "pyRedfield10current": "builder_elph_048",
+      "pyRedfield10energy_current": "builder_elph_049",
+      "pyRedfield12current": "builder_elph_050",
+      "pyRedfield12energy_current": "builder_elph_051",
+      "pyRedfield20current": "builder_elph_052",
+      "pyRedfield20energy_current": "builder_elph_053",
+      "pyRedfield22current": "builder_elph_054",
+      "pyRedfield22energy_current": "builder_elph_055"
+    }
+  }
+}

@@ -4,6 +4,37 @@
 
 ### Added
 
+- Add one validated external JSON/NPZ reference-bundle infrastructure for
+  historical and future numerical snapshots. The previous builder and
+  electron-phonon Python dictionaries are preserved losslessly as 100 arrays
+  in a `legacy` bundle whose unknown generating revision and environment are
+  stated explicitly; they are not mislabeled as QmeQ 1.1. The 15
+  counting-statistics arrays retain their separately recorded Simon Wozny
+  source commit. Maintainer-only generators now live under
+  `scripts/reference_data/`, outside the test package, and tests never generate
+  expected values implicitly.
+- Add an installed-artifact CI gate that builds and checks both wheel and
+  source distribution, installs each outside the checkout, verifies the forced
+  Python and Cython backends, and runs the external-reference suites from the
+  installed package.
+- Add a provenance-locked QmeQ 1.1 regression corpus generated from commit
+  `96cc51076458b11f7db81a5d7d8df04c30bf8384`. External JSON/NPZ fixtures cover
+  every electronic and electron-phonon method available in 1.1. The legacy RTD
+  matrix covers equilibrium, real coherences with off-diagonal corrections on
+  and off, complex tunnel amplitudes, unequal temperatures, many-body input,
+  and the documented spin-symmetry fallback to charge indexing. It records the
+  first-order, second-order, and coherence-elimination contributions; all
+  population/coherence blocks; stationary states; and particle, energy, and
+  heat currents. Invariant tests cover decomposition, trace preservation,
+  residuals, normalization, conservation laws, equilibrium, heat-current
+  consistency, and structural zeros. The manifest records model reconstruction
+  data, array ordering, tolerances, and the narrow compatibility envelopes for
+  the intentional post-1.1 complex-integral branch correction without changing
+  the historical values. Tests never regenerate expected data implicitly, and
+  the generator rejects any source revision or QmeQ version other than the
+  pinned 1.1 checkout. Compiled electron-phonon Lindblad parity remains the
+  suite's single strict, conditional `xfail`, with its existing P1 correctness
+  gap documented inline rather than hidden by a wider tolerance.
 - Add a source-based Conda recipe for compiled Python 3.11-3.14 Linux x86-64,
   Linux aarch64, Intel macOS, and Apple Silicon packages, plus a tag/manual
   GitHub Actions workflow that builds each Python/platform variant
@@ -84,6 +115,11 @@
 
 ### Changed
 
+- Adopt pytest 9's native `[tool.pytest]` TOML configuration and separate
+  notebook execution from the default suite. The normal suite still exercises
+  the quick Python example; notebooks run explicitly with `-m notebook` in an
+  environment where Jupyter kernels may open local sockets. The scheduled
+  example workflow selects the complete script/notebook group explicitly.
 - Move the original introductory and RTD notebooks, with their image assets, to
   `examples/legacy_tutorials/`; they are kept for reference and their material
   is now covered by the numbered tutorials.

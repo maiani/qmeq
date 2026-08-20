@@ -5,11 +5,17 @@ import itertools
 from qmeq import BuilderElPh
 from qmeq import ModelParameters
 from qmeq.specfunc import Func
+from qmeq.tests.reference_data import load_reference_bundle
 from qmeq.tests.test_builder import Calcs
 
 EPS = 1e-10
 CHECK_PY = False
 PRNTQ = False
+
+_LEGACY_BUNDLE = load_reference_bundle("legacy")
+LEGACY_BUILDER_ELPH_REFERENCE = _LEGACY_BUNDLE.resolve(
+    _LEGACY_BUNDLE.manifest["snapshots"]["builder_elph"]
+)
 
 
 class JFunc(Func):
@@ -107,27 +113,8 @@ class SpinfulDoubleDotWithElPh(BuilderElPh):
     # ------------------------------------------------
 
 
-def save_Builder_double_dot_spinful(fname='data_builder_elph.py'):
-    kerns = ['Pauli', 'Redfield', '1vN', 'Lindblad', 'pyPauli', 'pyRedfield', 'py1vN', 'pyLindblad']
-    itypes, itypes_ph = [0, 1, 2], [0, 2]
-    data = 'data = {\n'
-    for kerntype, itype, itype_ph in itertools.product(kerns, itypes, itypes_ph):
-        if kerntype in {'Pauli', 'pyPauli', 'Lindblad', 'pyLindblad'} and (itype in [0, 1] or itype_ph in [0]):
-            continue
-
-        system = SpinfulDoubleDotWithElPh(kerntype=kerntype, itype=itype, itype_ph=itype_ph)
-        system.solve()
-        attr = kerntype+str(itype)+str(itype_ph)
-        data = data+' '*4+'\''+attr+'current\': '+str(system.current.tolist())+',\n'
-        data = data+' '*4+'\''+attr+'energy_current\': '+str(system.energy_current.tolist())
-        data = data + ('\n    }' if kerntype == 'pyLindblad' and itype == 2 and itype_ph == 2 else ',\n' )
-    #
-    with open(fname, 'w') as f:
-        f.write(data)
-
-
 def test_Builder_elph_double_dot_spinful():
-    from qmeq.tests.data_builder_elph import data
+    data = LEGACY_BUILDER_ELPH_REFERENCE
     calcs = Calcs()
 
     # Check if the results agree with previously calculated data

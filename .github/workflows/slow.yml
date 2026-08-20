@@ -48,5 +48,5 @@ jobs:
         run: |
           QMEQ_BACKEND=${{ matrix.backend }} python -c "import qmeq; status = qmeq.get_backend_status(); print(status); assert status['active'] == '${{ matrix.backend }}'"
 
-      - name: Run the full suite including the slow examples
-        run: QMEQ_BACKEND=${{ matrix.backend }} pytest qmeq/tests --runslow
+      - name: Run all example scripts and notebooks
+        run: QMEQ_BACKEND=${{ matrix.backend }} pytest qmeq/tests/test_examples.py --runslow -m example

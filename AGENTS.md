@@ -70,8 +70,12 @@ tests and reference data over a cleverer one that is not.
   extension-group loading, and diagnostic status.
 - `qdot.py`, `indexing.py`, `leadstun.py`, `baths.py` — quantum-dot
   Hamiltonian, Fock-state indexing, lead tunneling, phonon baths.
-- [qmeq/tests/](qmeq/tests/) — pytest suite (`test_*.py`); `data_*.py` hold
-  reference values. `test_examples.py` runs the vendored examples (see below).
+- [qmeq/tests/](qmeq/tests/) — pytest suite (`test_*.py`); external numerical
+  snapshots live under `data/<bundle>/` as validated JSON/NPZ pairs and are
+  loaded through `reference_data.py`. `test_examples.py` runs the vendored
+  examples (see below).
+- [scripts/reference_data/](scripts/reference_data/) — explicit maintainer-only
+  reference generators. Pytest never regenerates expected values.
 - [examples/](examples/) — vendored learning material: `tutorials/` (the
   numbered `01`-`07` learning path), `scripts/` (runnable `.py`), `appendix/`
   (reference notebooks), and `legacy_tutorials/` (kept for reference, superseded
@@ -125,9 +129,10 @@ QMEQ_BACKEND=cython python setup.py build_ext --inplace
 # Run the fast suite against each backend in separate processes
 QMEQ_BACKEND=python pytest qmeq/tests
 QMEQ_BACKEND=cython pytest qmeq/tests
-# Include the long-running example scripts and notebooks
-QMEQ_BACKEND=python pytest qmeq/tests --runslow
-QMEQ_BACKEND=cython pytest qmeq/tests --runslow
+# Run all Python example scripts (including the slow sweeps)
+QMEQ_BACKEND=python pytest qmeq/tests/test_examples.py --runslow -m "example and not notebook"
+# Run the notebooks explicitly where Jupyter kernels may open local sockets
+QMEQ_BACKEND=python pytest qmeq/tests/test_examples.py --runslow -m notebook
 
 # Build HTML docs (Sphinx); needs the `docs` extra + the pandoc binary
 cd docs
@@ -138,9 +143,9 @@ python clean.py
 ```
 
 The example scripts write figures (`*.png`) and data (`*.dat`) into the working
-directory; these are gitignored. `test_examples.py` runs them in a temp dir so
-they never touch the tree — do the same if running examples manually, or expect
-untracked output files.
+directory; these are gitignored. `test_examples.py` runs scripts in a temp dir
+so they never touch the tree. Notebook execution is a separate, explicit marker
+group because Jupyter kernels require local sockets.
 
 Build details live in [setup.py](setup.py) (extension list, OpenMP flags) and
 [pyproject.toml](pyproject.toml). The `.pyx`/`.pxd` files are the canonical

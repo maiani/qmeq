@@ -1,9 +1,11 @@
 """Smoke tests that the vendored examples still run against the current API.
 
-The quick examples run as part of the normal suite; the long-running ones
-(second-order 2vN / RTD sweeps) are marked ``slow`` and only run with
-``pytest --runslow``.  All example tests need Matplotlib (and, for notebooks, a
-Jupyter ``python3`` kernel) and are skipped when those are unavailable.
+Python scripts and notebooks form separate marker groups.  The quick Python
+script runs in the normal suite.  Notebooks are excluded by the project-level
+pytest configuration because their Jupyter kernels require local sockets; run
+them explicitly with ``pytest -m notebook`` in a suitable environment.  The
+long-running examples (second-order 2vN / RTD sweeps) are additionally marked
+``slow`` and only run with ``pytest --runslow``.
 """
 import os
 import sys
@@ -56,6 +58,7 @@ def _notebook_ids():
     )
 
 
+@pytest.mark.example
 @pytest.mark.parametrize('name', _params(_script_ids(), FAST_SCRIPTS))
 def test_example_script(name, tmp_path):
     pytest.importorskip('matplotlib')
@@ -68,6 +71,8 @@ def test_example_script(name, tmp_path):
     assert result.returncode == 0, result.stderr[-3000:]
 
 
+@pytest.mark.example
+@pytest.mark.notebook
 @pytest.mark.parametrize('name', _params(_notebook_ids(), FAST_NOTEBOOKS))
 def test_example_notebook(name):
     pytest.importorskip('matplotlib')

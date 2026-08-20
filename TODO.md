@@ -41,13 +41,6 @@ output ends up in papers.
   - Needs a defensible Γ estimate and threshold, applied in both `RTD.py` and
     `c_RTD.pyx`. Choosing the threshold is physics, not a lint fix.
 
-- [ ] Give the reference data in `qmeq/tests/data_*.py` a provenance record.
-  - `data_builder.py` and `data_builder_elph.py` are bare dictionaries of
-    expected numbers. When one fails there is no way to tell a regression from
-    a reference that was never right.
-  - `data_counting.py` already does this properly (provenance header plus
-    `generate_counting_reference.py`) — follow that precedent for the rest.
-
 - [ ] Collect each approach's validity domain and known failure modes in one
       documented place.
   - The material exists but is scattered across tutorial 6's validity table,
@@ -66,12 +59,13 @@ output ends up in papers.
     `NotImplementedError` at construction instead of failing deep inside a
     solve.
 
-- [ ] Extend backend parity to the electron-phonon approaches.
-  - `test_builder.py` covers Pauli, Lindblad, Redfield, 1vN, 2vN, and RTD. The
-    elph `.py`/`.pyx` twins have none, so a divergence between them is
-    invisible.
-  - Compare kernels, stationary states, and currents on small reference
-    systems, within the same approximation only.
+- [ ] Resolve the remaining electron-phonon backend parity failure.
+  - The QmeQ 1.1 reference suite now compares kernels, stationary states, and
+    currents for electron-phonon Pauli, Lindblad, Redfield, and 1vN within the
+    same approximation. Pauli, Redfield, and 1vN pass on both backends.
+  - Compiled electron-phonon Lindblad remains a strict, conditional `xfail`
+    with an inline reason. Diagnose and fix that numerical divergence without
+    weakening tolerances or normalizing it into the historical fixture.
 
 - [ ] Support the RTD energy and heat currents for complex tunnel amplitudes.
   - Both are currently filled with `nan` and a warning while the charge current
@@ -111,6 +105,10 @@ output ends up in papers.
   - `build_wheels.yml`'s smoke test never asserts
     `get_backend_status()['active'] == 'cython'`, so a wheel that silently fell
     back to pure Python would ship unnoticed.
+  - A focused CI job now installs both artifacts outside the source tree,
+    asserts both requested backends, and runs the shared external-reference
+    checks. Extend that gate to inspect the complete artifact inventory and run
+    broader import, metadata, and fast-suite checks.
 
 - [ ] Test the dependency floors, not just the current releases.
   - NumPy, SciPy, Cython, and the build backend are unpinned and only ever

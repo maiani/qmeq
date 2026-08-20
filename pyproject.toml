@@ -40,7 +40,7 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
-    "pytest",
+    "pytest>=9",
     "matplotlib",
     "nbclient",
     "ipykernel",
@@ -78,9 +78,18 @@ include = ["qmeq*"]
 
 [tool.setuptools.package-data]
 "*" = ["*.pyx", "*.pxd"]
+"qmeq.tests" = ["data/*/*.json", "data/*/*.npz"]
 
-[tool.pytest.ini_options]
+[tool.pytest]
+minversion = "9.0"
 testpaths = ["qmeq/tests"]
+addopts = ["-m", "not notebook"]
+strict = true
+markers = [
+    "example: executable vendored example scripts and notebooks",
+    "notebook: notebook execution requiring a Jupyter kernel and local sockets",
+    "slow: long-running example tests, skipped unless --runslow is given",
+]
 
 [tool.ruff]
 target-version = "py311"

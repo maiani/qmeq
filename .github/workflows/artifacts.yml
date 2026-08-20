@@ -1,0 +1,52 @@
+name: Installed artifacts
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  installed:
+    name: Wheel and sdist
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Build and validate metadata
+        run: |
+          python -m pip install build twine
+          python -m build
+          python -m twine check dist/*
+
+      - name: Test the installed wheel
+        working-directory: ${{ runner.temp }}
+        run: |
+          python -m venv qmeq-wheel
+          qmeq-wheel/bin/python -m pip install pytest
+          qmeq-wheel/bin/python -m pip install "$GITHUB_WORKSPACE"/dist/*.whl
+          QMEQ_BACKEND=cython qmeq-wheel/bin/python -c "import qmeq; status = qmeq.get_backend_status(); print(status); assert status['active'] == 'cython'"
+          QMEQ_BACKEND=cython qmeq-wheel/bin/python -m pytest --pyargs qmeq.tests.test_reference_data qmeq.tests.test_qmeq_11_references -q
+          QMEQ_BACKEND=cython qmeq-wheel/bin/python -m pytest --pyargs qmeq.tests.test_builder qmeq.tests.test_builder_elph qmeq.tests.test_counting -k "Builder_double_dot_spinful or Builder_elph_double_dot_spinful or simon_reference" -q
+          QMEQ_BACKEND=python qmeq-wheel/bin/python -c "import qmeq; status = qmeq.get_backend_status(); print(status); assert status['active'] == 'python'"
+          QMEQ_BACKEND=python qmeq-wheel/bin/python -m pytest --pyargs qmeq.tests.test_reference_data qmeq.tests.test_qmeq_11_references -q
+          QMEQ_BACKEND=python qmeq-wheel/bin/python -m pytest --pyargs qmeq.tests.test_builder qmeq.tests.test_builder_elph qmeq.tests.test_counting -k "Builder_double_dot_spinful or Builder_elph_double_dot_spinful or simon_reference" -q
+
+      - name: Test the installed source distribution
+        working-directory: ${{ runner.temp }}
+        run: |
+          python -m venv qmeq-sdist
+          qmeq-sdist/bin/python -m pip install pytest
+          qmeq-sdist/bin/python -m pip install "$GITHUB_WORKSPACE"/dist/*.tar.gz
+          QMEQ_BACKEND=cython qmeq-sdist/bin/python -c "import qmeq; status = qmeq.get_backend_status(); print(status); assert status['active'] == 'cython'"
+          QMEQ_BACKEND=cython qmeq-sdist/bin/python -m pytest --pyargs qmeq.tests.test_reference_data qmeq.tests.test_qmeq_11_references -q
+          QMEQ_BACKEND=cython qmeq-sdist/bin/python -m pytest --pyargs qmeq.tests.test_builder qmeq.tests.test_builder_elph qmeq.tests.test_counting -k "Builder_double_dot_spinful or Builder_elph_double_dot_spinful or simon_reference" -q
+          QMEQ_BACKEND=python qmeq-sdist/bin/python -c "import qmeq; status = qmeq.get_backend_status(); print(status); assert status['active'] == 'python'"
+          QMEQ_BACKEND=python qmeq-sdist/bin/python -m pytest --pyargs qmeq.tests.test_reference_data qmeq.tests.test_qmeq_11_references -q
+          QMEQ_BACKEND=python qmeq-sdist/bin/python -m pytest --pyargs qmeq.tests.test_builder qmeq.tests.test_builder_elph qmeq.tests.test_counting -k "Builder_double_dot_spinful or Builder_elph_double_dot_spinful or simon_reference" -q

@@ -8,13 +8,6 @@ def pytest_addoption(parser):
     )
 
 
-def pytest_configure(config):
-    config.addinivalue_line(
-        'markers',
-        'slow: long-running example tests, skipped unless --runslow is given',
-    )
-
-
 def pytest_collection_modifyitems(config, items):
     if config.getoption('--runslow'):
         return
