@@ -181,8 +181,6 @@ class ApproachPyRTDnoise(ApproachPyRTD):
             self.phi0_first[:] = self.sol0[0]
             self.success = True
         except Exception as exept:
-            print('Failed to solve the master equation for phi0_first')
-            print(kern)
             self.funcp.print_error(exept)
             self.phi0_first.fill(0.0)
             self.success = False
@@ -218,8 +216,6 @@ class ApproachPyRTDnoise(ApproachPyRTD):
             self.phi0_second[:] = self.sol0[0]
             self.success = True
         except Exception as exept:
-            print('Failed to solve the master equation for phi0_first')
-            print(kern)
             self.funcp.print_error(exept)
             self.phi0_second.fill(0.0)
             self.success = False

@@ -40,6 +40,8 @@ from ._backend import BackendUnavailableError as BackendUnavailableError
 from ._backend import get_backend as get_backend
 from ._backend import get_backend_status as get_backend_status
 from ._backend import get_requested_backend as get_requested_backend
+from ._warnings import QmeqRuntimeWarning as QmeqRuntimeWarning
+from ._warnings import QmeqWarning as QmeqWarning
 from .approach.aprclass import Approach as Approach
 from .approach.aprclass import ApproachElPh as ApproachElPh
 from .approach.aprclass import ApproachBase2vN as ApproachBase2vN

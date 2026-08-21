@@ -92,9 +92,7 @@ cdef class TermsCalculator2vN:
         else:
             # Hilbert transform phi1k_delta on extended grid Ek_grid_ext
             # Here phi1k_delta_old is current phi1k_delta state, but on extended grid
-            # print('Hilbert transforming')
             self.phi1k_delta_old, self.hphi1k_delta = get_htransf_phi1k(self.phi1k_delta, self.appr.funcp)
-            # print('Making an iteration')
             for k in range(Eklen):
                 for l in range(nleads):
                     self.phi1k_iterate(k, l, kh)
@@ -290,7 +288,6 @@ cdef class TermsCalculator2vN:
                 for j2 in range(bcount):
                     b1 = statesdm[bcharge, j2]
                     for l1 in range(nleads):
-                        # print('1')
                         self.get_at_k1(+(Ek-E[b1]+E[b]), l1, ba1, True,
                                        -fp*Tba[l1, c, b1]*Tba[l, b1, a1], -1, term)
             # 2nd and 5th terms
@@ -298,7 +295,6 @@ cdef class TermsCalculator2vN:
                 for j2 in range(ccount):
                     b1 = statesdm[bcharge, j1]
                     c1 = statesdm[ccharge, j2]
-                    # print('2 and 5')
                     c1b1 = kh.get_ind_dm1(c1, b1, bcharge)
                     for l1 in range(nleads):
                         # 2nd term
@@ -314,7 +310,6 @@ cdef class TermsCalculator2vN:
                 for j2 in range(dcount):
                     d1 = statesdm[dcharge, j2]
                     for l1 in range(nleads):
-                        # print('3')
                         self.get_at_k1(-(Ek-E[d1]+E[b]), l1, c1b, False,
                                        +fp*Tba[l1, c, d1]*Tba[l, d1, c1], +1, term)
             # 4th term
@@ -322,7 +317,6 @@ cdef class TermsCalculator2vN:
                 for j2 in range(ccount):
                     d1 = statesdm[dcharge, j1]
                     c1 = statesdm[ccharge, j2]
-                    # print('4')
                     d1c1 = kh.get_ind_dm1(d1, c1, ccharge)
                     for l1 in range(nleads):
                         self.get_at_k1(-(Ek-E[d1]+E[b]), l1, d1c1, False,
@@ -334,7 +328,6 @@ cdef class TermsCalculator2vN:
                 for j2 in range(ccount):
                     c1 = statesdm[ccharge, j2]
                     for l1 in range(nleads):
-                        # print('6')
                         self.get_at_k1(+(Ek-E[c]+E[c1]), l1, d1c, True,
                                        -fm*Tba[l, d1, c1]*Tba[l1, c1, b], -1, term)
             # 7th term
@@ -342,7 +335,6 @@ cdef class TermsCalculator2vN:
                 for j2 in range(acount):
                     b1 = statesdm[bcharge, j1]
                     a1 = statesdm[acharge, j2]
-                    # print('7')
                     b1a1 = kh.get_ind_dm1(b1, a1, acharge)
                     for l1 in range(nleads):
                         self.get_at_k1(-(Ek-E[c]+E[a1]), l1, b1a1, False,
@@ -354,7 +346,6 @@ cdef class TermsCalculator2vN:
                 for j2 in range(acount):
                     a1 = statesdm[acharge, j2]
                     for l1 in range(nleads):
-                        # print('8')
                         self.get_at_k1(-(Ek-E[c]+E[a1]), l1, cb1, False,
                                        +fm*Tba[l, b1, a1]*Tba[l1, a1, b], +1, term)
 

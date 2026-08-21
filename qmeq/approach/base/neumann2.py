@@ -3,7 +3,9 @@
 import numpy as np
 from numpy import pi
 import itertools
+import warnings
 
+from ..._warnings import QmeqWarning
 from ...wrappers.mytypes import complexnp
 from ...wrappers.mytypes import doublenp
 from ...wrappers.mytypes import intnp
@@ -158,13 +160,21 @@ class Approach2vN(ApproachBase2vN):
                 self.Ek_grid = np.linspace(dmin, dmax, kpnt)
                 #
                 if self.niter != -1:
-                    print("WARNING: Ek_grid has changed. Restarting the calculation.")
+                    warnings.warn(
+                        "Ek_grid has changed. Restarting the calculation.",
+                        QmeqWarning,
+                        stacklevel=2,
+                    )
                     self.restart()
                 #
                 if ((dmin * np.ones(self.si.nleads)).tolist() != self.leads.dlst.T[0].tolist() or
                     (dmax * np.ones(self.si.nleads)).tolist() != self.leads.dlst.T[1].tolist()):
-                    print("WARNING: The bandwidth and Ek_grid for all leads will be the same: from " +
-                          "dmin=" + str(dmin) + " to dmax=" + str(dmax) + ".")
+                    warnings.warn(
+                        "The bandwidth and Ek_grid for all leads will be the "
+                        f"same: from dmin={dmin} to dmax={dmax}.",
+                        QmeqWarning,
+                        stacklevel=2,
+                    )
 
     def determine_emin_emax(self):
         """
@@ -439,9 +449,7 @@ class TermsCalculator2vN(object):
         else:
             # Hilbert transform phi1k_delta on extended grid Ek_grid_ext
             # Here phi1k_delta_old is current phi1k_delta state, but on extended grid
-            # print('Hilbert transforming')
             self.phi1k_delta_old, self.hphi1k_delta = get_htransf_phi1k(self.phi1k_delta, self.appr.funcp)
-            # print('Making an iteration')
             for k in range(Eklen):
                 for l in range(nleads):
                     self.phi1k_iterate(k, l)
@@ -592,12 +600,10 @@ class TermsCalculator2vN(object):
                 for a1 in statesdm[acharge]:
                     ba1 = si.get_ind_dm1(b, a1, acharge)
                     for b1, l1 in itertools.product(statesdm[bcharge], range(nleads)):
-                        # print('1')
                         hu, u = get_at_k1(+(Ek-E[b1]+E[b]), l1, ba1, True)
                         term += -Tba[l1, c, b1]*Tba[l, b1, a1]*fp*(hu - 1j*u)
                 # 2nd and 5th terms
                 for b1, c1 in itertools.product(statesdm[bcharge], statesdm[ccharge]):
-                    # print('2 and 5')
                     c1b1 = si.get_ind_dm1(c1, b1, bcharge)
                     for l1 in range(nleads):
                         # 2nd term
@@ -610,12 +616,10 @@ class TermsCalculator2vN(object):
                 for c1 in statesdm[ccharge]:
                     c1b = si.get_ind_dm1(c1, b, bcharge)
                     for d1, l1 in itertools.product(statesdm[dcharge], range(nleads)):
-                        # print('3')
                         hu, u = get_at_k1(-(Ek-E[d1]+E[b]), l1, c1b, False)
                         term += +Tba[l1, c, d1]*Tba[l, d1, c1]*fp*(hu + 1j*u)
                 # 4th term
                 for d1, c1 in itertools.product(statesdm[dcharge], statesdm[ccharge]):
-                    # print('4')
                     d1c1 = si.get_ind_dm1(d1, c1, ccharge)
                     for l1 in range(nleads):
                         hu, u = get_at_k1(-(Ek-E[d1]+E[b]), l1, d1c1, False)
@@ -624,12 +628,10 @@ class TermsCalculator2vN(object):
                 for d1 in statesdm[dcharge]:
                     d1c = si.get_ind_dm1(d1, c, ccharge)
                     for c1, l1 in itertools.product(statesdm[ccharge], range(nleads)):
-                        # print('6')
                         hu, u = get_at_k1(+(Ek-E[c]+E[c1]), l1, d1c, True)
                         term += -(hu - 1j*u)*fm*Tba[l, d1, c1]*Tba[l1, c1, b]
                 # 7th term
                 for b1, a1 in itertools.product(statesdm[bcharge], statesdm[acharge]):
-                    # print('7')
                     b1a1 = si.get_ind_dm1(b1, a1, acharge)
                     for l1 in range(nleads):
                         hu, u = get_at_k1(-(Ek-E[c]+E[a1]), l1, b1a1, False)
@@ -638,7 +640,6 @@ class TermsCalculator2vN(object):
                 for b1 in statesdm[bcharge]:
                     cb1 = si.get_ind_dm1(c, b1, bcharge)
                     for a1, l1 in itertools.product(statesdm[acharge], range(nleads)):
-                        # print('8')
                         hu, u = get_at_k1(-(Ek-E[c]+E[a1]), l1, cb1, False)
                         term += +(hu + 1j*u)*fm*Tba[l, b1, a1]*Tba[l1, a1, b]
                 kern0[cb] = term
@@ -714,7 +715,6 @@ class TermsCalculator2vN(object):
             b_idx -= 1
         a_idx = b_idx - 1
         b, a = Ek_grid[b_idx], Ek_grid[a_idx]
-        # print(a_idx, b_idx, a, Ek, b)
         #
         fb = phi1k[b_idx, l, cb]
         fa = phi1k[a_idx, l, cb]

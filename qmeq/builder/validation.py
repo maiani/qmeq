@@ -1,6 +1,9 @@
 """Module containing methods for validation of input parameters."""
 
 from numbers import Integral
+import warnings
+
+from .._warnings import QmeqWarning
 
 ITYPE_OPTIONS = {
     0: ("finite", "quad"),
@@ -15,10 +18,14 @@ def validate_kerntype(kerntype):
     if isinstance(kerntype, str):
         if kerntype not in {'Pauli', 'Lindblad', 'Redfield', '1vN', '2vN', 'pyPauli',
                     'pyLindblad', 'pyRedfield', 'py1vN', 'py2vN', 'pyRTD', 'RTD','pyRTDnoise','RTDnoise'}:
-            print("WARNING: Allowed kerntype values are: " +
-                  "\'Pauli\', \'Lindblad\', \'Redfield\', \'1vN\', \'2vN\', " +
-                  "\'pyPauli\', \'pyLindblad\', \'pyRedfield\', \'py1vN\', \'py2vN\', \'RTD\', \'pyRTDnoise\', \'RTDnoise\'. " +
-                  "Using default kerntype=\'Pauli\'.")
+            warnings.warn(
+                "Allowed kerntype values are: 'Pauli', 'Lindblad', "
+                "'Redfield', '1vN', '2vN', 'pyPauli', 'pyLindblad', "
+                "'pyRedfield', 'py1vN', 'py2vN', 'RTD', 'pyRTDnoise', "
+                "'RTDnoise'. Using default kerntype='Pauli'.",
+                QmeqWarning,
+                stacklevel=2,
+            )
             kerntype = 'Pauli'
     return kerntype
 
@@ -42,7 +49,11 @@ def resolve_transport_options(itype, bandwidth, principal_part, kerntype):
     elif itype not in ITYPE_OPTIONS:
         if descriptive_explicit:
             raise ValueError("itype must be 0, 1, 2, or 3.")
-        print("WARNING: itype needs to be 0, 1, 2, or 3. Using default itype=0.")
+        warnings.warn(
+            "itype needs to be 0, 1, 2, or 3. Using default itype=0.",
+            QmeqWarning,
+            stacklevel=2,
+        )
         itype = 0
 
     legacy_bandwidth, legacy_principal_part = ITYPE_OPTIONS[itype]
@@ -123,7 +134,11 @@ def resolve_transport_options(itype, bandwidth, principal_part, kerntype):
                 "wide-band regulator."
             )
         if legacy_explicit:
-            print("WARNING: only itype=1 is supported by the RTD approach. Using itype=1.")
+            warnings.warn(
+                "Only itype=1 is supported by the RTD approach. Using itype=1.",
+                QmeqWarning,
+                stacklevel=2,
+            )
         itype = 1
         bandwidth, principal_part = ITYPE_OPTIONS[itype]
 
@@ -140,21 +155,34 @@ def validate_itype(itype, kerntype):
 
 def validate_itype_ph(itype_ph):
     if itype_ph not in {0, 2}:
-        print("WARNING: itype_ph needs to be 0, or 2. Using default itype=0.")
+        warnings.warn(
+            "itype_ph needs to be 0 or 2. Using default itype_ph=0.",
+            QmeqWarning,
+            stacklevel=2,
+        )
         itype_ph = 0
     return itype_ph
 
 def validate_mfreeq(kerntype, mfreeq):
     if mfreeq and kerntype in {'RTD', 'pyRTD','RTDnoise','pyRTDnoise'}:
-        print("WARNING: mfreeq=True is not supported by the RTD approach. Using default mfreeq=False.")
+        warnings.warn(
+            "mfreeq=True is not supported by the RTD approach. "
+            "Using default mfreeq=False.",
+            QmeqWarning,
+            stacklevel=2,
+        )
         mfreeq = False
     return mfreeq
 
 def validate_indexing(indexing, symmetry, kerntype):
     if indexing is None:
         if symmetry == 'spin' and kerntype in {'pyRTD', 'RTD', 'pyRTDnoise', 'RTDnoise'}:
-            print("WARNING: symmetry=\'spin\' is not supported by the RTD approach. " +
-                  "Using default indexing=\'charge\'.")
+            warnings.warn(
+                "symmetry='spin' is not supported by the RTD approach. "
+                "Using default indexing='charge'.",
+                QmeqWarning,
+                stacklevel=2,
+            )
             indexing = 'charge'
             symmetry = None
         elif symmetry == 'spin' and kerntype not in {'py2vN', '2vN'}:
@@ -163,18 +191,30 @@ def validate_indexing(indexing, symmetry, kerntype):
             indexing = 'charge'
 
     if indexing not in {'Lin', 'charge', 'sz', 'ssq'}:
-        print("WARNING: Allowed indexing values are: \'Lin\', \'charge\', \'sz\', \'ssq\'. " +
-              "Using default indexing=\'charge\'.")
+        warnings.warn(
+            "Allowed indexing values are: 'Lin', 'charge', 'sz', 'ssq'. "
+            "Using default indexing='charge'.",
+            QmeqWarning,
+            stacklevel=2,
+        )
         indexing = 'charge'
 
     if indexing not in {'Lin', 'charge'} and kerntype in {'py2vN', '2vN'}:
-        print("WARNING: For the 2vN approach indexing needs to be \'Lin\' or \'charge\'. " +
-              "Using indexing=\'charge\' as a default.")
+        warnings.warn(
+            "For the 2vN approach indexing needs to be 'Lin' or 'charge'. "
+            "Using indexing='charge' as a default.",
+            QmeqWarning,
+            stacklevel=2,
+        )
         indexing = 'charge'
 
     if indexing != 'charge' and kerntype in {'pyRTD', 'RTD', 'pyRTDnoise', 'RTDnoise'}:
-        print("WARNING: For the RTD approach indexing needs to be \'charge\'. " +
-              "Using indexing=\'charge\' as a default.")
+        warnings.warn(
+            "For the RTD approach indexing needs to be 'charge'. "
+            "Using indexing='charge' as a default.",
+            QmeqWarning,
+            stacklevel=2,
+        )
         indexing = 'charge'
     return indexing, symmetry
 

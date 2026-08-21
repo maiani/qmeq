@@ -121,31 +121,6 @@ output ends up in papers.
     disclaimer should agree across package metadata, `README.md`, `INSTALL.md`,
     `AUTHORS.md`, and the documentation.
 
-## P1: API and runtime hygiene
-
-- [ ] Replace warning-like `print` calls with structured warnings.
-  - Cover fallback, validation, convergence, and unsupported-feature notices;
-    keep deliberate output helpers such as the state-printing utilities.
-  - Behaviour must match between the Python and Cython approaches, RTD and 2vN
-    included, and the category and message should be assertable so callers can
-    filter or capture them. This is a prerequisite for the P0 diagnostics above.
-
-- [ ] Plan the `itype` deprecation.
-  - `itype` and the descriptive `bandwidth`/`principal_part` options now express
-    the same thing, and every approach documents both. Decide whether `itype`
-    becomes a warned-on alias or stays indefinitely, and write it down either
-    way.
-
-- [ ] Clear deprecated and fragile dependency usage.
-  - `indexing.py` still falls back to `scipy.misc.factorial`, removed in SciPy
-    1.3 — dead code against any supported SciPy.
-  - Run the suite with deprecations visible under the oldest and newest
-    supported NumPy, SciPy, and Cython; drop stale NumPy scalar aliases after
-    verifying dtype behaviour.
-  - Keep Cython exception and `nogil` diagnostics clean, but treat `noexcept` as
-    semantics rather than noise suppression: do not add it where an error needs
-    to propagate out of a physics kernel.
-
 ## P2: performance
 
 - [ ] Establish a benchmark baseline.

@@ -1,14 +1,12 @@
 """Module for indexing many-body states using Lin tables."""
 
 import itertools
+import warnings
 
 import numpy as np
-try:
-    from scipy.special import factorial
-except ImportError:
-    # For backwards compatibility with older versions of SciPy
-    from scipy.misc import factorial
+from scipy.special import factorial
 
+from ._warnings import QmeqWarning
 from .wrappers.mytypes import boolnp
 from .wrappers.mytypes import longnp
 
@@ -503,8 +501,12 @@ class StateIndexing(object):
             if indexing == 'ssq':
                 self.ssqlst = construct_ssqlst(self.szlst, nsingle)
         elif (indexing == 'sz' or indexing == 'ssq') and self.nsingle % 2 != 0:
-            print("WARNING: For 'sz' or 'ssq' indexing, nsingle has to be even. \
-                   Using 'Lin' indexing.")
+            warnings.warn(
+                "For 'sz' or 'ssq' indexing, nsingle has to be even. "
+                "Using 'Lin' indexing.",
+                QmeqWarning,
+                stacklevel=2,
+            )
             self.indexing = 'Lin'
             self.chargelst = construct_chargelst(nsingle)
             self.i = list(range(self.nmany))
@@ -512,8 +514,12 @@ class StateIndexing(object):
             self.chargelst = construct_chargelst(nsingle)
             self.i = list(range(self.nmany))
         else:
-            print("WARNING: The indexing has to be 'Lin', 'charge', or 'sz'. \
-                   Using 'Lin' indexing.")
+            warnings.warn(
+                "The indexing has to be 'Lin', 'charge', 'sz', or 'ssq'. "
+                "Using 'Lin' indexing.",
+                QmeqWarning,
+                stacklevel=2,
+            )
             self.indexing = 'Lin'
             self.chargelst = construct_chargelst(nsingle)
             self.i = list(range(self.nmany))
@@ -603,7 +609,11 @@ class StateIndexing(object):
             ssqind = ssq_to_ind(ssq, sz)
             return self.ssqlst[charge][szind][ssqind]
         else:
-            print("WARNING: No indexing by 'sz' or 'ssq'. Returning charge list.")
+            warnings.warn(
+                "No indexing by 'sz' or 'ssq'. Returning charge list.",
+                QmeqWarning,
+                stacklevel=2,
+            )
             return self.chargelst[charge]
 
     def remove_fock_states(self, lin_state_indices):
@@ -615,7 +625,11 @@ class StateIndexing(object):
         """
         indexing = self.indexing
         if indexing == 'ssq':
-            print("WARNING: For 'ssq' indexing removal of Fock states is not supported.")
+            warnings.warn(
+                "For 'ssq' indexing removal of Fock states is not supported.",
+                QmeqWarning,
+                stacklevel=2,
+            )
             return
 
         if self.removed_fock_states is None:
@@ -1004,7 +1018,6 @@ class StateIndexingDM(StateIndexing):
         # i = self.dictdm[b]
         # j = self.dictdm[bp]
         # shiftas = self.shiftlst0[charge]
-        # print('index is', l*i + j + shiftas)
         if maptype == 0:
             return (self.lenlst[charge]*self.dictdm[b] + self.dictdm[bp]
                     + self.shiftlst0[charge])
@@ -1038,7 +1051,6 @@ class StateIndexingDM(StateIndexing):
         # i = self.dictdm[c]
         # j = self.dictdm[b]
         # shiftas = self.shiftlst1[charge]
-        # print('index is', l*i + j + shiftas)
         #       b
         #     -----
         #   c |   |
@@ -1203,7 +1215,6 @@ class StateIndexingDMc(StateIndexing):
         # i = self.dictdm[b]
         # j = self.dictdm[bp]
         # shiftas = self.shiftlst0[charge]
-        # print('index is', l*i + j + shiftas)
         if maptype == 0:
             return self.lenlst[charge]*self.dictdm[b] + self.dictdm[bp] + self.shiftlst0[charge]
         elif maptype == 1:
@@ -1233,7 +1244,6 @@ class StateIndexingDMc(StateIndexing):
         # i = self.dictdm[c]
         # j = self.dictdm[b]
         # shiftas = self.shiftlst1[charge]
-        # print('index is', l*i + j + shiftas)
         #       b
         #     -----
         #   c |   |

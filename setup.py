@@ -243,7 +243,11 @@ def get_ext_modules():
             )
         )
 
-    return cythonize(ext, compiler_directives=CYTHON_COMPILER_DIRECTIVES)
+    return cythonize(
+        ext,
+        build_dir='build/cython',
+        compiler_directives=CYTHON_COMPILER_DIRECTIVES,
+    )
 
 
 # Static project metadata lives in pyproject.toml; setup.py only builds the

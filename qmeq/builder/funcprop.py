@@ -1,5 +1,9 @@
 """Module containing FunctionProperties class."""
 
+import warnings
+
+from .._warnings import QmeqRuntimeWarning, QmeqWarning
+
 
 class FunctionProperties(object):
     """
@@ -104,7 +108,8 @@ class FunctionProperties(object):
 
     def print_error(self, exept):
         if not self.suppress_err:
-            print("WARNING: Could not solve the linear set of equations.\n" +
+            warnings.warn(
+                  "Could not solve the linear set of equations.\n" +
                   "  Error from the solver: " + str(exept) + "\n"
                   "  The reasons for such a failure can be various:\n" +
                   "  1. Some of the transport channels may be outside the bandwidth D of the leads.\n" +
@@ -113,10 +118,13 @@ class FunctionProperties(object):
                   "     In this case try to use different [norm_row]\n"+
                   "     or solve the linear system using [symq=False] and the solution method [solmethod='lsqr'].\n"
                   "  This warning will not be shown again.\n"
-                  "  To check if the solution succeeded check the property [success].")
+                  "  To check if the solution succeeded check the property [success].",
+                  QmeqRuntimeWarning,
+                  stacklevel=2,
+            )
             self.suppress_err = True
 
     def print_warning(self, i, message):
         if not self.suppress_wrn[i]:
-            print(message)
+            warnings.warn(message, QmeqWarning, stacklevel=2)
             self.suppress_wrn[i] = True

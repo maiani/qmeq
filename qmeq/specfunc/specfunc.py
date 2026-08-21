@@ -5,13 +5,14 @@ from functools import lru_cache
 import numpy as np
 from numpy.fft import fft, ifft
 from numpy import pi
-from numpy.lib.scimath import log
 from numpy import exp
 from scipy import linalg
 from scipy.special import psi
 from scipy.integrate import quad
 
 from ..wrappers.mytypes import doublenp
+
+log = np.emath.log
 
 MAX_CACHE = 10000
 """Bound on the ``lru_cache`` of every memoised special functions."""

@@ -1,7 +1,10 @@
 """Module for constructing many-body quantum dot Hamiltonian and diagonalising it."""
 
+import warnings
+
 import numpy as np
 
+from ._warnings import QmeqWarning
 from .indexing import empty_szlst
 from .indexing import empty_ssqlst
 from .indexing import szrange
@@ -359,7 +362,11 @@ def ssquare_eigenstates(charge, sz, si, prnt=False):
         ssq_eigvec[ssqind] gives the eigenstate matrix for :math:`S^{2}` =ssq.
     """
     if charge % 2 != sz % 2:
-        print("WARNING: charge and sz need to have the same parity. Return 0.")
+        warnings.warn(
+            "charge and sz need to have the same parity. Returning 0.",
+            QmeqWarning,
+            stacklevel=2,
+        )
         return 0
     ssq_eigvec = [0 for _ in ssqrange(charge, sz, si.nsingle)]
     ssquare = operator_ssquare(charge, sz, si)
@@ -913,7 +920,11 @@ class QuantumDot(object):
                                                    self.hamlst[charge][szind]))
             return self.valslst[charge][szind][ssqind], self.vecslst[charge][szind][ssqind]
         else:
-            print("WARNING: No indexing by 'sz' or 'ssq'. Return None.")
+            warnings.warn(
+                "No indexing by 'sz' or 'ssq'. Returning None.",
+                QmeqWarning,
+                stacklevel=2,
+            )
             return None
 
     def diagonalise(self):

@@ -123,6 +123,29 @@ runpy.run_path('setup.py', run_name='__main__')
     assert result.stdout.strip() == '0'
 
 
+def test_cython_generation_uses_the_build_directory():
+    _require_setup_py()
+
+    code = """
+import Cython.Build
+import runpy
+
+captured = {}
+def capture(ext, **kwargs):
+    captured.update(kwargs)
+    return ext
+
+Cython.Build.cythonize = capture
+module = runpy.run_path('setup.py', run_name='not_main')
+module['get_ext_modules']()
+print(captured['build_dir'])
+"""
+    result = _run_setup_python(code, QMEQ_OPENMP='off')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip().splitlines()[-1] == 'build/cython'
+
+
 def _run_setup_python(code, **extra_env):
     env = dict(os.environ, QMEQ_BACKEND='cython', **extra_env)
     return subprocess.run(

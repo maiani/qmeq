@@ -4,6 +4,9 @@
 
 ### Added
 
+- Add public `QmeqWarning` and `QmeqRuntimeWarning` categories so callers can
+  capture or filter all QmeQ diagnostics as a group while distinguishing
+  numerical/runtime failures from input fallbacks.
 - Add one validated external JSON/NPZ reference-bundle infrastructure for
   historical and future numerical snapshots. The previous builder and
   electron-phonon Python dictionaries are preserved losslessly as 100 arrays
@@ -115,6 +118,20 @@
 
 ### Changed
 
+- Replace warning-like standard-output prints with typed warnings across input
+  validation, state indexing, solver fallback/failure paths, 2vN grid changes,
+  and the Python and Cython RTD energy-current implementations. Deliberate
+  state-display and build-progress output remains unchanged; RTDnoise no longer
+  dumps a full failed kernel matrix to standard output.
+- Generate Cython's intermediate C files under `build/cython/` instead of next
+  to the canonical `.pyx` sources. Remove the obsolete per-file ignore list and
+  the risk of accidentally compiling stale source-tree C output.
+- Remove the unreachable `scipy.misc.factorial` compatibility fallback and use
+  NumPy's public `emath` namespace for the complex logarithm. The fast suite on
+  NumPy 2.5.1 and SciPy 1.18.0, plus a clean Cython 3.2.8 rebuild, emits no
+  deprecation, future, or pending-deprecation warnings.
+- Keep `itype` as a supported compatibility interface alongside the descriptive
+  `bandwidth` and `principal_part` options; no `itype` deprecation is planned.
 - Adopt pytest 9's native `[tool.pytest]` TOML configuration and separate
   notebook execution from the default suite. The normal suite still exercises
   the quick Python example; notebooks run explicitly with `-m notebook` in an

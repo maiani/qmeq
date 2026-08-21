@@ -1,10 +1,12 @@
 """Module containing sample classes for approach definitions."""
 
 import itertools
+import warnings
 
 import numpy as np
 from scipy import optimize
 
+from .._warnings import QmeqWarning
 from ..wrappers.mytypes import doublenp
 from ..wrappers.mytypes import complexnp
 
@@ -256,7 +258,12 @@ class Approach(object):
         if solmethod is None:
             solmethod = 'solve' if symq else 'lsqr'
         if not symq and solmethod != 'lsqr' and solmethod != 'lsmr':
-            print("WARNING: Using solmethod=lsqr, because the kernel is not symmetric, symq=False.")
+            warnings.warn(
+                "Using solmethod=lsqr because the kernel is not symmetric "
+                "(symq=False).",
+                QmeqWarning,
+                stacklevel=2,
+            )
             solmethod = 'lsqr'
 
         self.funcp.solmethod = solmethod

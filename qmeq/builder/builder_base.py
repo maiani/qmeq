@@ -1,5 +1,7 @@
 """Module containing BuilderBase and BuilderManyBody classes."""
 
+import warnings
+
 import copy
 import numpy as np
 
@@ -7,6 +9,7 @@ from .._backend import load_compiled_modules
 from ..wrappers.mytypes import longnp
 
 from ..approach.aprclass import Approach
+from .._warnings import QmeqWarning
 from ..indexing import StateIndexingDM  # noqa: F401
 from ..indexing import StateIndexingDMc  # noqa: F401
 from ..qdot import QuantumDot
@@ -255,8 +258,12 @@ class BuilderBase(object):
 
     def set_indexing(self, value):
         if self.si.indexing != value:
-            print('WARNING: Cannot change indexing from \''+self.si.indexing+'\' to \''+value
-                  + '\' Consider constructing a new system using \'indexing='+value+'\'')
+            warnings.warn(
+                f"Cannot change indexing from {self.si.indexing!r} to {value!r}. "
+                f"Construct a new system using indexing={value!r} instead.",
+                QmeqWarning,
+                stacklevel=2,
+            )
     indexing = property(get_indexing, set_indexing)
 
     # dband

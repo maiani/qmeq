@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 import numpy as np
+import pytest
 
 import qmeq
 from qmeq.approach.base.neumann2 import Approach2vN
@@ -61,5 +62,19 @@ def test_Approach2vN_make_Ek_grid():
     appr.make_Ek_grid()
     assert appr.Ek_grid.tolist() == [-1000, -500, 0, 500, 1000]
     appr.leads.change(dlst={0: [-1400, 1000], 1: [-1000, 1000]})
-    appr.make_Ek_grid()
+    with pytest.warns(qmeq.QmeqWarning, match="bandwidth and Ek_grid"):
+        appr.make_Ek_grid()
     assert appr.Ek_grid.tolist() == [-1400.0, -800.0, -200.0, 400.0, 1000.0]
+
+
+def test_Approach2vN_warns_when_changed_grid_restarts():
+    system = qmeq.Builder(
+        nleads=1, dband={0: 1000}, kpnt=5, kerntype="2vN"
+    )
+    appr = Approach2vN(system)
+    appr.make_Ek_grid()
+    appr.niter = 0
+    appr.funcp.kpnt = 6
+
+    with pytest.warns(qmeq.QmeqWarning, match="Restarting"):
+        appr.make_Ek_grid()

@@ -12,7 +12,9 @@
 # Python imports
 
 import numpy as np
+import warnings
 
+from ..._warnings import QmeqRuntimeWarning
 from ...approach.base.RTD import ApproachPyRTD as ApproachPyRTD
 from ...approach.base.RTD import _warn_if_unequal_temperature_cutoff_is_small
 from ...approach.aprclass import Approach as ApproachPy
@@ -304,16 +306,27 @@ cdef class ApproachRTD(Approach):
             self.energy_current.fill(np.nan)
             self.heat_current.fill(np.nan)
             if not self.printed_warning_ImGamma:
-                print('Warning! Complex matrix elements detected, which are not supported for the RTD approach ' +
-                      'when calculating the energy current.')
+                warnings.warn(
+                    "Complex matrix elements are not supported for the RTD "
+                    "energy current; energy_current and heat_current were "
+                    "set to NaN.",
+                    QmeqRuntimeWarning,
+                    stacklevel=2,
+                )
                 self.printed_warning_ImGamma = True
 
         if self.si.nsingle == 0:
             if not self.nsingle_warning_printed:
-                print('Warning! No single particle tunneling amplitudes (tleads) detected. Corrections to the energy ' +
-                      'current in the RTD approach uses tleads. Please specify BuilderManyBody.tleads_array and ' +
-                      'BuilderManyBody.nsingle, if possible.\n\nThe correction terms can be neglected if no single' +
-                      ' particle state is connected to more than one lead.')
+                warnings.warn(
+                    "No single-particle tunneling amplitudes (tleads) were "
+                    "provided. RTD energy-current corrections use tleads; "
+                    "specify BuilderManyBody.tleads_array and "
+                    "BuilderManyBody.nsingle when possible. The corrections "
+                    "can be neglected if no single-particle state is "
+                    "connected to more than one lead.",
+                    QmeqRuntimeWarning,
+                    stacklevel=2,
+                )
                 self.nsingle_warning_printed = True
 
     cpdef void generate_fct(self):

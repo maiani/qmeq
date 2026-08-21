@@ -6,7 +6,7 @@ import qmeq
 from qmeq.approach.base.RTD import RTDBandwidthWarning
 
 
-def _roundoff_phase_current(imaginary_part):
+def _roundoff_phase_current(imaginary_part, kerntype="RTD"):
     temperature = 0.02
     gamma = 0.04
     hsingle = {
@@ -43,7 +43,7 @@ def _roundoff_phase_current(imaginary_part):
         {0: 0.2, 1: -0.2, 2: 0.2, 3: -0.2},
         {lead: temperature for lead in range(4)},
         50.0,
-        kerntype="RTD",
+        kerntype=kerntype,
         indexing="charge",
         itype=1,
     )
@@ -56,6 +56,43 @@ def test_RTD_ignores_roundoff_scale_tunnel_phase():
     roundoff_phase = _roundoff_phase_current(2e-18)
 
     assert np.isclose(roundoff_phase, exactly_real, rtol=1e-12, atol=1e-15)
+
+
+@pytest.mark.parametrize("kerntype", ["pyRTD", "RTD"])
+def test_RTD_complex_energy_current_emits_runtime_warning(kerntype):
+    with pytest.warns(
+        qmeq.QmeqRuntimeWarning, match="energy_current and heat_current"
+    ):
+        _roundoff_phase_current(1e-3, kerntype)
+
+
+@pytest.mark.parametrize("kerntype", ["pyRTD", "RTD"])
+def test_RTD_missing_single_particle_amplitudes_warns(kerntype):
+    reference = qmeq.Builder(
+        nsingle=1,
+        hsingle={(0, 0): 0.1},
+        nleads=2,
+        tleads={(0, 0): 0.1, (1, 0): 0.1},
+        mulst=[0.1, -0.1],
+        tlst=[1.0, 1.0],
+        dband=1000.0,
+        kerntype="pyRTD",
+        itype=1,
+    )
+    reference.solve()
+    system = qmeq.BuilderManyBody(
+        Ea=reference.Ea,
+        Na=[0, 1],
+        Tba=reference.Tba,
+        mulst=[0.1, -0.1],
+        tlst=[1.0, 1.0],
+        dband=1000.0,
+        kerntype=kerntype,
+        itype=1,
+    )
+
+    with pytest.warns(qmeq.QmeqRuntimeWarning, match="No single-particle"):
+        system.solve(qdq=False, rotateq=False)
 
 
 def _thermal_single_level(dband, kerntype="pyRTD"):
