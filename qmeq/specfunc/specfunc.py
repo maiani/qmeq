@@ -13,7 +13,8 @@ from scipy.integrate import quad
 
 from ..wrappers.mytypes import doublenp
 
-MAX_CACHE = 100
+MAX_CACHE = 10000
+"""Bound on the ``lru_cache`` of every memoised special functions."""
 
 def func_pauli(Ecb, mu, T, Dm, Dp, itype):
     """

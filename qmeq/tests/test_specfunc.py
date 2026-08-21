@@ -254,3 +254,18 @@ def test_RTD_equal_temperature_branches_share_wide_band_component():
                     *args, BW_Ozaki(pole_bandwidth), True
                 )
                 assert abs(with_complex_component.real-wide_band) < EPS
+
+
+def test_max_cache_is_bounded():
+    """MAX_CACHE must stay finite.
+
+    Distinct cache keys per solve grow roughly elevenfold per added orbital, and
+    parameter sweeps generate fresh float keys indefinitely, so ``None`` here
+    would grow without limit rather than converge. The value is a runtime
+    tuning knob only -- memoisation is exact, so it can never change a result.
+    """
+    from qmeq.specfunc.specfunc import MAX_CACHE, phi
+
+    assert isinstance(MAX_CACHE, int)
+    assert MAX_CACHE > 0
+    assert phi.cache_info().maxsize == MAX_CACHE
