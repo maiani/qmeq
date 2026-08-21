@@ -125,6 +125,8 @@ runpy.run_path('setup.py', run_name='__main__')
 
 def test_cython_generation_uses_the_build_directory():
     _require_setup_py()
+    if importlib.util.find_spec('Cython') is None:
+        pytest.skip('requires Cython; exercised by the compiled CI jobs')
 
     code = """
 import Cython.Build

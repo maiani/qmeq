@@ -92,6 +92,90 @@ def _scenario_tolerance(scenario, field):
     )
 
 
+def _assert_kernel_matches_up_to_state_sign_gauge(
+        actual, reference, si, *, rtol, atol, err_msg):
+    """Compare packed-real kernels modulo many-body eigenvector signs.
+
+    ``numpy.linalg.eigh`` may return an eigenvector or its negative, depending
+    on the LAPACK implementation. A rephasing ``|b> -> s_b |b>`` with
+    ``s_b = +/-1`` multiplies both packed coordinates of ``rho[b, bp]`` by
+    ``s_b*s_bp`` and transforms the kernel by the corresponding diagonal
+    similarity. The raw historical kernel therefore has no portable element-
+    by-element sign convention, although its magnitudes and physics do.
+
+    First require every element magnitude to agree. Then solve the resulting
+    sign constraints over GF(2) and require one *state-level* rephasing to map
+    the complete reference matrix to the actual matrix. This is stricter than
+    comparing absolute values: arbitrary independent kernel-entry sign errors
+    cannot pass.
+    """
+    actual = np.asarray(actual)
+    reference = np.asarray(reference)
+    np.testing.assert_allclose(
+        np.abs(actual), np.abs(reference), rtol=rtol, atol=atol,
+        err_msg=f"{err_msg} magnitudes",
+    )
+
+    imag_offset = si.ndm0 - si.npauli
+
+    def state_pair(packed_index):
+        reduced_index = (
+            packed_index if packed_index < si.ndm0
+            else packed_index - imag_offset
+        )
+        return si.inddm0[reduced_index]
+
+    assert actual.shape == reference.shape
+    assert actual.ndim == 2 and actual.shape[0] == actual.shape[1]
+    pairs = [state_pair(index) for index in range(actual.shape[0])]
+    equations = []
+    for row, column in zip(*np.nonzero(np.abs(reference) > atol)):
+        mask = 0
+        for state in (*pairs[row], *pairs[column]):
+            mask ^= 1 << state
+        opposite_sign = bool(np.signbit(actual[row, column])
+                             != np.signbit(reference[row, column]))
+        equations.append((mask, opposite_sign))
+
+    # Row-reduce the sign equations over GF(2), using an integer bit mask for
+    # the many-body-state variables. Free state phases are fixed to +1.
+    basis = {}
+    for mask, value in equations:
+        while mask:
+            pivot = mask.bit_length() - 1
+            if pivot not in basis:
+                basis[pivot] = (mask, value)
+                break
+            old_mask, old_value = basis[pivot]
+            mask ^= old_mask
+            value ^= old_value
+        else:
+            assert not value, f"{err_msg}: inconsistent eigenstate sign gauge"
+
+    solution = 0
+    for pivot in sorted(basis):
+        mask, value = basis[pivot]
+        lower_variables = mask ^ (1 << pivot)
+        value ^= bool((lower_variables & solution).bit_count() % 2)
+        if value:
+            solution |= 1 << pivot
+
+    state_sign = np.ones(si.nmany)
+    for state in range(si.nmany):
+        if solution & (1 << state):
+            state_sign[state] = -1.0
+    coordinate_sign = np.asarray([
+        state_sign[b] * state_sign[bp] for b, bp in pairs
+    ])
+    gauge_aligned_reference = (
+        coordinate_sign[:, None] * reference * coordinate_sign[None, :]
+    )
+    np.testing.assert_allclose(
+        actual, gauge_aligned_reference, rtol=rtol, atol=atol,
+        err_msg=err_msg,
+    )
+
+
 def test_qmeq_11_reference_provenance_and_coverage():
     assert REFERENCE_DOCUMENT["reference_bundle_schema"] == 1
     assert REFERENCE_DOCUMENT["bundle_id"] == "qmeq_11"
@@ -173,8 +257,9 @@ def test_pure_python_electronic_kernels_match_qmeq_11(approach, itype):
 def test_pure_python_electron_phonon_kernels_match_qmeq_11(approach):
     key = f"elph/{approach}/itype=2/itype_ph=2"
     system = build_reference_system("elph", approach)
-    np.testing.assert_allclose(
-        system.appr.kern, REFERENCES[key]["kern"], rtol=2e-10, atol=2e-12,
+    _assert_kernel_matches_up_to_state_sign_gauge(
+        system.appr.kern, REFERENCES[key]["kern"], system.si,
+        rtol=2e-10, atol=2e-12,
         err_msg=f"QmeQ 1.1 regression in pure-Python elph {approach} kernel",
     )
 

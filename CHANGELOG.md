@@ -227,6 +227,13 @@
 
 ### Fixed
 
+- Make the QmeQ 1.1 electron-phonon kernel regression portable across LAPACK
+  implementations. Raw packed-coherence kernels can differ by a diagonal
+  similarity when `eigh` chooses the opposite sign for a many-body eigenvector;
+  the test now requires agreement under one consistent state-level sign gauge
+  instead of treating that arbitrary basis convention as physics.
+- Skip the Cython build-directory probe when Cython is intentionally absent
+  from a pure-Python test installation. Compiled CI jobs still exercise it.
 - Raise `ValueError` instead of silently returning `None` from `get_ind_dm0`
   for an unsupported `maptype`. `None` is `np.newaxis`, so a wrong selector
   reshaped an array rather than raising and surfaced far from its cause.
