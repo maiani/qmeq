@@ -8,6 +8,7 @@ from ...wrappers.mytypes import complexnp
 from ...specfunc.specfunc_elph import Func1vNElPh
 
 from ..aprclass import ApproachElPh
+from ..dm_layout import NO_INDEX
 from ..base.neumann1 import Approach1vN as Approach1vNBase
 
 
@@ -30,8 +31,11 @@ class Approach1vN(ApproachElPh):
     def generate_fct(self):
         Approach1vNBase.generate_fct(self)
 
-        E, si = self.qd.Ea, self.si_elph
-        ncharge, nbaths, statesdm = si.ncharge, si.nbaths, si.statesdm
+        E = self.qd.Ea
+        # si_elph is a StateIndexingDMc, a *different* class from self.si. Never
+        # bind it to the name `si`: see the state-indexing developer note.
+        si_elph = self.si_elph
+        ncharge, nbaths, statesdm = si_elph.ncharge, si_elph.nbaths, si_elph.statesdm
 
         func_1vN_elph = Func1vNElPh(self.baths.tlst_ph, self.baths.dlst_ph,
                                     self.funcp.itype_ph, self.funcp.dqawc_limit,
@@ -44,17 +48,17 @@ class Approach1vN(ApproachElPh):
             func_1vN_elph.eval(0., l)
             for charge in range(ncharge):
                 for b in statesdm[charge]:
-                    bb = si.get_ind_dm0(b, b, charge)
-                    bb_bool = si.get_ind_dm0(b, b, charge, maptype=2)
-                    if bb != -1 and bb_bool:
+                    bb = si_elph.get_ind_dm0(b, b, charge)
+                    bb_bool = si_elph.get_ind_dm0_bool(b, b, charge)
+                    if bb != NO_INDEX and bb_bool:
                         w1fct[l, bb, 0] = func_1vN_elph.val0 - 0.5j*func_1vN_elph.val0.imag
                         w1fct[l, bb, 1] = func_1vN_elph.val1 - 0.5j*func_1vN_elph.val1.imag
         # Off-diagonal elements
         for charge in range(ncharge):
             for b, bp in itertools.permutations(statesdm[charge], 2):
-                bbp = si.get_ind_dm0(b, bp, charge)
-                bbp_bool = si.get_ind_dm0(b, bp, charge, maptype=2)
-                if bbp != -1 and bbp_bool:
+                bbp = si_elph.get_ind_dm0(b, bp, charge)
+                bbp_bool = si_elph.get_ind_dm0_bool(b, bp, charge)
+                if bbp != NO_INDEX and bbp_bool:
                     Ebbp = E[b]-E[bp]
                     for l in range(nbaths):
                         func_1vN_elph.eval(Ebbp, l)
@@ -76,7 +80,7 @@ class Approach1vN(ApproachElPh):
             if kh.is_included(a, ap, acharge):
                 bpa = si_elph.get_ind_dm0(bp, a, acharge)
                 bap = si_elph.get_ind_dm0(b, ap, acharge)
-                if bpa == -1 or bap == -1:
+                if bpa == NO_INDEX or bap == NO_INDEX:
                     continue
                 fct_aap = 0
                 for l in range(nbaths):
@@ -90,7 +94,7 @@ class Approach1vN(ApproachElPh):
                 fct_bppbp = 0
                 for a in statesdm[acharge]:
                     bpa = si_elph.get_ind_dm0(bp, a, acharge)
-                    if bpa == -1:
+                    if bpa == NO_INDEX:
                         continue
                     for l in range(nbaths):
                         gamma_ba_bppa = 0.5*(Vbbp[l, b, a]*Vbbp[l, bpp, a].conjugate() +
@@ -98,7 +102,7 @@ class Approach1vN(ApproachElPh):
                         fct_bppbp += gamma_ba_bppa*w1fct[l, bpa, 1].conjugate()
                 for c in statesdm[ccharge]:
                     cbp = si_elph.get_ind_dm0(c, bp, bcharge)
-                    if cbp == -1:
+                    if cbp == NO_INDEX:
                         continue
                     for l in range(nbaths):
                         gamma_bc_bppc = 0.5*(Vbbp[l, b, c]*Vbbp[l, bpp, c].conjugate() +
@@ -110,7 +114,7 @@ class Approach1vN(ApproachElPh):
                 fct_bbpp = 0
                 for a in statesdm[acharge]:
                     ba = si_elph.get_ind_dm0(b, a, acharge)
-                    if ba == -1:
+                    if ba == NO_INDEX:
                         continue
                     for l in range(nbaths):
                         gamma_abpp_abp = 0.5*(Vbbp[l, a, bpp].conjugate()*Vbbp[l, a, bp] +
@@ -118,7 +122,7 @@ class Approach1vN(ApproachElPh):
                         fct_bbpp += -gamma_abpp_abp*w1fct[l, ba, 1]
                 for c in statesdm[ccharge]:
                     cb = si_elph.get_ind_dm0(c, b, bcharge)
-                    if cb == -1:
+                    if cb == NO_INDEX:
                         continue
                     for l in range(nbaths):
                         gamma_cbpp_cbp = 0.5*(Vbbp[l, c, bpp].conjugate()*Vbbp[l, c, bp] +
@@ -130,7 +134,7 @@ class Approach1vN(ApproachElPh):
             if kh.is_included(c, cp, ccharge):
                 cbp = si_elph.get_ind_dm0(c, bp, bcharge)
                 cpb = si_elph.get_ind_dm0(cp, b, bcharge)
-                if cbp == -1 or cpb == -1:
+                if cbp == NO_INDEX or cpb == NO_INDEX:
                     continue
                 fct_ccp = 0
                 for l in range(nbaths):

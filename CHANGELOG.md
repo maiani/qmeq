@@ -7,6 +7,48 @@
 - Add public `QmeqWarning` and `QmeqRuntimeWarning` categories so callers can
   capture or filter all QmeQ diagnostics as a group while distinguishing
   numerical/runtime failures from input fallbacks.
+- Add `qmeq.approach.dm_layout`, a written specification of the packed real
+  density-matrix layout that Lindblad, Redfield, 1vN, their electron-phonon
+  variants and RTD all solve in. The layout was previously defined only by its
+  uses, with the offset arithmetic, inclusion test and conjugation sign
+  open-coded at 19 sites across the pure-Python and Cython kernel handlers.
+  The module states nine numbered rules, provides an immutable
+  `LiouvilleState` view and a reference `DensityMatrixLayout` with
+  pack/unpack/trace, and is accompanied by a test module in which every test
+  names the rule it pins. Two conventions that had no written record are now
+  specified and covered: the packed kernel implements `rho -> -i (W rho)`,
+  which is why Lindblad passes `1j*fct` where 1vN passes `fct`; and the
+  matrix-free handler writes its imaginary rows with the opposite sign from
+  the assembled kernel, which leaves the stationary null space unchanged but
+  means `dphi0_dt` is not literally the packed time derivative.
+- Add `StateIndexingDM.get_ind_dm0_bool` and `get_ind_dm0_conj`, named forms of
+  the `maptype=2` and `maptype=3` integer arguments, matching the accessor
+  names the Cython handler already used. The integer `maptype` interface is
+  unchanged.
+- Record `new_docs/` as the intentionally ignored working prototype for the
+  documentation system intended eventually to replace Sphinx. It is not yet a
+  shipped documentation source; Sphinx remains the user-facing manual and
+  warning-clean release gate until the replacement has equivalent coverage.
+- Add `QMEQ_STRICT_INDEX=1`, a pure-Python diagnostic that turns an insertion at
+  a density-matrix element with no index into an `IndexError` naming the method
+  and the offending endpoint, instead of silently skipping it. Off by default,
+  and because the check sits inside a branch a correct caller never takes it
+  costs nothing in the normal path. The compiled insertion methods are
+  `noexcept nogil` and cannot raise, so run the strict leg with
+  `QMEQ_BACKEND=python`. This makes the whole suite a standing probe for a
+  missing `is_included` guard; the full suite passes under it.
+- Add `RtdMatrix`, an `IntEnum` naming the eight destination arrays that RTD
+  insertions select, replacing a bare trailing integer at 61 call sites — 30 in
+  `RTD.py` and 31 in `c_RTD.pyx`. The compiled path cannot use a Python enum
+  inside `nogil` code, so `c_kernel_handler.pxd` mirrors it as `RtdMatrixC`,
+  declared `cpdef` rather than `cdef` specifically so the two copies can be
+  compared member-for-member in the test suite rather than drifting silently.
+- Add type hints opportunistically, for readability only: no type checker, no
+  `py.typed` marker and no CI gate. `qmeq.approach.dm_layout` is fully
+  annotated; `qmeq.approach.kernel_handler` and the `qmeq.indexing` lookups
+  carry hints on the signatures that were hardest to read. Note that the kernel
+  handlers accept `StateIndexingDM | StateIndexingDMc`, since the 2vN
+  approaches pass the latter.
 - Add one validated external JSON/NPZ reference-bundle infrastructure for
   historical and future numerical snapshots. The previous builder and
   electron-phonon Python dictionaries are preserved losslessly as 100 arrays
@@ -132,6 +174,73 @@
   deprecation, future, or pending-deprecation warnings.
 - Keep `itype` as a supported compatibility interface alongside the descriptive
   `bandwidth` and `principal_part` options; no `itype` deprecation is planned.
+- Rename the RTD array `Lnn` to `Lnn_inv`, and `add_element_Lnn` to
+  `add_element_Lnn_inv`. It holds the inverse of the bare coherence energy
+  splitting used to eliminate coherences, not the coherence-sector Liouvillian;
+  the Phase 0 reference fixtures already recorded it under the honest key
+  `inverse_Lnn`, which is provenance-locked and unchanged. Note the two backends
+  still differ in shape here: two-dimensional in pure Python, a bare diagonal in
+  Cython.
+- Stop binding the name `si` to `self.si_elph` in the pure-Python
+  electron-phonon Pauli and 1vN approaches. Those modules hold two indexing
+  objects of *different* classes — `si` is a `StateIndexingDM` while `si_elph`
+  is a `StateIndexingDMc` — and the shared local name made the distinction
+  invisible at the call site, in one case with opposite meanings in adjacent
+  methods of the same class.
+- Name the "no index" sentinel at 61 sites across both backends, replacing bare
+  `-1` comparisons, and drop the comments that had been restating those
+  comparisons in English. `NO_INDEX` records that the value must never be used
+  as an index: NumPy reads it as the last row or column, and the compiled
+  handler is built with `wraparound=False` and `boundscheck=False`, so there it
+  is an out-of-bounds access rather than a wrap.
+- Document what `maptype` actually selects in all three `get_ind_dm0` methods.
+  The method returns an index for `maptype` 0 and 1 but a boolean for 2 and 3,
+  which no docstring previously said; each class now carries a table of the
+  selectors it supports and why the missing ones do not exist.
+
+- Route the duplicated packed-real index arithmetic in both kernel handlers
+  through one named definition. The repeated `ndm0 + i - npauli` offset is now
+  a precomputed `imag_offset`, the existence test for an imaginary partner is
+  the equivalent and clearer `i >= npauli`, the excluded-element sentinel has
+  a name in both backends, and the `maptype` integers are gone from the
+  handlers. No sign, prescription or kernel value changes; the historical
+  reference corpora are reproduced unchanged on both backends.
+
+### Performance
+
+- Raise `MAX_CACHE`, the `lru_cache` bound on the memoised special functions,
+  from 100 to 10000. The bound sets the cache hit rate and the hit rate sets the
+  runtime: on a pure-Python RTD solve the aggregate hit rate goes from about
+  75-81% to 96-97% and the solve is roughly 2.2 times faster. The knee is near
+  1000 and 50000 adds about one percent more, so 10000 captures nearly all of
+  the available gain for at most about 17 MB at a measured 207 bytes per entry.
+  The bound stays finite deliberately, since distinct keys per solve grow about
+  elevenfold per added orbital and parameter sweeps generate fresh float keys
+  indefinitely; a regression test asserts finiteness. Memoisation is exact, so
+  results are unchanged: every array in the RTD reference matrix is bitwise
+  identical across the two bounds. The compiled backend uses its own
+  `c_specfunc` and is unaffected. Caching `integralD` and `integralX` was
+  measured and rejected -- with twelve arguments and three independent energies
+  they reach a 0.3% hit rate and the key hashing costs more than the calls it
+  saves.
+
+
+### Fixed
+
+- Raise `ValueError` instead of silently returning `None` from `get_ind_dm0`
+  for an unsupported `maptype`. `None` is `np.newaxis`, so a wrong selector
+  reshaped an array rather than raising and surfaced far from its cause.
+- Stop `Builder.get_phi0` asking `StateIndexingDMc` for a conjugation map it
+  does not have. The `maptype=3` lookup ran unconditionally and its result was
+  discarded on the `StateIndexingDMc` branch, so every 2vN call relied on the
+  silent `None` return above. The lookup now happens only in the branch that
+  uses it, and uses the named accessor. Results are unchanged.
+- Make inserting a matrix element at an uncarried endpoint a no-op in both
+  kernel-handler backends. The `-1` sentinel would otherwise index the last row
+  or column and corrupt an unrelated entry. Every shipped caller already guards
+  with `is_included`, and a probe run of the full suite with a hard assertion
+  never fired, so no existing behaviour changes.
+
 - Adopt pytest 9's native `[tool.pytest]` TOML configuration and separate
   notebook execution from the default suite. The normal suite still exercises
   the quick Python example; notebooks run explicitly with `-m notebook` in an

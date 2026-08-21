@@ -291,7 +291,7 @@ def _rtd_reference_snapshot(scenario, *, return_system=False):
             appr.ImWnd, (nleads, ncoherences, npauli)
         ),
         "inverse_Lnn": optional_block(
-            appr.Lnn, (ncoherences, ncoherences)
+            appr.Lnn_inv, (ncoherences, ncoherences)
         ),
         "WE1": np.asarray(appr.WE1),
         "WE2": np.asarray(appr.WE2),

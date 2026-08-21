@@ -5,6 +5,28 @@ from ..wrappers.c_mytypes cimport double_t
 from ..wrappers.c_mytypes cimport complex_t
 
 
+cdef enum:
+    # Returned in place of an index when a density-matrix element is not part of
+    # the reduced representation; rule L2 of qmeq.approach.dm_layout, kept in
+    # step with its NO_INDEX constant.
+    NO_INDEX = -1
+
+
+cpdef enum RtdMatrixC:
+    # Selects which RTD matrix an insertion writes into. Mirrors the RtdMatrix
+    # IntEnum in kernel_handler.py; the values are the historical integers and
+    # the two must stay in step, which test_dm_layout.py asserts directly.
+    # cpdef (rather than cdef) exposes these to Python so that check is possible.
+    MAT_WDD = 0
+    MAT_WE1 = 1
+    MAT_WE2 = 2
+    MAT_RE_WDN = 3
+    MAT_IM_WDN = 4
+    MAT_RE_WND = 5
+    MAT_IM_WND = 6
+    MAT_LNN_INV = 7
+
+
 cdef class KernelHandler:
 
     cdef long_t bbp, bbpi
@@ -18,6 +40,8 @@ cdef class KernelHandler:
     cdef long_t ndm0r
     cdef long_t ndm1
     cdef long_t npauli
+    # Distance from a reduced index to its imaginary partner; rule L4.
+    cdef long_t imag_offset
     cdef long_t nleads
     cdef long_t nbaths
     cdef long_t ncharge
@@ -102,7 +126,7 @@ cdef class KernelHandlerRTD(KernelHandler):
     cdef double_t[:,:] ImWnd
     cdef double_t[:,:,:] ReWdn
     cdef double_t[:,:,:] ImWdn
-    cdef double_t[:] Lnn
+    cdef double_t[:] Lnn_inv
     cdef double_t[:,:,:] LE
     cdef double_t[:,:,:] LN
 

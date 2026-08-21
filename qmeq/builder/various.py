@@ -2,6 +2,7 @@
 
 import numpy as np
 
+from ..approach.dm_layout import NO_INDEX
 from ..indexing import szrange
 from ..indexing import ssqrange
 from ..indexing import sz_to_ind
@@ -112,15 +113,20 @@ def get_phi0(self, b_, bp_):
             phi0bbp = self.phi0[ind]
     elif bcharge == bpcharge:
         ind = self.si.get_ind_dm0(b, bp, bcharge, maptype=1)
-        conj = self.si.get_ind_dm0(b, bp, bcharge, maptype=3)
-        if ind != -1:
+        if ind != NO_INDEX:
             if type(self.si).__name__ == 'StateIndexingDMc':
+                # Both orientations are stored independently as complex numbers,
+                # so there is no conjugation map to consult here.
                 phi0bbp = self.phi0[ind]
             else:
-                ndm0, npauli = self.si.ndm0, self.si.npauli
-                phi0bbp = (self.phi0[ind] + 1j*self.phi0[ndm0-npauli+ind]
+                # Rule L5 of qmeq.approach.dm_layout: a coherence carries its
+                # imaginary part at ind + imag_offset, signed by the stored
+                # orientation. Populations have no imaginary partner.
+                imag_offset = self.si.ndm0 - self.si.npauli
+                conj = self.si.get_ind_dm0_conj(b, bp, bcharge)
+                phi0bbp = (self.phi0[ind] + 1j*self.phi0[imag_offset+ind]
                            * (+1 if conj else -1)
-                           * (0 if ind < npauli else 1))
+                           * (0 if ind < self.si.npauli else 1))
     return phi0bbp
 
 
@@ -258,7 +264,7 @@ def remove_coherences(self, dE):
     si, E = self.si, self.qd.Ea
     ilst, indlst = [], []
     for i in range(si.ndm0_):
-        if si.mapdm0[i] != -1:
+        if si.mapdm0[i] != NO_INDEX:
             ind = si.mapdm0[i]
             b, bp = si.inddm0[ind]
             if abs(E[b]-E[bp]) > dE:

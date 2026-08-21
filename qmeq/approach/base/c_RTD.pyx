@@ -63,6 +63,9 @@ cdef extern from *:
 
 from ..c_aprclass cimport Approach
 from ..c_kernel_handler cimport KernelHandlerRTD
+from ..c_kernel_handler cimport (MAT_WDD, MAT_WE1, MAT_WE2, MAT_RE_WDN,
+                                 MAT_IM_WDN, MAT_RE_WND, MAT_IM_WND,
+                                 MAT_LNN_INV)
 
 cdef double_t IMAGINARY_TUNNEL_PRODUCT_RTOL = 1e-12
 
@@ -125,19 +128,19 @@ cdef class ApproachRTD(Approach):
             self.ImWnd = np.zeros((kern_size2, kern_size), dtype=self.dtype, order='F')
             self.ReWdn = np.zeros((nleads, kern_size, kern_size2), dtype=self.dtype, order='F')
             self.ImWdn = np.zeros((nleads, kern_size, kern_size2), dtype=self.dtype, order='F')
-            self.Lnn = np.zeros(kern_size2, dtype=self.dtype)
+            self.Lnn_inv = np.zeros(kern_size2, dtype=self.dtype)
 
             self._ReWnd = self.ReWnd
             self._ImWnd = self.ImWnd
             self._ReWdn = self.ReWdn
             self._ImWdn = self.ImWdn
-            self._Lnn = self.Lnn
+            self._Lnn_inv = self.Lnn_inv
 
             kh.ReWnd = self.ReWnd
             kh.ImWnd = self.ImWnd
             kh.ReWdn = self.ReWdn
             kh.ImWdn = self.ImWdn
-            kh.Lnn = self.Lnn
+            kh.Lnn_inv = self.Lnn_inv
 
         self._kern = self.kern
         self._bvec = self.bvec
@@ -192,7 +195,7 @@ cdef class ApproachRTD(Approach):
             self._ImWnd[::1] = 0.0
             self._ReWdn[::1] = 0.0
             self._ImWdn[::1] = 0.0
-            self._Lnn[::1] = 0.0
+            self._Lnn_inv[::1] = 0.0
 
 
     cpdef void generate_kern(self):
@@ -256,8 +259,8 @@ cdef class ApproachRTD(Approach):
         cdef double_t[:,:,:] Wcorr = np.zeros(self._Wdd.shape, dtype=doublenp)
         cdef long_t l
 
-        diag_matrix_multiply(kh.Lnn, kh.ImWnd)
-        diag_matrix_multiply(kh.Lnn, kh.ReWnd)
+        diag_matrix_multiply(kh.Lnn_inv, kh.ImWnd)
+        diag_matrix_multiply(kh.Lnn_inv, kh.ReWnd)
         for l in range(kh.nleads):
             Wcorr.base[l,:,:] = np.matmul(kh.ReWdn.base[l,:,:], kh.ImWnd)
             Wcorr.base[l,:,:] = Wcorr.base[l,:,:] + np.matmul(kh.ImWdn.base[l,:,:], kh.ReWnd)
@@ -387,7 +390,7 @@ cdef class ApproachRTD(Approach):
             for l in range(nleads):
                 fctm = -paulifct[l, ba, 1]
                 fctp = paulifct[l, ba, 0]
-                kh.set_matrix_element_dd(l, fctm, fctp, bb, aa, 0)
+                kh.set_matrix_element_dd(l, fctm, fctp, bb, aa, MAT_WDD)
 
         for i in range(ccount):
             c = statesdm[ccharge, i]
@@ -396,7 +399,7 @@ cdef class ApproachRTD(Approach):
             for l in range(nleads):
                 fctm = -paulifct[l, cb, 0]
                 fctp = paulifct[l, cb, 1]
-                kh.set_matrix_element_dd(l, fctm, fctp, bb, cc, 0)
+                kh.set_matrix_element_dd(l, fctm, fctp, bb, cc, MAT_WDD)
 
 
     cdef void generate_row_1st_energy_kernel(self, long_t b, long_t bcharge, KernelHandlerRTD kh) noexcept nogil:
@@ -449,7 +452,7 @@ cdef class ApproachRTD(Approach):
                 temp = gamma.real * phi((dE - mu) / Tr, dlst[l, 0] / Tr, dlst[l, 1] / Tr)
                 temp += gamma.real * phi(-(dE - mu) / Tr, dlst[l, 0] / Tr, dlst[l, 1] / Tr)            
                 temp *= PI
-                kh.set_matrix_element_dd(l, temp, temp, bb, aa, 1)
+                kh.set_matrix_element_dd(l, temp, temp, bb, aa, MAT_WE1)
 
         for i in range(ccount):
             c =  statesdm[ccharge, i]
@@ -468,7 +471,7 @@ cdef class ApproachRTD(Approach):
                 temp = gamma.real * phi((dE - mu) / Tr, dlst[l, 0] / Tr, dlst[l, 1] / Tr)
                 temp += gamma.real * phi(-(dE - mu) / Tr, dlst[l, 0] / Tr, dlst[l, 1] / Tr)
                 temp *= PI
-                kh.set_matrix_element_dd(l, temp, temp, bb, cc, 1)
+                kh.set_matrix_element_dd(l, temp, temp, bb, cc, MAT_WE1)
 
 
     cdef void generate_row_2nd_energy_kernel(self, long_t b, long_t bcharge, KernelHandlerRTD kh) noexcept nogil:
@@ -521,7 +524,7 @@ cdef class ApproachRTD(Approach):
                         if fabs(gamma.imag) > t_cutoff:
                             self.ImGamma = True
                 temp *= PI
-                kh.set_matrix_element_dd(l, temp, temp, bb, aa, 2)
+                kh.set_matrix_element_dd(l, temp, temp, bb, aa, MAT_WE2)
 
         for i in range(ccount):
             c = statesdm[ccharge, i]
@@ -540,7 +543,7 @@ cdef class ApproachRTD(Approach):
                             self.ImGamma = True
 
                 temp *= PI
-                kh.set_matrix_element_dd(l, temp, temp, bb, cc, 2)
+                kh.set_matrix_element_dd(l, temp, temp, bb, cc, MAT_WE2)
 
 
     cdef void generate_matrix_element_2nd_order(self, long_t a0, long_t charge, KernelHandlerRTD kh) noexcept nogil:
@@ -794,8 +797,8 @@ cdef class ApproachRTD(Approach):
                                      dlst[l, 0] / tlst[l], dlst[l, 1] / tlst[l])
                     temp1 = PI * t2.real * f - t2.imag * phi0
                     temp2 = t2.real * phi0 + PI * t2.imag * f
-                    kh.add_matrix_element(temp1, l, a2, a2, ccharge, a1, b1, bcharge, 3)
-                    kh.add_matrix_element(temp2, l, a2, a2, ccharge, a1, b1, bcharge, 4)
+                    kh.add_matrix_element(temp1, l, a2, a2, ccharge, a1, b1, bcharge, MAT_RE_WDN)
+                    kh.add_matrix_element(temp2, l, a2, a2, ccharge, a1, b1, bcharge, MAT_IM_WDN)
         # Final state in lower charge state
         if bcharge != 0:
             # Loop through diagonal final states
@@ -810,8 +813,8 @@ cdef class ApproachRTD(Approach):
                                      dlst[l, 0] / tlst[l], dlst[l, 1] / tlst[l], sign=-1)
                     temp1 = PI * t2.real * f - t2.imag * phi0
                     temp2 = t2.real * phi0 + PI * t2.imag * f
-                    kh.add_matrix_element(temp1, l, a2, a2, acharge, a1, b1, bcharge, 3)
-                    kh.add_matrix_element(temp2, l, a2, a2, acharge, a1, b1, bcharge, 4)
+                    kh.add_matrix_element(temp1, l, a2, a2, acharge, a1, b1, bcharge, MAT_RE_WDN)
+                    kh.add_matrix_element(temp2, l, a2, a2, acharge, a1, b1, bcharge, MAT_IM_WDN)
         # Loop over final state, conserving charge
         for i in range(bcount):
             a2 = statesdm[bcharge, i]
@@ -828,8 +831,8 @@ cdef class ApproachRTD(Approach):
                                        dlst[l, 1] / tlst[l], sign=1)
                             temp1 = -PI * t2.real * f - t2.imag * phi0
                             temp2 = -PI * t2.imag * f + t2.real * phi0
-                            kh.add_matrix_element(temp1, l, a2, a2, bcharge, a1, b1, bcharge, 3)
-                            kh.add_matrix_element(temp2, l, a2, a2, bcharge, a1, b1, bcharge, 4)
+                            kh.add_matrix_element(temp1, l, a2, a2, bcharge, a1, b1, bcharge, MAT_RE_WDN)
+                            kh.add_matrix_element(temp2, l, a2, a2, bcharge, a1, b1, bcharge, MAT_IM_WDN)
                     if a1 == a2:  # vertices on lower prop -> state on upper prop cannot change
                         E1 = E[c] - E[a2]
                         for l in range(nleads):
@@ -839,8 +842,8 @@ cdef class ApproachRTD(Approach):
                                        dlst[l, 1] / tlst[l], sign=1)
                             temp1 = - PI * t2.real * f + t2.imag * phi0
                             temp2 = - PI * t2.imag * f - t2.real * phi0
-                            kh.add_matrix_element(temp1, l, a2, a2, bcharge, a1, b1, bcharge, 3)
-                            kh.add_matrix_element(temp2, l, a2, a2, bcharge, a1, b1, bcharge, 4)
+                            kh.add_matrix_element(temp1, l, a2, a2, bcharge, a1, b1, bcharge, MAT_RE_WDN)
+                            kh.add_matrix_element(temp2, l, a2, a2, bcharge, a1, b1, bcharge, MAT_IM_WDN)
             if bcharge != 0:
                 # Intermediate state in lower charge state
                 for j in range(acount):
@@ -854,8 +857,8 @@ cdef class ApproachRTD(Approach):
                                        dlst[l, 1] / tlst[l], sign=-1)
                             temp1 = - PI * t2.real * f + t2.imag * phi0
                             temp2 = - PI * t2.imag * f - t2.real * phi0
-                            kh.add_matrix_element(temp1, l, a2, a2, bcharge, a1, b1, bcharge, 3)
-                            kh.add_matrix_element(temp2, l, a2, a2, bcharge, a1, b1, bcharge, 4)
+                            kh.add_matrix_element(temp1, l, a2, a2, bcharge, a1, b1, bcharge, MAT_RE_WDN)
+                            kh.add_matrix_element(temp2, l, a2, a2, bcharge, a1, b1, bcharge, MAT_IM_WDN)
                     if a1 == a2:  # vertices on lower prop -> state on upper prop cannot change
                         E1 = E[a2] - E[c]
                         for l in range(nleads):
@@ -865,8 +868,8 @@ cdef class ApproachRTD(Approach):
                                        dlst[l, 1] / tlst[l], sign=-1)
                             temp1 = - PI * t2.real * f - t2.imag * phi0
                             temp2 = - PI * t2.imag * f + t2.real * phi0
-                            kh.add_matrix_element(temp1, l, a2, a2, bcharge, a1, b1, bcharge, 3)
-                            kh.add_matrix_element(temp2, l, a2, a2, bcharge, a1, b1, bcharge, 4)
+                            kh.add_matrix_element(temp1, l, a2, a2, bcharge, a1, b1, bcharge, MAT_RE_WDN)
+                            kh.add_matrix_element(temp2, l, a2, a2, bcharge, a1, b1, bcharge, MAT_IM_WDN)
 
 
     cdef void generate_col_nondiag_kern_1st_order_nd(self, long_t a1, long_t charge, KernelHandlerRTD kh) noexcept nogil:
@@ -911,8 +914,8 @@ cdef class ApproachRTD(Approach):
                                          dlst[l, 0] / tlst[l], dlst[l, 1] / tlst[l])
                         temp1 = PI * t2.real * f - t2.imag * phi0
                         temp2 = t2.real * phi0 + PI * t2.imag * f
-                        kh.add_matrix_element(temp1, l, a2, b2, bcharge + 1, a1, a1, bcharge, 5)
-                        kh.add_matrix_element(temp2, l, a2, b2, bcharge + 1, a1, a1, bcharge, 6)
+                        kh.add_matrix_element(temp1, l, a2, b2, bcharge + 1, a1, a1, bcharge, MAT_RE_WND)
+                        kh.add_matrix_element(temp2, l, a2, b2, bcharge + 1, a1, a1, bcharge, MAT_IM_WND)
         if bcharge != 0:
             # Loop over final states, removing electron from the QD
             for i in range(acount):
@@ -930,8 +933,8 @@ cdef class ApproachRTD(Approach):
                                          dlst[l, 0] / tlst[l], dlst[l, 1] / tlst[l], sign=-1)
                         temp1 = PI * t2.real * f - t2.imag * phi0
                         temp2 = t2.real * phi0 + PI * t2.imag * f
-                        kh.add_matrix_element(temp1, l, a2, b2, acharge, a1, a1, bcharge, 5)
-                        kh.add_matrix_element(temp2, l, a2, b2, acharge, a1, a1, bcharge, 6)
+                        kh.add_matrix_element(temp1, l, a2, b2, acharge, a1, a1, bcharge, MAT_RE_WND)
+                        kh.add_matrix_element(temp2, l, a2, b2, acharge, a1, a1, bcharge, MAT_IM_WND)
         # Loop over final state conserving charge
         for i in range(bcount):
             a2 = statesdm[bcharge, i]
@@ -951,8 +954,8 @@ cdef class ApproachRTD(Approach):
                                 phi0 = phi((E1 - mulst[l]) / tlst[l], dlst[l, 0] / tlst[l], dlst[l, 1] / tlst[l])
                                 temp1 = - PI * t2.real * f - t2.imag * phi0
                                 temp2 = - PI * t2.imag * f + t2.real * phi0
-                                kh.add_matrix_element(temp1, l, a2, b2, bcharge, a1, a1, bcharge, 5)
-                                kh.add_matrix_element(temp2, l, a2, b2, bcharge, a1, a1, bcharge, 6)
+                                kh.add_matrix_element(temp1, l, a2, b2, bcharge, a1, a1, bcharge, MAT_RE_WND)
+                                kh.add_matrix_element(temp2, l, a2, b2, bcharge, a1, a1, bcharge, MAT_IM_WND)
                         if a1 == a2:
                             E1 = E[c] - E[a2]
                             for l in range(nleads):
@@ -961,8 +964,8 @@ cdef class ApproachRTD(Approach):
                                 phi0 = phi((E1 - mulst[l]) / tlst[l], dlst[l, 0] / tlst[l], dlst[l, 1] / tlst[l])
                                 temp1 = - PI * t2.real * f + t2.imag * phi0
                                 temp2 = - PI * t2.imag * f - t2.real * phi0
-                                kh.add_matrix_element(temp1, l, a2, b2, bcharge, a1, a1, bcharge, 5)
-                                kh.add_matrix_element(temp2, l, a2, b2, bcharge, a1, a1, bcharge, 6)
+                                kh.add_matrix_element(temp1, l, a2, b2, bcharge, a1, a1, bcharge, MAT_RE_WND)
+                                kh.add_matrix_element(temp2, l, a2, b2, bcharge, a1, a1, bcharge, MAT_IM_WND)
                 if bcharge != 0:
                     # Intermediate state in lower charge state
                     for k in range(acount):
@@ -975,8 +978,8 @@ cdef class ApproachRTD(Approach):
                                 phi0 = phi((E1 - mulst[l])/tlst[l], dlst[l, 0] / tlst[l], dlst[l, 1] / tlst[l], sign=-1)
                                 temp1 = - PI * t2.real * f + t2.imag * phi0
                                 temp2 = - PI * t2.imag * f - t2.real * phi0
-                                kh.add_matrix_element(temp1, l, a2, b2, bcharge, a1, a1, bcharge, 5)
-                                kh.add_matrix_element(temp2, l, a2, b2, bcharge, a1, a1, bcharge, 6)
+                                kh.add_matrix_element(temp1, l, a2, b2, bcharge, a1, a1, bcharge, MAT_RE_WND)
+                                kh.add_matrix_element(temp2, l, a2, b2, bcharge, a1, a1, bcharge, MAT_IM_WND)
                         if a1 == a2:
                             E1 = E[a2] - E[c]
                             for l in range(nleads):
@@ -985,8 +988,8 @@ cdef class ApproachRTD(Approach):
                                 phi0 = phi((E1 - mulst[l])/tlst[l], dlst[l, 0] / tlst[l], dlst[l, 1] / tlst[l], sign=-1)
                                 temp1 = - PI * t2.real * f - t2.imag * phi0
                                 temp2 = - PI * t2.imag * f + t2.real * phi0
-                                kh.add_matrix_element(temp1, l, a2, b2, bcharge, a1, a1, bcharge, 5)
-                                kh.add_matrix_element(temp2, l, a2, b2, bcharge, a1, a1, bcharge, 6)
+                                kh.add_matrix_element(temp1, l, a2, b2, bcharge, a1, a1, bcharge, MAT_RE_WND)
+                                kh.add_matrix_element(temp2, l, a2, b2, bcharge, a1, a1, bcharge, MAT_IM_WND)
 
 
     cdef void generate_row_inverse_Liouvillian(self, long_t a1, long_t b1, long_t charge, KernelHandlerRTD kh) noexcept nogil:
@@ -1000,7 +1003,7 @@ cdef class ApproachRTD(Approach):
         elif -minE < E1 <= 0:
             E1 = -minE
 
-        kh.add_matrix_element(1.0/E1, 0, a1, b1, charge, a1, b1, charge, 7)
+        kh.add_matrix_element(1.0/E1, 0, a1, b1, charge, a1, b1, charge, MAT_LNN_INV)
 
 
     cdef void set_Ozaki_params(self):

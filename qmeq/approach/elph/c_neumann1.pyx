@@ -26,6 +26,7 @@ from ...specfunc.c_specfunc_elph cimport Func1vNElPh
 
 from ..c_aprclass cimport ApproachElPh
 from ..c_kernel_handler cimport KernelHandler
+from ..c_kernel_handler cimport NO_INDEX
 
 from ..base.c_neumann1 cimport Approach1vN as Approach1vNBase
 
@@ -130,7 +131,7 @@ cdef class Approach1vN(ApproachElPh):
                     continue
                 bpa = kh.elph.get_ind_dm0(bp, a, acharge)
                 bap = kh.elph.get_ind_dm0(b, ap, acharge)
-                if bpa == -1 or bap == -1:
+                if bpa == NO_INDEX or bap == NO_INDEX:
                     continue
                 fct_aap = 0
                 for l in range(nbaths):
@@ -146,7 +147,7 @@ cdef class Approach1vN(ApproachElPh):
                 for j in range(acount):
                     a = statesdm[acharge, j]
                     bpa = kh.elph.get_ind_dm0(bp, a, acharge)
-                    if bpa == -1:
+                    if bpa == NO_INDEX:
                         continue
                     for l in range(nbaths):
                         gamma_ba_bppa = 0.5*(Vbbp[l, b, a]*Vbbp[l, bpp, a].conjugate() +
@@ -155,7 +156,7 @@ cdef class Approach1vN(ApproachElPh):
                 for j in range(ccount):
                     c = statesdm[ccharge, j]
                     cbp = kh.elph.get_ind_dm0(c, bp, bcharge)
-                    if cbp == -1:
+                    if cbp == NO_INDEX:
                         continue
                     for l in range(nbaths):
                         gamma_bc_bppc = 0.5*(Vbbp[l, b, c]*Vbbp[l, bpp, c].conjugate() +
@@ -168,7 +169,7 @@ cdef class Approach1vN(ApproachElPh):
                 for j in range(acount):
                     a = statesdm[acharge, j]
                     ba = kh.elph.get_ind_dm0(b, a, acharge)
-                    if ba == -1:
+                    if ba == NO_INDEX:
                         continue
                     for l in range(nbaths):
                         gamma_abpp_abp = 0.5*(Vbbp[l, a, bpp].conjugate()*Vbbp[l, a, bp] +
@@ -177,7 +178,7 @@ cdef class Approach1vN(ApproachElPh):
                 for j in range(ccount):
                     c = statesdm[ccharge, j]
                     cb = kh.elph.get_ind_dm0(c, b, bcharge)
-                    if cb == -1:
+                    if cb == NO_INDEX:
                         continue
                     for l in range(nbaths):
                         gamma_cbpp_cbp = 0.5*(Vbbp[l, c, bpp].conjugate()*Vbbp[l, c, bp] +
@@ -193,7 +194,7 @@ cdef class Approach1vN(ApproachElPh):
                     continue
                 cbp = kh.elph.get_ind_dm0(c, bp, bcharge)
                 cpb = kh.elph.get_ind_dm0(cp, b, bcharge)
-                if cbp == -1 or cpb == -1:
+                if cbp == NO_INDEX or cpb == NO_INDEX:
                     continue
                 fct_ccp = 0
                 for l in range(nbaths):

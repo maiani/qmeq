@@ -26,6 +26,7 @@ from ...specfunc.c_specfunc_elph cimport FuncPauliElPh
 
 from ..c_aprclass cimport ApproachElPh
 from ..c_kernel_handler cimport KernelHandler
+from ..c_kernel_handler cimport NO_INDEX
 
 from ..base.c_pauli cimport ApproachPauli as ApproachPauliBase
 
@@ -110,11 +111,11 @@ cdef class ApproachPauli(ApproachElPh):
             a = statesdm[bcharge, i]
 
             aa = kh.get_ind_dm0(a, a, bcharge)
-            if aa == -1: # if not kh.is_included(a, a, bcharge)
+            if aa == NO_INDEX:
                 continue
 
             ab = kh.elph.get_ind_dm0(a, b, bcharge)
-            if ab == -1: # if not kh.elph.is_included(a, b, bcharge)
+            if ab == NO_INDEX:
                 continue
 
             ba = kh.elph.get_ind_dm0(b, a, bcharge)

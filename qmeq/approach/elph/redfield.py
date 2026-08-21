@@ -3,6 +3,7 @@
 import itertools
 
 from ..aprclass import ApproachElPh
+from ..dm_layout import NO_INDEX
 from ..base.redfield import ApproachRedfield as ApproachRedfieldBase
 from .neumann1 import Approach1vN
 
@@ -38,7 +39,7 @@ class ApproachRedfield(ApproachElPh):
             if kh.is_included(a, ap, acharge):
                 bpap = si_elph.get_ind_dm0(bp, ap, acharge)
                 ba = si_elph.get_ind_dm0(b, a, acharge)
-                if bpap == -1 or ba == -1:
+                if bpap == NO_INDEX or ba == NO_INDEX:
                     continue
                 fct_aap = 0
                 for l in range(nbaths):
@@ -52,7 +53,7 @@ class ApproachRedfield(ApproachElPh):
                 fct_bppbp = 0
                 for a in statesdm[acharge]:
                     bppa = si_elph.get_ind_dm0(bpp, a, acharge)
-                    if bppa == -1:
+                    if bppa == NO_INDEX:
                         continue
                     for l in range(nbaths):
                         gamma_ba_bppa = 0.5*(Vbbp[l, b, a]*Vbbp[l, bpp, a].conjugate() +
@@ -60,7 +61,7 @@ class ApproachRedfield(ApproachElPh):
                         fct_bppbp += +gamma_ba_bppa*w1fct[l, bppa, 1].conjugate()
                 for c in statesdm[ccharge]:
                     cbpp = si_elph.get_ind_dm0(c, bpp, bcharge)
-                    if cbpp == -1:
+                    if cbpp == NO_INDEX:
                         continue
                     for l in range(nbaths):
                         gamma_bc_bppc = 0.5*(Vbbp[l, b, c]*Vbbp[l, bpp, c].conjugate() +
@@ -72,7 +73,7 @@ class ApproachRedfield(ApproachElPh):
                 fct_bbpp = 0
                 for a in statesdm[acharge]:
                     bppa = si_elph.get_ind_dm0(bpp, a, acharge)
-                    if bppa == -1:
+                    if bppa == NO_INDEX:
                         continue
                     for l in range(nbaths):
                         gamma_abpp_abp = 0.5*(Vbbp[l, a, bpp].conjugate()*Vbbp[l, a, bp] +
@@ -80,7 +81,7 @@ class ApproachRedfield(ApproachElPh):
                         fct_bbpp += -gamma_abpp_abp*w1fct[l, bppa, 1]
                 for c in statesdm[ccharge]:
                     cbpp = si_elph.get_ind_dm0(c, bpp, bcharge)
-                    if cbpp == -1:
+                    if cbpp == NO_INDEX:
                         continue
                     for l in range(nbaths):
                         gamma_cbpp_cbp = 0.5*(Vbbp[l, c, bpp].conjugate()*Vbbp[l, c, bp] +
@@ -92,7 +93,7 @@ class ApproachRedfield(ApproachElPh):
             if kh.is_included(c, cp, ccharge):
                 cpbp = si_elph.get_ind_dm0(cp, bp, bcharge)
                 cb = si_elph.get_ind_dm0(c, b, bcharge)
-                if cpbp == -1 or cb == -1:
+                if cpbp == NO_INDEX or cb == NO_INDEX:
                     continue
                 fct_ccp = 0
                 for l in range(nbaths):

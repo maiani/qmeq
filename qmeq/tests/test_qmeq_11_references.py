@@ -226,7 +226,7 @@ def test_selected_rtd_backend_matches_qmeq_11_full_blocks(scenario):
             return np.zeros_like(reference_snapshot[name])
         return value
 
-    inverse_lnn = appr.Lnn
+    inverse_lnn = appr.Lnn_inv
     if compiled_layout and inverse_lnn is not None:
         inverse_lnn = np.diag(inverse_lnn)
     selected_blocks = {

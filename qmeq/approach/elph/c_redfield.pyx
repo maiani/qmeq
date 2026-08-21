@@ -26,6 +26,7 @@ from ...specfunc.c_specfunc_elph cimport Func1vNElPh
 
 from ..c_aprclass cimport ApproachElPh
 from ..c_kernel_handler cimport KernelHandler
+from ..c_kernel_handler cimport NO_INDEX
 from .c_neumann1 cimport Approach1vN
 
 from ..base.c_redfield cimport ApproachRedfield as ApproachRedfieldBase
@@ -82,7 +83,7 @@ cdef class ApproachRedfield(ApproachElPh):
                     continue
                 bpap = kh.elph.get_ind_dm0(bp, ap, acharge)
                 ba = kh.elph.get_ind_dm0(b, a, acharge)
-                if bpap == -1 or ba == -1:
+                if bpap == NO_INDEX or ba == NO_INDEX:
                     continue
                 fct_aap = 0
                 for l in range(nbaths):
@@ -98,7 +99,7 @@ cdef class ApproachRedfield(ApproachElPh):
                 for j in range(acount):
                     a = statesdm[acharge, j]
                     bppa = kh.elph.get_ind_dm0(bpp, a, acharge)
-                    if bppa == -1:
+                    if bppa == NO_INDEX:
                         continue
                     for l in range(nbaths):
                         gamma_ba_bppa = 0.5*(Vbbp[l, b, a]*Vbbp[l, bpp, a].conjugate() +
@@ -107,7 +108,7 @@ cdef class ApproachRedfield(ApproachElPh):
                 for j in range(ccount):
                     c = statesdm[ccharge, j]
                     cbpp = kh.elph.get_ind_dm0(c, bpp, bcharge)
-                    if cbpp == -1:
+                    if cbpp == NO_INDEX:
                         continue
                     for l in range(nbaths):
                         gamma_bc_bppc = 0.5*(Vbbp[l, b, c]*Vbbp[l, bpp, c].conjugate() +
@@ -120,7 +121,7 @@ cdef class ApproachRedfield(ApproachElPh):
                 for j in range(acount):
                     a = statesdm[acharge, j]
                     bppa = kh.elph.get_ind_dm0(bpp, a, acharge)
-                    if bppa == -1:
+                    if bppa == NO_INDEX:
                         continue
                     for l in range(nbaths):
                         gamma_abpp_abp = 0.5*(Vbbp[l, a, bpp].conjugate()*Vbbp[l, a, bp] +
@@ -129,7 +130,7 @@ cdef class ApproachRedfield(ApproachElPh):
                 for j in range(ccount):
                     c = statesdm[ccharge, j]
                     cbpp = kh.elph.get_ind_dm0(c, bpp, bcharge)
-                    if cbpp == -1:
+                    if cbpp == NO_INDEX:
                         continue
                     for l in range(nbaths):
                         gamma_cbpp_cbp = 0.5*(Vbbp[l, c, bpp].conjugate()*Vbbp[l, c, bp] +
@@ -145,7 +146,7 @@ cdef class ApproachRedfield(ApproachElPh):
                     continue
                 cpbp = kh.elph.get_ind_dm0(cp, bp, bcharge)
                 cb = kh.elph.get_ind_dm0(c, b, bcharge)
-                if cpbp == -1 or cb == -1:
+                if cpbp == NO_INDEX or cb == NO_INDEX:
                     continue
                 fct_ccp = 0
                 for l in range(nbaths):

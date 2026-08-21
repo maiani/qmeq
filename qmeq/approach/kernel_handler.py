@@ -1,23 +1,50 @@
 """Module containing python functions, which generate second order RTD kernels."""
 
+from __future__ import annotations
+
+from enum import IntEnum
+
+import numpy as np
+
+from ..indexing import StateIndexingDM
+from ..indexing import StateIndexingDMc
+from . import dm_layout
+from .dm_layout import NO_INDEX
+
 
 class KernelHandler(object):
-    """Class responsible for inserting matrix elements into the various matrices used."""
-    def __init__(self, si):
+    """Class responsible for inserting matrix elements into the various matrices used.
+
+    The packed real layout these methods write into is specified in
+    :mod:`qmeq.approach.dm_layout`; the rule names cited below refer to it.
+
+    Parameters
+    ----------
+    si : StateIndexingDM
+        State indexing for the system, from :mod:`qmeq.indexing`. Supplies the
+        sizes ``ndm0``, ``ndm0r`` and ``npauli`` and the ``dm0`` index maps
+        reached through ``get_ind_dm0``, ``get_ind_dm0_bool`` and
+        ``get_ind_dm0_conj``. The 2vN approaches pass a ``StateIndexingDMc``
+        instead; it provides the same sizes but carries no conjugation map, and
+        the insertion methods below are not used on that path.
+    """
+    def __init__(self, si: StateIndexingDM | StateIndexingDMc) -> None:
         self.si = si
         self.ndm0 = si.ndm0
         self.ndm0r = si.ndm0r
         self.npauli = si.npauli
+        # Distance from a reduced index to its imaginary partner (L4).
+        self.imag_offset = si.ndm0 - si.npauli
         self.phi0 = None
         self.kern = None
 
-    def set_kern(self, kern):
+    def set_kern(self, kern: np.ndarray) -> None:
         self.kern = kern
 
-    def set_phi0(self, phi0):
+    def set_phi0(self, phi0: np.ndarray) -> None:
         self.phi0 = phi0
 
-    def is_included(self, b, bp, bcharge):
+    def is_included(self, b: int, bp: int, bcharge: int) -> bool:
         """ Checks if the density matrix entry :math:`|b><bp|` is included in the calculations.
 
         Parameters
@@ -35,12 +62,12 @@ class KernelHandler(object):
             true if it's included
         """
         bbp = self.si.get_ind_dm0(b, bp, bcharge)
-        if bbp == -1:
+        if bbp == NO_INDEX:
             return False
 
         return True
 
-    def is_unique(self, b, bp, bcharge):
+    def is_unique(self, b: int, bp: int, bcharge: int) -> bool:
         """ Check if the entry :math:`|b><bp|` is unique.
 
         Parameters
@@ -57,19 +84,20 @@ class KernelHandler(object):
         bool
             true if unique
         """
-        bbp_bool = self.si.get_ind_dm0(b, bp, bcharge, maptype=2)
+        bbp_bool = self.si.get_ind_dm0_bool(b, bp, bcharge)
         return bbp_bool
 
-    def set_energy(self, energy, b, bp, bcharge):
+    def set_energy(self, energy: float, b: int, bp: int, bcharge: int) -> None:
         bbp = self.si.get_ind_dm0(b, bp, bcharge)
-        bbpi = self.ndm0 + bbp - self.npauli
-        bbpi_bool = True if bbpi >= self.ndm0 else False
+        bbpi = bbp + self.imag_offset
+        bbpi_bool = bbp >= self.npauli
 
         if bbpi_bool:
             self.kern[bbp, bbpi] = self.kern[bbp, bbpi] + energy
             self.kern[bbpi, bbp] = self.kern[bbpi, bbp] - energy
 
-    def set_matrix_element(self, fct, b, bp, bcharge, a, ap, acharge):
+    def set_matrix_element(self, fct: complex, b: int, bp: int, bcharge: int,
+                           a: int, ap: int, acharge: int) -> None:
         """ Adds a complex value to the matrix element connecting :math:`|a><ap|` and :math:`|b><bp|` in the kernel.
 
         Parameters
@@ -92,25 +120,33 @@ class KernelHandler(object):
             (modifies) the kernel
         """
         bbp = self.si.get_ind_dm0(b, bp, bcharge)
-        bbpi = self.ndm0 + bbp - self.npauli
-        bbpi_bool = True if bbpi >= self.ndm0 else False
+        bbpi = bbp + self.imag_offset
+        bbpi_bool = bbp >= self.npauli
 
         aap = self.si.get_ind_dm0(a, ap, acharge)
-        aapi = self.ndm0 + aap - self.npauli
-        aap_sgn = +1 if self.si.get_ind_dm0(a, ap, acharge, maptype=3) else -1
+        if bbp == NO_INDEX or aap == NO_INDEX:
+            # L2: an endpoint with no index has nowhere to contribute. Callers
+            # all guard with is_included; without this the sentinel would index
+            # the last row or column and silently corrupt an unrelated entry.
+            if dm_layout.STRICT_INDEX:
+                raise dm_layout.no_index_error(
+                    'set_matrix_element', {'bbp': bbp, 'aap': aap})
+            return
+        aapi = aap + self.imag_offset
+        aap_sgn = +1 if self.si.get_ind_dm0_conj(a, ap, acharge) else -1
 
         fct_imag = fct.imag
         fct_real = fct.real
 
         self.kern[bbp, aap] += fct_imag
-        if aapi >= self.ndm0:
+        if aap >= self.npauli:
             self.kern[bbp, aapi] += fct_real*aap_sgn
             if bbpi_bool:
                 self.kern[bbpi, aapi] += fct_imag*aap_sgn
         if bbpi_bool:
             self.kern[bbpi, aap] += -fct_real
 
-    def set_matrix_element_pauli(self, fctm, fctp, bb, aa):
+    def set_matrix_element_pauli(self, fctm: float, fctp: float, bb: int, aa: int) -> None:
         """ Adds a real value (fctp) to the the matrix element connecting the states
         bb and aa in the Pauli kernel. In addition, adds another another real value (fctm)
         to the diagonal kern[bb, bb].
@@ -131,7 +167,7 @@ class KernelHandler(object):
         self.kern[bb, bb] += fctm
         self.kern[bb, aa] += fctp
 
-    def get_phi0_element(self, b, bp, bcharge):
+    def get_phi0_element(self, b: int, bp: int, bcharge: int) -> complex:
         r""" Gets the entry of the density matrix given by :math:`|b><bp|`.
 
         Parameters
@@ -149,16 +185,16 @@ class KernelHandler(object):
             the value :math:`<b|\phi_0|bp>`
         """
         bbp = self.si.get_ind_dm0(b, bp, bcharge)
-        if bbp == -1:
+        if bbp == NO_INDEX:
             return 0.0
 
-        bbpi = self.ndm0 + bbp - self.npauli
-        bbpi_bool = True if bbpi >= self.ndm0 else False
+        bbpi = bbp + self.imag_offset
+        bbpi_bool = bbp >= self.npauli
 
         phi0_real = self.phi0[bbp]
         phi0_imag = 0
         if bbpi_bool:
-            bbp_conj = self.si.get_ind_dm0(b, bp, bcharge, maptype=3)
+            bbp_conj = self.si.get_ind_dm0_conj(b, bp, bcharge)
             phi0_imag = self.phi0[bbpi] if bbp_conj else -self.phi0[bbpi]
 
         return phi0_real + 1j*phi0_imag
@@ -170,7 +206,7 @@ class KernelHandlerNoise(KernelHandler):
         KernelHandler.__init__(self, si)
         self.Lpm = None
 
-    def set_lpm(self, Lpm):
+    def set_lpm(self, Lpm: np.ndarray) -> None:
         self.Lpm = Lpm
 
     def set_matrix_element_lpm_pauli(self,pfct,pm,bb,aa):
@@ -217,18 +253,26 @@ class KernelHandlerNoise(KernelHandler):
             (modifies) the counting kernel
         """
         bbp = self.si.get_ind_dm0(b, bp, bcharge)
-        bbpi = self.ndm0 + bbp - self.npauli
-        bbpi_bool = True if bbpi >= self.ndm0 else False
+        bbpi = bbp + self.imag_offset
+        bbpi_bool = bbp >= self.npauli
 
         aap = self.si.get_ind_dm0(a, ap, acharge)
-        aapi = self.ndm0 + aap - self.npauli
-        aap_sgn = +1 if self.si.get_ind_dm0(a, ap, acharge, maptype=3) else -1
+        if bbp == NO_INDEX or aap == NO_INDEX:
+            # L2: an endpoint with no index has nowhere to contribute. Callers
+            # all guard with is_included; without this the sentinel would index
+            # the last row or column and silently corrupt an unrelated entry.
+            if dm_layout.STRICT_INDEX:
+                raise dm_layout.no_index_error(
+                    'set_matrix_element', {'bbp': bbp, 'aap': aap})
+            return
+        aapi = aap + self.imag_offset
+        aap_sgn = +1 if self.si.get_ind_dm0_conj(a, ap, acharge) else -1
 
         fct_imag = fct.imag
         fct_real = fct.real
 
         self.Lpm[pm,bbp, aap] += fct_imag
-        if aapi >= self.ndm0:
+        if aap >= self.npauli:
             self.Lpm[pm,bbp, aapi] += fct_real*aap_sgn
             if bbpi_bool:
                 self.Lpm[pm,bbpi, aapi] += fct_imag*aap_sgn
@@ -243,15 +287,19 @@ class KernelHandlerMatrixFree(KernelHandler):
         KernelHandler.__init__(self, si)
         self.dphi0_dt = None
 
-    def set_dphi0_dt(self, dphi0_dt):
+    def set_dphi0_dt(self, dphi0_dt: np.ndarray) -> None:
         self.dphi0_dt = dphi0_dt
 
-    def set_energy(self, energy, b, bp, bcharge):
+    def set_energy(self, energy: float, b: int, bp: int, bcharge: int) -> None:
         if b == bp:
             return
 
         bbp = self.si.get_ind_dm0(b, bp, bcharge)
-        bbpi = self.ndm0 + bbp - self.npauli
+        if bbp == NO_INDEX:
+            if dm_layout.STRICT_INDEX:
+                raise dm_layout.no_index_error('set_energy', {'bbp': bbp})
+            return
+        bbpi = bbp + self.imag_offset
 
         phi0bbp = self.get_phi0_element(b, bp, bcharge)
         dphi0_dt_bbp = -1j*energy*phi0bbp
@@ -259,7 +307,8 @@ class KernelHandlerMatrixFree(KernelHandler):
         self.dphi0_dt[bbp] += dphi0_dt_bbp.real
         self.dphi0_dt[bbpi] -= dphi0_dt_bbp.imag
 
-    def set_matrix_element(self, fct, b, bp, bcharge, a, ap, acharge):
+    def set_matrix_element(self, fct: complex, b: int, bp: int, bcharge: int,
+                           a: int, ap: int, acharge: int) -> None:
         r""" Adds a contribution to :math:`d\phi_o /dt` that stems from the matrix element
         connecting :math:`|b><bp|` and :math:`|a><ap|` in the full off-diagonal in the kernel.
 
@@ -283,8 +332,13 @@ class KernelHandlerMatrixFree(KernelHandler):
             (modifies) time derivative of the density matrix
         """
         bbp = self.si.get_ind_dm0(b, bp, bcharge)
-        bbpi = self.ndm0 + bbp - self.npauli
-        bbpi_bool = True if bbpi >= self.ndm0 else False
+        if bbp == NO_INDEX:
+            if dm_layout.STRICT_INDEX:
+                raise dm_layout.no_index_error(
+                    'set_matrix_element', {'bbp': bbp})
+            return
+        bbpi = bbp + self.imag_offset
+        bbpi_bool = bbp >= self.npauli
         phi0aap = self.get_phi0_element(a, ap, acharge)
         dphi0_dt_bbp = -1j*fct*phi0aap
 
@@ -292,7 +346,7 @@ class KernelHandlerMatrixFree(KernelHandler):
         if bbpi_bool:
             self.dphi0_dt[bbpi] -= dphi0_dt_bbp.imag
 
-    def set_matrix_element_pauli(self, fctm, fctp, bb, aa):
+    def set_matrix_element_pauli(self, fctm: float, fctp: float, bb: int, aa: int) -> None:
         r""" Adds a contribution to :math:`d\phi_o /dt` that stems from the matrix element
         connecting :math:`|b><b|` and :math:`|a><a|` in the Pauli kernel.
 
@@ -311,7 +365,7 @@ class KernelHandlerMatrixFree(KernelHandler):
         """
         self.dphi0_dt[bb] += fctm*self.phi0[bb] + fctp*self.phi0[aa]
 
-    def get_phi0_norm(self):
+    def get_phi0_norm(self) -> float:
         ncharge, statesdm = self.si.ncharge, self.si.statesdm
 
         norm = 0.0
@@ -322,24 +376,47 @@ class KernelHandlerMatrixFree(KernelHandler):
 
         return norm
 
+class RtdMatrix(IntEnum):
+    """Selects which RTD matrix an insertion writes into.
+
+    Member names match the array attributes they select, so
+    ``RtdMatrix.ReWdn`` writes into ``ReWdn``. The values are the historical
+    integers and must not be reordered: they index
+    :meth:`KernelHandlerRTD.set_matrix_list` and are mirrored by a ``cdef enum``
+    in ``c_kernel_handler.pxd`` for the compiled path.
+
+    ``Lnn_inv`` is accepted by ``add_matrix_element`` only in the compiled
+    backend. The pure-Python approach routes it through the dedicated
+    :meth:`KernelHandlerRTD.add_element_Lnn_inv`, because the pure-Python array
+    is two-dimensional while the compiled one is a bare diagonal.
+    """
+
+    Wdd = 0
+    WE1 = 1
+    WE2 = 2
+    ReWdn = 3
+    ImWdn = 4
+    ReWnd = 5
+    ImWnd = 6
+    Lnn_inv = 7
+
+
 class KernelHandlerRTD(KernelHandler):
     """Class used for inserting matrix elements into the matrices used in the RTD approach."""
 
-    def set_matrix_list(self):
+    def set_matrix_list(self) -> None:
         self.mats = [
             self.Wdd, self.WE1, self.WE2,
             getattr(self, "ReWdn", None), getattr(self, "ImWdn", None),
             getattr(self, "ReWnd", None), getattr(self, "ImWnd", None),
-            getattr(self, "Lnn", None),
+            getattr(self, "Lnn_inv", None),
         ]
 
     def add_matrix_element(self, fct, l, b, bp, bcharge, a, ap, acharge, mi):
         r"""
         Adds a value to the lead-resolved ndarray (kernel) given by index mi. The indices are set by the entries
-        :math:`|b><bp|` and :math:`|a><ap|` in the density matrix. Which matrix to add the value to is determined by
-        mi  as 0 = :math:`W_{dd}`, 1 = :math:`W_{E,1}`, 2 = :math:`W_{E,2}`, 3 = :math:`\Re(W_{dn}^{(1)})`,
-        4 =   :math:`\Im (W_{dn}^{(1)})`, 5 =  :math:`\Re (W_{nd}^{(1)})`, 6 =  :math:`\Im(W_{nd}^{(1)})`,
-        7 = :math:`L_{nn}`.
+        :math:`|b><bp|` and :math:`|a><ap|` in the density matrix. Which matrix to add the value to is
+        determined by mi, a :class:`RtdMatrix` member.
 
         Parameters
         ----------
@@ -359,8 +436,8 @@ class KernelHandlerRTD(KernelHandler):
             second index for state 2
         acharge : int
             charge of state 2
-        mi : int
-            index for selecting which matrix to insert into
+        mi : RtdMatrix
+            selects which matrix to insert into
         self.mats[mi] : ndarray
             (Modifies) the matrix selected by mi
         """
@@ -371,11 +448,11 @@ class KernelHandlerRTD(KernelHandler):
         if b != bp:
             indx1 -= self.npauli
             if b > bp:
-                indx1 += self.ndm0 - self.npauli
+                indx1 += self.imag_offset
         if a != ap:
             indx2 -= self.npauli
             if a > ap:
-                indx2 += self.ndm0 - self.npauli
+                indx2 += self.imag_offset
 
         mat = self.mats[mi]
         mat[l, indx1, indx2] += fct
@@ -398,8 +475,8 @@ class KernelHandlerRTD(KernelHandler):
             index for the entry :math:`|b><b|`
         aa :  int
             index for the entry :math:`|a><a|`
-        mi : int
-            index for selecting which matrix to insert into
+        mi : RtdMatrix
+            selects which matrix to insert into
         self.mats[mi] : ndarray
             (Modifies) the matrix selected by mi
         """
@@ -448,7 +525,7 @@ class KernelHandlerRTD(KernelHandler):
         # Flipping left-most and right-most vertices p0 = -p0 and p3 = -p3
         self.Wdd[r, indx3, indx1] += -fct
 
-    def add_element_Lnn(self, a1, b1, charge, fct):
+    def add_element_Lnn_inv(self, a1, b1, charge, fct):
         """
         Adds a value to the part of :math:`L_{N,+}` connecting an off-diagonal component of the density matrix to
         itself.
@@ -463,13 +540,13 @@ class KernelHandlerRTD(KernelHandler):
             charge of the states a1 and b1
         fct : float
             the value to be added
-        self.Lnn : ndarray
+        self.Lnn_inv : ndarray
             (Modifies) the anti-commutator Liouvillian connecting non-diagonal elements
         """
         indx = self.si.get_ind_dm0(a1, b1, charge) - self.npauli
         if a1 > b1:
-            indx += self.ndm0 - self.npauli
-        self.Lnn[indx, indx] += fct
+            indx += self.imag_offset
+        self.Lnn_inv[indx, indx] += fct
 
 class KernelHandlerRTDnoise(KernelHandlerNoise, KernelHandlerRTD):
     """Class used for inserting matrix elements into the matrices used in the RTD noise approach."""

@@ -8,6 +8,7 @@ from ...wrappers.mytypes import doublenp
 from ...specfunc.specfunc_elph import FuncPauliElPh
 
 from ..aprclass import ApproachElPh
+from ..dm_layout import NO_INDEX
 from ..base.pauli import ApproachPauli as ApproachPauliBase
 
 
@@ -34,8 +35,10 @@ class ApproachPauli(ApproachElPh):
         ApproachPauliBase.generate_fct(self)
 
         E, Vbbp = self.qd.Ea, self.baths.Vbbp
-        si = self.si_elph
-        ncharge, nbaths, statesdm = si.ncharge, si.nbaths, si.statesdm
+        # si_elph is a StateIndexingDMc, a *different* class from self.si. Never
+        # bind it to the name `si`: see the state-indexing developer note.
+        si_elph = self.si_elph
+        ncharge, nbaths, statesdm = si_elph.ncharge, si_elph.nbaths, si_elph.statesdm
 
         func_pauli = FuncPauliElPh(self.baths.tlst_ph, self.baths.dlst_ph,
                                    self.baths.bath_func, self.funcp.eps_elph)
@@ -44,10 +47,10 @@ class ApproachPauli(ApproachElPh):
         for charge in range(ncharge):
             # The diagonal elements b=bp are excluded, because they do not contribute
             for b, bp in itertools.permutations(statesdm[charge], 2):
-                bbp_bool = si.get_ind_dm0(b, bp, charge, maptype=2)
+                bbp_bool = si_elph.get_ind_dm0_bool(b, bp, charge)
                 if not bbp_bool:
                     continue
-                bbp = si.get_ind_dm0(b, bp, charge)
+                bbp = si_elph.get_ind_dm0(b, bp, charge)
                 Ebbp = E[b]-E[bp]
                 for l in range(nbaths):
                     xbbp = 0.5*(Vbbp[l, b, bp]*Vbbp[l, b, bp].conjugate() +
@@ -72,7 +75,7 @@ class ApproachPauli(ApproachElPh):
             aa = si.get_ind_dm0(a, a, acharge)
             ab = si_elph.get_ind_dm0(a, b, bcharge)
             ba = si_elph.get_ind_dm0(b, a, acharge)
-            if aa == -1 or ba == -1:
+            if aa == NO_INDEX or ba == NO_INDEX:
                 continue
 
             fctm, fctp = 0, 0

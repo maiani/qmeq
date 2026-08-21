@@ -133,10 +133,15 @@ output ends up in papers.
 
 ## P2: documentation and contributor workflow
 
-- [ ] Simplify and refresh the Sphinx documentation.
-  - Remove duplicate toctree entries while keeping both the pure-Python and
-    Cython API reachable, and keep notebook rendering non-executing (execution
-    belongs to the example test jobs).
+- [ ] Replace the Sphinx documentation with the successor being developed in
+  `new_docs/`.
+  - `new_docs/` is intentionally an experimental, ignored working tree for the
+    eventual migration; it is not yet a shipped documentation source.
+  - Keep Sphinx warning-clean and release-capable until the successor covers
+    the user guide, pure-Python and Cython APIs, examples, and release build.
+  - Migrate incrementally rather than combining the documentation-system
+    replacement with the RTD rewrite. Notebook execution remains in the
+    example test jobs rather than either documentation build.
 
 - [ ] Document the supported development workflow.
   - Editable installs, backend and OpenMP selection, regenerating Cython

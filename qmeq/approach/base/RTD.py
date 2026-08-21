@@ -9,6 +9,8 @@ import warnings
 from ...wrappers.mytypes import doublenp
 from ..._warnings import QmeqRuntimeWarning
 
+from ..kernel_handler import RtdMatrix
+
 from ...specfunc.specfunc import integralD
 from ...specfunc.specfunc import integralX
 from ...specfunc.specfunc import phi
@@ -97,7 +99,7 @@ class ApproachPyRTD(Approach):
         self.ImWnd = None
         self.ReWdn = None
         self.ImWdn = None
-        self.Lnn = None
+        self.Lnn_inv = None
 
     def prepare_kernel_handler(self):
         self.kernel_handler = KernelHandlerRTD(self.si)
@@ -130,13 +132,13 @@ class ApproachPyRTD(Approach):
             self.ImWnd = np.zeros((nleads, kern_size2, kern_size), dtype=self.dtype)
             self.ReWdn = np.zeros((nleads, kern_size, kern_size2), dtype=self.dtype)
             self.ImWdn = np.zeros((nleads, kern_size, kern_size2), dtype=self.dtype)
-            self.Lnn = np.zeros((kern_size2, kern_size2), dtype=self.dtype)
+            self.Lnn_inv = np.zeros((kern_size2, kern_size2), dtype=self.dtype)
 
             kh.ReWnd = self.ReWnd
             kh.ImWnd = self.ImWnd
             kh.ReWdn = self.ReWdn
             kh.ImWdn = self.ImWdn
-            kh.Lnn = self.Lnn
+            kh.Lnn_inv = self.Lnn_inv
 
         kh.set_matrix_list()
 
@@ -156,7 +158,7 @@ class ApproachPyRTD(Approach):
             self.ImWnd.fill(0.0)
             self.ReWdn.fill(0.0)
             self.ImWdn.fill(0.0)
-            self.Lnn.fill(0.0)
+            self.Lnn_inv.fill(0.0)
 
     def generate_kern(self):
         r""" Generates all kernels including tunnel processes of orders :math:`t^2` and :math:`t^4`.
@@ -224,9 +226,9 @@ class ApproachPyRTD(Approach):
         for l in range(self.si.nleads):
             # Since off-diagonal kernels contain imaginary numbers we get two contributions to
             # the kernel
-            Wcorr[l, :, :] += np.matmul(np.matmul(kh.ReWdn[l, :, :], kh.Lnn[:, :]),
+            Wcorr[l, :, :] += np.matmul(np.matmul(kh.ReWdn[l, :, :], kh.Lnn_inv[:, :]),
                                         np.sum(kh.ImWnd[:, :], 0))
-            Wcorr[l, :, :] += np.matmul(np.matmul(kh.ImWdn[l, :, :], kh.Lnn[:, :]),
+            Wcorr[l, :, :] += np.matmul(np.matmul(kh.ImWdn[l, :, :], kh.Lnn_inv[:, :]),
                                         np.sum(kh.ReWnd[:, :], 0))
         self.Wdd += Wcorr
         kern_size = self.get_kern_size()
@@ -368,14 +370,14 @@ class ApproachPyRTD(Approach):
             for l in range(nleads):
                 fctm = -paulifct[l, ba, 1]
                 fctp = paulifct[l, ba, 0]
-                kh.set_matrix_element_dd(l, fctm, fctp, bb, aa, 0)
+                kh.set_matrix_element_dd(l, fctm, fctp, bb, aa, RtdMatrix.Wdd)
         for c in statesdm[ccharge]:
             cc = si.get_ind_dm0(c, c, ccharge)
             cb = si.get_ind_dm1(c, b, bcharge)
             for l in range(nleads):
                 fctm = -paulifct[l, cb, 0]
                 fctp = paulifct[l, cb, 1]
-                kh.set_matrix_element_dd(l, fctm, fctp, bb, cc, 0)
+                kh.set_matrix_element_dd(l, fctm, fctp, bb, cc, RtdMatrix.Wdd)
 
     def generate_row_1st_energy_kernel(self, b, bcharge):
         r""" Generates a row of the first kernel for the barrier part of the energy current :math:`W_{E,1}`. This kernel
@@ -423,7 +425,7 @@ class ApproachPyRTD(Approach):
                     #temp += gamma.imag * fermi_func(-(dE - mu) / Tr) * np.pi
 
                 temp *= np.pi
-                kh.set_matrix_element_dd(l, temp, temp, bb, aa, 1)
+                kh.set_matrix_element_dd(l, temp, temp, bb, aa, RtdMatrix.WE1)
 
         for c in statesdm[ccharge]:
             cc = si.get_ind_dm0(c, c, ccharge)
@@ -443,7 +445,7 @@ class ApproachPyRTD(Approach):
                     #temp += gamma.imag * fermi_func(-(dE - mu) / Tr) * np.pi
 
                 temp *= np.pi
-                kh.set_matrix_element_dd(l, temp, temp, bb, cc, 1)
+                kh.set_matrix_element_dd(l, temp, temp, bb, cc, RtdMatrix.WE1)
 
     def generate_row_2nd_energy_kernel(self, b, bcharge):
         r""" Generates a row in the second kernel for the barrier part of the energy current :math:`W_{E,2}`.
@@ -492,7 +494,7 @@ class ApproachPyRTD(Approach):
                             #temp += gamma.imag * fermi_func((dE - mu) / Tr) * np.pi
                             #temp += gamma.imag * fermi_func(-(dE - mu) / Tr) * np.pi
                 temp *= np.pi
-                kh.set_matrix_element_dd(l, temp, temp, bb, aa, 2)
+                kh.set_matrix_element_dd(l, temp, temp, bb, aa, RtdMatrix.WE2)
 
         for c in statesdm[ccharge]:
             cc = si.get_ind_dm0(c, c, ccharge)
@@ -511,7 +513,7 @@ class ApproachPyRTD(Approach):
                             #temp += gamma.imag * fermi_func((dE - mu) / Tr) * np.pi
                             #temp += gamma.imag * fermi_func(-(dE - mu) / Tr) * np.pi
                 temp *= np.pi
-                kh.set_matrix_element_dd(l, temp, temp, bb, cc, 2)
+                kh.set_matrix_element_dd(l, temp, temp, bb, cc, RtdMatrix.WE2)
 
     def generate_col_diag_kern_2nd_order(self, a0, charge):
         """Partly generates a column in the second order kernel for the diagonal density matrix :math:`W_{dd}^{(2)}`.
@@ -768,8 +770,8 @@ class ApproachPyRTD(Approach):
                                      dlst[l, 0] / tlst[l], dlst[l, 1] / tlst[l])
                     temp1 = PI * t2.real * f - t2.imag * phi0
                     temp2 = t2.real * phi0 + PI * t2.imag * f
-                    kh.add_matrix_element(temp1, l, a2, a2, charge + 1, a1, b1, charge, 3)
-                    kh.add_matrix_element(temp2, l, a2, a2, charge + 1, a1, b1, charge, 4)
+                    kh.add_matrix_element(temp1, l, a2, a2, charge + 1, a1, b1, charge, RtdMatrix.ReWdn)
+                    kh.add_matrix_element(temp2, l, a2, a2, charge + 1, a1, b1, charge, RtdMatrix.ImWdn)
         # Final state in lower charge state
         if charge != 0:
             # Loop through diagonal final states
@@ -783,8 +785,8 @@ class ApproachPyRTD(Approach):
                                      dlst[l, 0] / tlst[l], dlst[l, 1] / tlst[l], sign=-1)
                     temp1 = PI * t2.real * f - t2.imag * phi0
                     temp2 = t2.real * phi0 + PI * t2.imag * f
-                    kh.add_matrix_element(temp1, l, a2, a2, charge - 1, a1, b1, charge, 3)
-                    kh.add_matrix_element(temp2, l, a2, a2, charge - 1, a1, b1, charge, 4)
+                    kh.add_matrix_element(temp1, l, a2, a2, charge - 1, a1, b1, charge, RtdMatrix.ReWdn)
+                    kh.add_matrix_element(temp2, l, a2, a2, charge - 1, a1, b1, charge, RtdMatrix.ImWdn)
         # Loop over final state, conserving charge
         for a2 in statesdm[charge]:
             if charge != ncharge - 1:
@@ -799,8 +801,8 @@ class ApproachPyRTD(Approach):
                                        dlst[l, 1] / tlst[l], sign=1)
                             temp1 = -PI * t2.real * f - t2.imag * phi0
                             temp2 = -PI * t2.imag * f + t2.real * phi0
-                            kh.add_matrix_element(temp1, l, a2, a2, charge, a1, b1, charge, 3)
-                            kh.add_matrix_element(temp2, l, a2, a2, charge, a1, b1, charge, 4)
+                            kh.add_matrix_element(temp1, l, a2, a2, charge, a1, b1, charge, RtdMatrix.ReWdn)
+                            kh.add_matrix_element(temp2, l, a2, a2, charge, a1, b1, charge, RtdMatrix.ImWdn)
                     if a1 == a2:  # vertices on lower prop -> state on upper prop cannot change
                         E1 = E[c] - E[a2]
                         for l in range(si.nleads):
@@ -810,8 +812,8 @@ class ApproachPyRTD(Approach):
                                        dlst[l, 1] / tlst[l], sign=1)
                             temp1 = - PI * t2.real * f + t2.imag * phi0
                             temp2 = - PI * t2.imag * f - t2.real * phi0
-                            kh.add_matrix_element(temp1, l, a2, a2, charge, a1, b1, charge, 3)
-                            kh.add_matrix_element(temp2, l, a2, a2, charge, a1, b1, charge, 4)
+                            kh.add_matrix_element(temp1, l, a2, a2, charge, a1, b1, charge, RtdMatrix.ReWdn)
+                            kh.add_matrix_element(temp2, l, a2, a2, charge, a1, b1, charge, RtdMatrix.ImWdn)
             if charge != 0:
                 # Intermediate state in lower charge state
                 for c in statesdm[charge - 1]:
@@ -824,8 +826,8 @@ class ApproachPyRTD(Approach):
                                        dlst[l, 1] / tlst[l], sign=-1)
                             temp1 = - PI * t2.real * f + t2.imag * phi0
                             temp2 = - PI * t2.imag * f - t2.real * phi0
-                            kh.add_matrix_element(temp1, l, a2, a2, charge, a1, b1, charge, 3)
-                            kh.add_matrix_element(temp2, l, a2, a2, charge, a1, b1, charge, 4)
+                            kh.add_matrix_element(temp1, l, a2, a2, charge, a1, b1, charge, RtdMatrix.ReWdn)
+                            kh.add_matrix_element(temp2, l, a2, a2, charge, a1, b1, charge, RtdMatrix.ImWdn)
                     if a1 == a2:  # vertices on lower prop -> state on upper prop cannot change
                         E1 = E[a2] - E[c]
                         for l in range(nleads):
@@ -835,8 +837,8 @@ class ApproachPyRTD(Approach):
                                        dlst[l, 1] / tlst[l], sign=-1)
                             temp1 = - PI * t2.real * f - t2.imag * phi0
                             temp2 = - PI * t2.imag * f + t2.real * phi0
-                            kh.add_matrix_element(temp1, l, a2, a2, charge, a1, b1, charge, 3)
-                            kh.add_matrix_element(temp2, l, a2, a2, charge, a1, b1, charge, 4)
+                            kh.add_matrix_element(temp1, l, a2, a2, charge, a1, b1, charge, RtdMatrix.ReWdn)
+                            kh.add_matrix_element(temp2, l, a2, a2, charge, a1, b1, charge, RtdMatrix.ImWdn)
 
     def generate_col_nondiag_kern_1st_order_nd(self, a1, charge):
         r""" Calculates a column in :math:`W_{nd}^{(1)}`, the part of the full first order off-diagonal kernel
@@ -882,8 +884,8 @@ class ApproachPyRTD(Approach):
                                          dlst[l, 0] / tlst[l], dlst[l, 1] / tlst[l])
                         temp1 = PI * t2.real * f - t2.imag * phi0
                         temp2 = t2.real * phi0 + PI * t2.imag * f
-                        kh.add_matrix_element(temp1, l, a2, b2, charge + 1, a1, a1, charge, 5)
-                        kh.add_matrix_element(temp2, l, a2, b2, charge + 1, a1, a1, charge, 6)
+                        kh.add_matrix_element(temp1, l, a2, b2, charge + 1, a1, a1, charge, RtdMatrix.ReWnd)
+                        kh.add_matrix_element(temp2, l, a2, b2, charge + 1, a1, a1, charge, RtdMatrix.ImWnd)
         if charge != 0:
             # Loop over final states, removing electron from the QD
             for a2 in statesdm[charge - 1]:
@@ -899,8 +901,8 @@ class ApproachPyRTD(Approach):
                                          dlst[l, 0] / tlst[l], dlst[l, 1] / tlst[l], sign=-1)
                         temp1 = PI * t2.real * f - t2.imag * phi0
                         temp2 = t2.real * phi0 + PI * t2.imag * f
-                        kh.add_matrix_element(temp1, l, a2, b2, charge - 1, a1, a1, charge, 5)
-                        kh.add_matrix_element(temp2, l, a2, b2, charge - 1, a1, a1, charge, 6)
+                        kh.add_matrix_element(temp1, l, a2, b2, charge - 1, a1, a1, charge, RtdMatrix.ReWnd)
+                        kh.add_matrix_element(temp2, l, a2, b2, charge - 1, a1, a1, charge, RtdMatrix.ImWnd)
         # Loop over final state conserving charge
         for a2 in statesdm[charge]:
             for b2 in statesdm[charge]:
@@ -917,8 +919,8 @@ class ApproachPyRTD(Approach):
                                 phi0 = phi((E1 - mulst[l]) / tlst[l], dlst[l, 0] / tlst[l], dlst[l, 1] / tlst[l])
                                 temp1 = - PI * t2.real * f - t2.imag * phi0
                                 temp2 = - PI * t2.imag * f + t2.real * phi0
-                                kh.add_matrix_element(temp1, l, a2, b2, charge, a1, a1, charge, 5)
-                                kh.add_matrix_element(temp2, l, a2, b2, charge, a1, a1, charge, 6)
+                                kh.add_matrix_element(temp1, l, a2, b2, charge, a1, a1, charge, RtdMatrix.ReWnd)
+                                kh.add_matrix_element(temp2, l, a2, b2, charge, a1, a1, charge, RtdMatrix.ImWnd)
                         if a1 == a2:
                             E1 = E[c] - E[a2]
                             for l in range(nleads):
@@ -927,8 +929,8 @@ class ApproachPyRTD(Approach):
                                 phi0 = phi((E1 - mulst[l]) / tlst[l], dlst[l, 0] / tlst[l], dlst[l, 1] / tlst[l])
                                 temp1 = - PI * t2.real * f + t2.imag * phi0
                                 temp2 = - PI * t2.imag * f - t2.real * phi0
-                                kh.add_matrix_element(temp1, l, a2, b2, charge, a1, a1, charge, 5)
-                                kh.add_matrix_element(temp2, l, a2, b2, charge, a1, a1, charge, 6)
+                                kh.add_matrix_element(temp1, l, a2, b2, charge, a1, a1, charge, RtdMatrix.ReWnd)
+                                kh.add_matrix_element(temp2, l, a2, b2, charge, a1, a1, charge, RtdMatrix.ImWnd)
                 if charge != 0:
                     # Intermediate state in lower charge state
                     for c in statesdm[charge - 1]:
@@ -940,8 +942,8 @@ class ApproachPyRTD(Approach):
                                 phi0 = phi((E1 - mulst[l])/tlst[l], dlst[l, 0] / tlst[l], dlst[l, 1] / tlst[l], sign=-1)
                                 temp1 = - PI * t2.real * f + t2.imag * phi0
                                 temp2 = - PI * t2.imag * f - t2.real * phi0
-                                kh.add_matrix_element(temp1, l, a2, b2, charge, a1, a1, charge, 5)
-                                kh.add_matrix_element(temp2, l, a2, b2, charge, a1, a1, charge, 6)
+                                kh.add_matrix_element(temp1, l, a2, b2, charge, a1, a1, charge, RtdMatrix.ReWnd)
+                                kh.add_matrix_element(temp2, l, a2, b2, charge, a1, a1, charge, RtdMatrix.ImWnd)
                         if a1 == a2:
                             E1 = E[a2] - E[c]
                             for l in range(nleads):
@@ -950,8 +952,8 @@ class ApproachPyRTD(Approach):
                                 phi0 = phi((E1 - mulst[l])/tlst[l], dlst[l, 0] / tlst[l], dlst[l, 1] / tlst[l], sign=-1)
                                 temp1 = - PI * t2.real * f - t2.imag * phi0
                                 temp2 = - PI * t2.imag * f + t2.real * phi0
-                                kh.add_matrix_element(temp1, l, a2, b2, charge, a1, a1, charge, 5)
-                                kh.add_matrix_element(temp2, l, a2, b2, charge, a1, a1, charge, 6)
+                                kh.add_matrix_element(temp1, l, a2, b2, charge, a1, a1, charge, RtdMatrix.ReWnd)
+                                kh.add_matrix_element(temp2, l, a2, b2, charge, a1, a1, charge, RtdMatrix.ImWnd)
 
     def generate_row_inverse_Liouvillian(self, a1, b1, charge):
         """ Calculates a row of :math:`1/(L_{nn})` (in practice only the diagonal is needed) where :math:`L_{nn}` is the part
@@ -982,7 +984,7 @@ class ApproachPyRTD(Approach):
         elif -minE < E1 <= 0:
             E1 = -minE
 
-        self.kernel_handler.add_element_Lnn(a1, b1, charge, 1.0/E1)
+        self.kernel_handler.add_element_Lnn_inv(a1, b1, charge, 1.0/E1)
 
     def set_Ozaki_params(self):
         """

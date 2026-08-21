@@ -1,5 +1,7 @@
 """Module for indexing many-body states using Lin tables."""
 
+from __future__ import annotations
+
 import itertools
 import warnings
 
@@ -785,9 +787,27 @@ class StateIndexingPauli(StateIndexing):
                     counter = add_elem(counter, b, b, charge)
         self.npauli = counter
 
-    def get_ind_dm0(self, b, bp, charge, maptype=1):
+    def get_ind_dm0(self, b: int, bp: int, charge: int, maptype: int = 1) -> int | bool:
         """
-        Get the state index for Pauli master equation.
+        Look up a property of the diagonal element :math:`|b><b|`.
+
+        The Pauli indexing carries populations only, so ``bp`` is a dummy
+        argument kept for signature compatibility with
+        :meth:`StateIndexingDM.get_ind_dm0`. Selectors:
+
+        =========  ========  ====================================================
+        maptype    returns   meaning
+        =========  ========  ====================================================
+        0          int       Flat, unreduced index
+                             ``dictdm[b] + shiftlst0[charge]``.
+        1          int       Reduced index in ``[0, npauli)``, or ``-1`` if the
+                             state is not carried. This is the default.
+        2          bool      Whether this is the representative used to enumerate
+                             the element exactly once.
+        =========  ========  ====================================================
+
+        There is no ``maptype=3`` here: populations have no orientation, so no
+        conjugation map exists. Passing it raises ``ValueError``.
 
         Parameters
         ----------
@@ -797,12 +817,17 @@ class StateIndexingPauli(StateIndexing):
         charge : int
             Charge of b and bp.
         maptype : int
-            Determines what kind of mapping to use when returning the index.
+            Which of the three properties above to return.
 
         Returns
         -------
-        int
-            Index of the zeroth order density matrix element.
+        int or bool
+            The selected property; see the table.
+
+        Raises
+        ------
+        ValueError
+            If ``maptype`` is not one of the values in the table.
         """
         if maptype == 0:
             return self.dictdm[b] + self.shiftlst0[charge]
@@ -810,6 +835,30 @@ class StateIndexingPauli(StateIndexing):
             return self.mapdm0[self.dictdm[b] + self.shiftlst0[charge]]
         elif maptype == 2:
             return self.booldm0[self.dictdm[b] + self.shiftlst0[charge]]
+        raise ValueError('StateIndexingPauli.get_ind_dm0 supports maptype 0, 1 '
+                         'or 2, got %r. Populations have no orientation, so '
+                         'there is no conjugation map here.' % (maptype,))
+
+    def get_ind_dm0_bool(self, b: int, bp: int, charge: int) -> bool:
+        """
+        Check whether :math:`|b><bp|` is the representative orientation used to
+        enumerate the element exactly once. Named form of ``maptype=2``; see
+        rule L3 in :mod:`qmeq.approach.dm_layout`.
+
+        Parameters
+        ----------
+        b,bp : int
+            Indices of many-body states within the same charge state.
+            Note that bp is just a dummy variable for Pauli master equation.
+        charge : int
+            Charge of b and bp.
+
+        Returns
+        -------
+        bool
+            True if :math:`|b><bp|` is the representative orientation.
+        """
+        return self.booldm0[self.dictdm[b] + self.shiftlst0[charge]]
 
     def remove_fock_states(self, lin_state_indices):
         StateIndexing.remove_fock_states(self, lin_state_indices)
@@ -996,9 +1045,39 @@ class StateIndexingDM(StateIndexing):
         self.ndm0r = self.npauli+2*(self.ndm0-self.npauli)
         self.ndm1 = self.ndm1_
 
-    def get_ind_dm0(self, b, bp, charge, maptype=1):
+    def get_ind_dm0(self, b: int, bp: int, charge: int, maptype: int = 1) -> int | bool:
         """
-        Get the index of zeroth order density matrix element.
+        Look up one of four properties of the density matrix element :math:`|b><bp|`.
+
+        Despite the name, only ``maptype`` 0 and 1 return indices; 2 and 3
+        return booleans. The four selectors are:
+
+        =========  ========  ====================================================
+        maptype    returns   meaning
+        =========  ========  ====================================================
+        0          int       Flat, unreduced index into the ``ndm0_``-sized maps:
+                             ``lenlst[charge]*dictdm[b] + dictdm[bp] +
+                             shiftlst0[charge]``. Always valid; used to address
+                             ``mapdm0``, ``booldm0`` and ``conjdm0`` directly.
+        1          int       Reduced index in ``[0, ndm0)``, or ``-1`` if the
+                             element is not carried. This is the default and what
+                             "the index" normally means. Populations come first,
+                             then coherences (rule L2).
+        2          bool      Whether :math:`|b><bp|` is the representative
+                             orientation used to enumerate the element exactly
+                             once (rule L3). Prefer :meth:`get_ind_dm0_bool`.
+        3          bool      Whether :math:`|b><bp|` is the stored orientation,
+                             which fixes the sign of its imaginary part (rule L3).
+                             Prefer :meth:`get_ind_dm0_conj`.
+        =========  ========  ====================================================
+
+        The rule names refer to :mod:`qmeq.approach.dm_layout`, which specifies
+        the packed real layout these values address. Note that ``maptype`` 2 and
+        3 are *different* predicates: they coincide under ``indexing='charge'``
+        but not under ``'ssq'``.
+
+        Any other ``maptype`` raises ``ValueError``. Prefer the named accessors
+        where one exists.
 
         Parameters
         ----------
@@ -1007,12 +1086,17 @@ class StateIndexingDM(StateIndexing):
         charge : int
             Charge of b and bp.
         maptype : int
-            Determines what kind of mapping to use when returning the index.
+            Which of the four properties above to return.
 
         Returns
         -------
-        int
-            Index of the zeroth order density matrix element.
+        int or bool
+            The selected property; see the table.
+
+        Raises
+        ------
+        ValueError
+            If ``maptype`` is not one of the values in the table.
         """
         # l = len(self.statesdm[charge])
         # i = self.dictdm[b]
@@ -1030,6 +1114,52 @@ class StateIndexingDM(StateIndexing):
         elif maptype == 3:
             return (self.conjdm0[self.lenlst[charge]*self.dictdm[b] + self.dictdm[bp]
                     + self.shiftlst0[charge]])
+        raise ValueError('StateIndexingDM.get_ind_dm0 supports maptype 0, 1, 2 '
+                         'or 3, got %r.' % (maptype,))
+
+    def get_ind_dm0_bool(self, b: int, bp: int, charge: int) -> bool:
+        """
+        Check whether :math:`|b><bp|` is the representative orientation used to
+        enumerate the element exactly once. Named form of ``maptype=2``; see
+        rule L3 in :mod:`qmeq.approach.dm_layout`.
+
+        Parameters
+        ----------
+        b,bp : int
+            Indices of many-body states within the same charge state.
+        charge : int
+            Charge of b and bp.
+
+        Returns
+        -------
+        bool
+            True if :math:`|b><bp|` is the representative orientation.
+        """
+        return self.booldm0[self.lenlst[charge]*self.dictdm[b] + self.dictdm[bp]
+                            + self.shiftlst0[charge]]
+
+    def get_ind_dm0_conj(self, b: int, bp: int, charge: int) -> bool:
+        """
+        Check whether :math:`|b><bp|` is the stored orientation, which fixes the
+        sign of its imaginary part. Named form of ``maptype=3``; see rule L3 in
+        :mod:`qmeq.approach.dm_layout`. Note this is a different predicate from
+        :meth:`get_ind_dm0_bool`: the two coincide for ``indexing='charge'`` but
+        not for ``'ssq'``.
+
+        Parameters
+        ----------
+        b,bp : int
+            Indices of many-body states within the same charge state.
+        charge : int
+            Charge of b and bp.
+
+        Returns
+        -------
+        bool
+            True if :math:`|b><bp|` is the stored orientation.
+        """
+        return self.conjdm0[self.lenlst[charge]*self.dictdm[b] + self.dictdm[bp]
+                            + self.shiftlst0[charge]]
 
     def get_ind_dm1(self, c, b, bcharge):
         """
@@ -1193,9 +1323,30 @@ class StateIndexingDMc(StateIndexing):
         self.ndm0r = self.npauli+2*(self.ndm0-self.npauli)
         self.ndm1 = self.ndm1_
 
-    def get_ind_dm0(self, b, bp, charge, maptype=1):
+    def get_ind_dm0(self, b: int, bp: int, charge: int, maptype: int = 1) -> int | bool:
         """
-        Get the index of zeroth order density matrix element.
+        Look up a property of the density matrix element :math:`|b><bp|`.
+
+        This indexing keeps both orientations of every element and stores them as
+        complex numbers, so unlike :class:`StateIndexingDM` it neither halves the
+        unknowns by Hermiticity nor splits real and imaginary parts. It is used by
+        the 2vN approaches. Selectors:
+
+        =========  ========  ====================================================
+        maptype    returns   meaning
+        =========  ========  ====================================================
+        0          int       Flat, unreduced index
+                             ``lenlst[charge]*dictdm[b] + dictdm[bp] +
+                             shiftlst0[charge]``.
+        1          int       Reduced index in ``[0, ndm0)``, or ``-1`` if the
+                             element is not carried. This is the default.
+        2          bool      Whether this is the representative used to enumerate
+                             the element exactly once.
+        =========  ========  ====================================================
+
+        There is no ``maptype=3``: because both orientations are stored
+        independently, ``conjdm0`` is ``None`` here. Passing it raises
+        ``ValueError``.
 
         Parameters
         ----------
@@ -1204,12 +1355,17 @@ class StateIndexingDMc(StateIndexing):
         charge : int
             Charge of b and bp.
         maptype : int
-            Determines what kind of mapping to use when returning the index.
+            Which of the three properties above to return.
 
         Returns
         -------
-        int
-            Index of the zeroth order density matrix element.
+        int or bool
+            The selected property; see the table.
+
+        Raises
+        ------
+        ValueError
+            If ``maptype`` is not one of the values in the table.
         """
         # l = len(self.statesdm[charge])
         # i = self.dictdm[b]
@@ -1223,6 +1379,30 @@ class StateIndexingDMc(StateIndexing):
         elif maptype == 2:
             return (self.booldm0[self.lenlst[charge]*self.dictdm[b] + self.dictdm[bp]
                     + self.shiftlst0[charge]])
+        raise ValueError('StateIndexingDMc.get_ind_dm0 supports maptype 0, 1 or '
+                         '2, got %r. Both orientations are stored independently '
+                         'here, so there is no conjugation map.' % (maptype,))
+
+    def get_ind_dm0_bool(self, b: int, bp: int, charge: int) -> bool:
+        """
+        Check whether :math:`|b><bp|` is the representative orientation used to
+        enumerate the element exactly once. Named form of ``maptype=2``; see
+        rule L3 in :mod:`qmeq.approach.dm_layout`.
+
+        Parameters
+        ----------
+        b,bp : int
+            Indices of many-body states within the same charge state.
+        charge : int
+            Charge of b and bp.
+
+        Returns
+        -------
+        bool
+            True if :math:`|b><bp|` is the representative orientation.
+        """
+        return (self.booldm0[self.lenlst[charge]*self.dictdm[b] + self.dictdm[bp]
+                             + self.shiftlst0[charge]])
 
     def get_ind_dm1(self, c, b, bcharge):
         """

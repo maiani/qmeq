@@ -28,6 +28,8 @@ cdef class KernelHandler:
         self.ndm0r = si.ndm0r
         self.ndm1 = si.ndm1
         self.npauli = si.npauli
+        # Distance from a reduced index to its imaginary partner (L4).
+        self.imag_offset = si.ndm0 - si.npauli
         self.nleads = si.nleads
         self.nbaths = si.nbaths
         self.ncharge = si.ncharge
@@ -117,7 +119,7 @@ cdef class KernelHandler:
 
     cdef bool_t is_included(self, long_t b, long_t bp, long_t bcharge) noexcept nogil:
         cdef long_t bbp = self.get_ind_dm0(b, bp, bcharge)
-        if bbp == -1:
+        if bbp == NO_INDEX:
             return False
 
         return True
@@ -134,7 +136,7 @@ cdef class KernelHandler:
             return
 
         cdef long_t bbp = self.get_ind_dm0(b, bp, bcharge)
-        cdef long_t bbpi = self.ndm0 + bbp - self.npauli
+        cdef long_t bbpi = bbp + self.imag_offset
 
         self.kern[bbp, bbpi] = self.kern[bbp, bbpi] + energy
         self.kern[bbpi, bbp] = self.kern[bbpi, bbp] - energy
@@ -145,18 +147,22 @@ cdef class KernelHandler:
                 long_t a, long_t ap, long_t acharge) noexcept nogil:
 
         cdef long_t bbp = self.get_ind_dm0(b, bp, bcharge)
-        cdef long_t bbpi = self.ndm0 + bbp - self.npauli
-        cdef bool_t bbpi_bool = True if bbpi >= self.ndm0 else False
+        cdef long_t bbpi = bbp + self.imag_offset
+        cdef bool_t bbpi_bool = bbp >= self.npauli
 
         cdef long_t aap = self.get_ind_dm0(a, ap, acharge)
-        cdef long_t aapi = self.ndm0 + aap - self.npauli
+        if bbp == NO_INDEX or aap == NO_INDEX:
+            # L2: an uncarried endpoint has nowhere to contribute. Without this
+            # the -1 sentinel indexes the last row or column.
+            return
+        cdef long_t aapi = aap + self.imag_offset
         cdef int_t aap_sgn = +1 if self.get_ind_dm0_conj(a, ap, acharge) else -1
 
         cdef double_t fct_imag = fct.imag
         cdef double_t fct_real = fct.real
 
         self.kern[bbp, aap] = self.kern[bbp, aap] + fct_imag
-        if aapi >= self.ndm0:
+        if aap >= self.npauli:
             self.kern[bbp, aapi] = self.kern[bbp, aapi] + fct_real*aap_sgn
             if bbpi_bool:
                 self.kern[bbpi, aapi] = self.kern[bbpi, aapi] + fct_imag*aap_sgn
@@ -173,11 +179,11 @@ cdef class KernelHandler:
     cdef complex_t get_phi0_element(self, long_t b, long_t bp, long_t bcharge) noexcept nogil:
 
         cdef long_t bbp = self.get_ind_dm0(b, bp, bcharge)
-        if bbp == -1:
+        if bbp == NO_INDEX:
             return 0.0
 
-        cdef long_t bbpi = self.ndm0 + bbp - self.npauli
-        cdef bool_t bbpi_bool = True if bbpi >= self.ndm0 else False
+        cdef long_t bbpi = bbp + self.imag_offset
+        cdef bool_t bbpi_bool = bbp >= self.npauli
 
         cdef double_t phi0_real = self.phi0[bbp]
         cdef double_t phi0_imag = 0
@@ -216,7 +222,7 @@ cdef class KernelHandlerMatrixFree(KernelHandler):
             return
 
         cdef long_t bbp = self.get_ind_dm0(b, bp, bcharge)
-        cdef long_t bbpi = self.ndm0 + bbp - self.npauli
+        cdef long_t bbpi = bbp + self.imag_offset
 
         cdef complex_t phi0bbp = self.get_phi0_element(b, bp, bcharge)
         cdef complex_t dphi0_dt_bbp = -1j*energy*phi0bbp
@@ -230,8 +236,10 @@ cdef class KernelHandlerMatrixFree(KernelHandler):
                 long_t a, long_t ap, long_t acharge) noexcept nogil:
 
         cdef long_t bbp = self.get_ind_dm0(b, bp, bcharge)
-        cdef long_t bbpi = self.ndm0 + bbp - self.npauli
-        cdef bool_t bbpi_bool = True if bbpi >= self.ndm0 else False
+        if bbp == NO_INDEX:
+            return
+        cdef long_t bbpi = bbp + self.imag_offset
+        cdef bool_t bbpi_bool = bbp >= self.npauli
         cdef long_t aap = self.get_ind_dm0(a, ap, acharge)
 
         cdef complex_t phi0aap = self.get_phi0_element(a, ap, acharge)
@@ -275,32 +283,32 @@ cdef class KernelHandlerRTD(KernelHandler):
         if b != bp:
             indx1 -= self.npauli
             if b > bp:
-                indx1 += self.ndm0 - self.npauli
+                indx1 += self.imag_offset
         if a != ap:
             indx2 -= self.npauli
             if a > ap:
-                indx2 += self.ndm0 - self.npauli
+                indx2 += self.imag_offset
 
-        if mi == 3:
+        if mi == MAT_RE_WDN:
             self.ReWdn[l, indx1, indx2] += fct
-        elif mi == 4:
+        elif mi == MAT_IM_WDN:
             self.ImWdn[l, indx1, indx2] += fct
-        elif mi == 5:
+        elif mi == MAT_RE_WND:
             self.ReWnd[indx1, indx2] += fct
-        elif mi == 6:
+        elif mi == MAT_IM_WND:
             self.ImWnd[indx1, indx2] += fct
-        elif mi == 7:
-            self.Lnn[indx2] += fct
+        elif mi == MAT_LNN_INV:
+            self.Lnn_inv[indx2] += fct
 
     cdef void set_matrix_element_dd(self, long_t l, double_t fctm,
                         double_t fctp, long_t bb, long_t aa, long_t mi) noexcept nogil:
-        if mi == 0:
+        if mi == MAT_WDD:
             self.Wdd[l, bb, bb] += fctm
             self.Wdd[l, bb, aa] += fctp
-        elif mi == 1:
+        elif mi == MAT_WE1:
             self.WE1[l, bb, bb] += fctm
             self.WE1[l, bb, aa] += fctp
-        elif mi == 2:
+        elif mi == MAT_WE2:
             self.WE2[l, bb, bb] += fctm
             self.WE2[l, bb, aa] += fctp
 
