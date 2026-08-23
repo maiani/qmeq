@@ -1,0 +1,105 @@
+# Approaches
+
+The master-equation solvers. Ported from
+`legacy_docs/source/approach/`.
+
+## `qmeq.approach`
+
+::: qmeq.approach
+
+## `qmeq.approach.aprclass`
+
+::: qmeq.approach.aprclass
+
+## `qmeq.approach.kernel_handler`
+
+::: qmeq.approach.kernel_handler
+
+## `qmeq.approach.counting`
+
+::: qmeq.approach.counting
+
+## `qmeq.approach.dm_layout`
+
+Not in the Sphinx tree. States the packed-real density-matrix layout as nine numbered rules; see also [Density-matrix layout](../conventions/density-matrix-layout.md).
+
+::: qmeq.approach.dm_layout
+
+## `qmeq.approach.diagnostics`
+
+Not in the Sphinx tree.
+
+::: qmeq.approach.diagnostics
+
+# Tunnelling approaches
+
+## `qmeq.approach.base`
+
+::: qmeq.approach.base
+
+## `qmeq.approach.base.pauli`
+
+::: qmeq.approach.base.pauli
+
+## `qmeq.approach.base.lindblad`
+
+::: qmeq.approach.base.lindblad
+
+## `qmeq.approach.base.redfield`
+
+::: qmeq.approach.base.redfield
+
+## `qmeq.approach.base.neumann1`
+
+::: qmeq.approach.base.neumann1
+
+## `qmeq.approach.base.neumann2`
+
+::: qmeq.approach.base.neumann2
+
+## `qmeq.approach.base.RTD`
+
+::: qmeq.approach.base.RTD
+
+## `qmeq.approach.base.RTDnoise`
+
+::: qmeq.approach.base.RTDnoise
+
+# Electron-phonon approaches
+
+## `qmeq.approach.elph`
+
+::: qmeq.approach.elph
+
+## `qmeq.approach.elph.pauli`
+
+::: qmeq.approach.elph.pauli
+
+## `qmeq.approach.elph.lindblad`
+
+::: qmeq.approach.elph.lindblad
+
+## `qmeq.approach.elph.redfield`
+
+::: qmeq.approach.elph.redfield
+
+## `qmeq.approach.elph.neumann1`
+
+::: qmeq.approach.elph.neumann1
+
+
+## Compiled extensions
+
+Sphinx's `autodoc` documented the `c_*` extension modules by importing them.
+`mkdocstrings` reads source statically and there is no `.py` to read, so these
+modules get no generated block here. Their docstrings live in the pure-Python
+module each one mirrors — which is what the `.pyx` sources themselves say:
+*"For docstrings see documentation of module `<name>`"*. The canonical source is
+the `.pyx`/`.pxd` file, not the generated C.
+
+`qmeq.approach.c_aprclass`, `qmeq.approach.c_kernel_handler`,
+`qmeq.approach.base.c_pauli`, `qmeq.approach.base.c_lindblad`,
+`qmeq.approach.base.c_redfield`, `qmeq.approach.base.c_neumann1`,
+`qmeq.approach.base.c_neumann2`, `qmeq.approach.base.c_RTD`,
+`qmeq.approach.elph.c_pauli`, `qmeq.approach.elph.c_lindblad`,
+`qmeq.approach.elph.c_redfield`, `qmeq.approach.elph.c_neumann1`.

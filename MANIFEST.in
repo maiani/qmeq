@@ -1,5 +1,13 @@
 # Include *.md files
 include *.md
 
-# Include docs
+# Include both documentation trees: the legacy Sphinx manual (legacy_docs/) and
+# the MkDocs successor (docs/). Neither build output is source, so prune it.
+recursive-include legacy_docs *
+prune legacy_docs/build
 recursive-include docs *
+prune docs/site
+# docs/docs/notebooks is a symlink to examples/, so MkDocs can render the
+# tutorial notebooks without a second copy of them. Following it into the
+# sdist would duplicate every notebook; examples/ is shipped on its own.
+prune docs/docs/notebooks

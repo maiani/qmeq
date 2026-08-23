@@ -56,9 +56,10 @@ Optional feature sets are available as extras and can be requested in brackets;
 they combine with any of the commands above (e.g. `pip install -e .[dev]`):
 
 ```bash
-$ pip install qmeq[test]   # pytest for running the test suite
-$ pip install qmeq[docs]   # sphinx and the theme for building the docs
-$ pip install qmeq[dev]    # everything above plus cython, build, and twine
+$ pip install qmeq[test]         # pytest for running the test suite
+$ pip install qmeq[docs]         # mkdocs + material, for the docs/ site
+$ pip install qmeq[docs-sphinx]  # sphinx + theme, for the legacy legacy_docs/ manual
+$ pip install qmeq[dev]          # everything above plus cython, build, and twine
 ```
 
 We note that the binaries **pip** and **python** have to be in the system path.
@@ -153,28 +154,37 @@ $ pytest --pyargs qmeq.tests
 Documentation
 -------------
 
-QmeQ contains the [documentation][qmeqdocs] generated from docstrings in the
-source code. This documentation can be generated in
-**html**, **latex**, and other formats using
+QmeQ ships two documentation trees while it migrates from one to the other:
 
-* [Sphinx][Sphinx] package,
-* [sphinx-rtd-theme][srtdt] Read the Docs Sphinx theme.
+* `docs/` — the current documentation, built with [MkDocs][MkDocs] and the
+  [Material][mkdocs-material] theme. It is **incomplete**: the user manual,
+  API reference, theory pages, and examples have not all been migrated here
+  yet. Install its dependencies with the `docs` extra and build with
 
-To install the above packages, use the `docs` extra
+  ```bash
+  $ pip install qmeq[docs]
+  $ mkdocs build --strict -f 'path to qmeq source'/docs/mkdocs.yml
+  ```
 
-```bash
-$ pip install qmeq[docs]
-```
+  The generated site lands in *'path to qmeq source'/docs/site/index.html*.
 
-For example, to generate the documentation in **html** format run
+* `legacy_docs/` — the legacy [Sphinx][Sphinx] manual (using the
+  [sphinx-rtd-theme][srtdt]), still the **complete** user manual, API
+  reference, theory notes, and worked examples until the migration above
+  finishes. Install its dependencies with the `docs-sphinx` extra and build
+  with
 
-```bash
-$ cd 'path to qmeq source'/docs
-$ make html
-```
+  ```bash
+  $ pip install qmeq[docs-sphinx]
+  $ cd 'path to qmeq source'/legacy_docs
+  $ make html
+  ```
 
-The generated documentation should be in
-*'path to qmeq source'/docs/build/html/index.html*
+  The generated documentation lands in
+  *'path to qmeq source'/legacy_docs/build/html/index.html*.
+
+If neither build is at hand, the docstrings in the source code are the ground
+truth either way.
 
 [Python]: https://www.python.org
 [Cython]: https://cython.org
@@ -183,6 +193,8 @@ The generated documentation should be in
 [Matplotlib]: https://matplotlib.org
 [Jupyter]: https://jupyter.org
 [Sphinx]: https://www.sphinx-doc.org
+[MkDocs]: https://www.mkdocs.org
+[mkdocs-material]: https://squidfunk.github.io/mkdocs-material/
 [pytest]: https://docs.pytest.org
 
 [setuptools]: https://setuptools.pypa.io
@@ -192,6 +204,5 @@ The generated documentation should be in
 [srtdt]: https://github.com/readthedocs/sphinx_rtd_theme
 [examples]: examples
 
-[qmeqdocs]: http://github.com/gedaskir/qmeq/tree/master/docs
 [qmeqsrc]: http://github.com/gedaskir/qmeq/archive/master.zip
 [qmeqtest]: http://github.com/gedaskir/qmeq/tree/master/qmeq/tests

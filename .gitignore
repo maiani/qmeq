@@ -10,8 +10,8 @@
 *.pyc
 
 # Specific files
-docs/index.html.lnk
-docs/run.bat
+legacy_docs/index.html.lnk
+legacy_docs/run.bat
 qmeq/pylintrc
 qmeq/approach/base/_complex_redfield.py
 qmeq/approach/base/_complex_neumann1.py
@@ -35,16 +35,18 @@ qmeq/approach/base/_complex_neumann1.py
 .cache/
 build/
 dist/
-docs/build
+legacy_docs/build
 # Media copied into the source tree by nbsphinx-link at build time
-docs/source/examples/images/
+legacy_docs/source/examples/images/
 qmeq.egg-info/
 qmeq/build
 qmeq/tests/__pycache__
+# Built mkdocs site (docs/mkdocs.yml: docs_dir=docs, site_dir=site, both
+# relative to this config file, so the built site lands at docs/site/).
+docs/site/
 
 # Specific directories
 instructions/
 project/
 qmeq/tests_
 .idea/
-new_docs/

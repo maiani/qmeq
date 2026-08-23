@@ -1,0 +1,132 @@
+site_name: QmeQ Documentation
+site_description: >-
+  QmeQ's documentation: an incomplete user guide and API reference, plus
+  internal conventions uncovered while working on the code. Successor to the
+  Sphinx documentation, now at legacy_docs/.
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+# docs/docs/notebooks symlinks to examples/, which also holds non-notebook files.
+exclude_docs: |
+  notebooks/README.md
+  notebooks/licenses/
+  notebooks/scripts/
+  notebooks/tutorial/
+
+validation:
+  nav:
+    omitted_files: warn
+    # mkdocs accepts only warn/info/ignore here, so this cannot fail a build.
+    not_found: warn
+    absolute_links: warn
+  links:
+    not_found: warn
+    anchors: warn
+    absolute_links: warn
+    unrecognized_links: warn
+
+plugins:
+  - search
+  - mkdocs-jupyter:
+      execute: false
+      include_source: true
+      ignore_h1_titles: true
+      # examples/ also holds .py scripts this plugin would render as notebooks.
+      include: ["*.ipynb"]
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [../]
+          options:
+            docstring_style: numpy
+            docstring_options:
+              # Silences pre-existing docstring-style warnings.
+              warnings: false
+              warn_unknown_params: false
+              warn_missing_types: false
+            show_source: false
+            show_root_heading: true
+            show_root_full_path: true
+            members_order: source
+            merge_init_into_class: true
+            separate_signature: true
+            show_signature_annotations: true
+            filters: ["!^_[^_]"]
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.arithmatex:
+      generic: true
+
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+nav:
+  - Home: index.md
+  - Guide:
+      - Overview: guide/index.md
+      - What QmeQ computes: guide/overview.md
+      - The approaches: guide/approaches.md
+      - Getting started (the Builder API): guide/getting-started.md
+  - Tutorials:
+      - Overview: tutorials/index.md
+      - Before you begin: tutorials/getting-started.md
+      - 1. A first transport calculation: notebooks/tutorials/01_first_transport_calculation.ipynb
+      - 2. Coulomb blockade and many-body states: notebooks/tutorials/02_coulomb_blockade.ipynb
+      - 3. Bias and gate sweeps: notebooks/tutorials/03_bias_and_gate_sweeps.ipynb
+      - 4. Coherence in a double dot: notebooks/tutorials/04_coherence_and_approximations.ipynb
+      - 5. Energy and heat transport: notebooks/tutorials/05_energy_and_heat_transport.ipynb
+      - 6. Cotunnelling and second-order methods: notebooks/tutorials/06_cotunnelling_and_second_order.ipynb
+      - 7. Current noise from counting statistics: notebooks/tutorials/07_counting_statistics.ipynb
+      - Appendix - state types: notebooks/appendix/00_types.ipynb
+      - Appendix - symmetries: notebooks/appendix/01_symmetries.ipynb
+      - Legacy tutorials: tutorials/legacy.md
+      - Legacy - original QmeQ tutorial: notebooks/legacy_tutorials/tutorial.ipynb
+      - Legacy - original RTD tutorial: notebooks/legacy_tutorials/RTD_tutorial.ipynb
+  - Theory:
+      - Transport options: theory/transport-options.md
+      - Lamb shift: theory/lambshift.md
+      - Counting statistics: theory/counting-statistics.md
+  - API reference:
+      - Overview: api/index.md
+      - Builder: api/builder.md
+      - Approaches: api/approach.md
+      - Model construction: api/model.md
+      - Special functions: api/specfunc.md
+      - Wrappers: api/wrappers.md
+  - Conventions:
+      - Overview: conventions/index.md
+      - Density-matrix layout: conventions/density-matrix-layout.md
+      - State indexing: conventions/state-indexing.md
+      - Typing: conventions/typing.md
+      - Docstrings: conventions/docstrings.md
+      - RTD kernel matrices: conventions/rtd-kernels.md
+      - Where the time goes: conventions/where-the-time-goes.md

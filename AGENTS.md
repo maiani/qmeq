@@ -26,12 +26,17 @@ they are the source of truth for what is in flight.
 
 Done recently (see the changelog): the newer `cvsvensson/qmeq` maintenance
 history was merged; packaging moved to `pyproject.toml` with a `>=3.11` Python
-floor and dependency extras (`test`, `docs`, `dev`); tutorials and example
-scripts were vendored into [examples/](examples/), rendered in the Sphinx docs,
-and run as tests; the docs build cleanly with warnings-as-errors; backend
-selection is explicit through `QMEQ_BACKEND` and OpenMP through `QMEQ_OPENMP`;
-Cython 3 is the standardized build range; counting statistics were integrated;
-and wheels plus Conda packages are built and published from CI.
+floor and dependency extras (`test`, `docs`, `docs-sphinx`, `dev`); tutorials
+and example scripts were vendored into [examples/](examples/), rendered in the
+legacy Sphinx docs, and run as tests; the docs build cleanly with
+warnings-as-errors; backend selection is explicit through `QMEQ_BACKEND` and
+OpenMP through `QMEQ_OPENMP`; Cython 3 is the standardized build range;
+counting statistics were integrated; and wheels plus Conda packages are built
+and published from CI. Documentation is migrating from Sphinx to MkDocs: the
+Sphinx tree is now [legacy_docs/](legacy_docs/) (still the complete, warning-clean
+release gate) and the MkDocs successor lives at [docs/](docs/) (see
+[docs/README.md](docs/README.md) and the "P2: documentation" section of
+[TODO.md](TODO.md)).
 
 Where it is going, roughly in priority order:
 
@@ -79,8 +84,9 @@ tests and reference data over a cleverer one that is not.
 - [examples/](examples/) — vendored learning material: `tutorials/` (the
   numbered `01`-`07` learning path), `scripts/` (runnable `.py`), `appendix/`
   (reference notebooks), and `legacy_tutorials/` (kept for reference, superseded
-  by the numbered path). Rendered into the docs via nbsphinx-link
-  (`docs/source/examples/*.nblink`); not shipped in the package.
+  by the numbered path). Rendered into the legacy Sphinx docs via
+  nbsphinx-link (`legacy_docs/source/examples/*.nblink`); not shipped in the
+  package.
 - [.github/workflows/](.github/workflows/) — `test.yml` (both backends, three
   toolchains), `lint.yml` (Ruff), `build_wheels.yml` (PyPI-style wheels), and
   `release.yml` (Conda packages via [recipe/](recipe/) to prefix.dev). The last
@@ -134,9 +140,14 @@ QMEQ_BACKEND=python pytest qmeq/tests/test_examples.py --runslow -m "example and
 # Run the notebooks explicitly where Jupyter kernels may open local sockets
 QMEQ_BACKEND=python pytest qmeq/tests/test_examples.py --runslow -m notebook
 
-# Build HTML docs (Sphinx); needs the `docs` extra + the pandoc binary
-cd docs
+# Build the legacy Sphinx docs (legacy_docs/); needs the `docs-sphinx` extra
+# + the pandoc binary. This is the current warning-clean release gate.
+cd legacy_docs
 QMEQ_BACKEND=python sphinx-build -b html -W --keep-going source build/html
+cd ..
+
+# Build the MkDocs successor (docs/) in strict mode; needs the `docs` extra.
+mkdocs build --strict -f docs/mkdocs.yml
 
 # Remove all build artifacts + generated .c/.so files
 python clean.py
@@ -206,8 +217,9 @@ error needs to propagate.
   separate processes and confirm the reported backend.
 - For compiled changes, regenerate the extensions from source before testing;
   do not rely on stale `.c` or `.so` files.
-- Build docs with `-W --keep-going` after documentation or import-surface
-  changes.
+- Build the Sphinx docs (`legacy_docs/`) with `-W --keep-going` after touching a
+  docstring in one of its four autodoc modules or any other Sphinx source; run
+  the MkDocs build (`docs/`) with `--strict` after touching a page there.
 - For packaging changes, inspect a clean wheel and source distribution and test
   the installed artifacts, not only the working tree.
 - After changing a workflow, validate it with `actionlint` before pushing; a
