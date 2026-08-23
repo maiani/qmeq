@@ -15,38 +15,6 @@ Ground rules for anything below:
 - Public compatibility aliases and accepted input forms stay unless a
   deliberate breaking release says otherwise.
 
-## P0: results a user can trust
-
-The library's own disclaimer says these approximations can fail. Right now they
-fail *silently*, which is the most expensive kind of bug in a package whose
-output ends up in papers.
-
-- [ ] Flag unphysical stationary solutions instead of returning them.
-  - Redfield, 1vN, 2vN, and RTD can all violate positivity of the reduced
-    density matrix. Measured `min(phi0) = -0.81` with `sum(phi0) == 1` and a
-    current that looks unremarkable (`bug_report.md` issue 5).
-  - Check negative populations, trace deviation, and solver conditioning; emit
-    a warning *and* expose the result as a queryable diagnostic, so scripted
-    sweeps can filter on it rather than parsing stderr.
-  - Keep the behaviour identical between backends and approaches.
-  - Cheapest available guard against publishing a wrong number; do this first.
-
-- [ ] Warn when RTD is used outside the regime where a diagonal density matrix
-      is justified.
-  - `generate_row_inverse_Liouvillian` inverts a bare `1/(E_a - E_b)` clamped
-    at `minE = 1e-10` and carrying no broadening. Eliminating the coherences is
-    only valid when intra-sector splittings are large compared with the tunnel
-    broadening; a DQD tuned near orbital degeneracy reached `0.07 Γ` with
-    nothing in the output saying so (`bug_report.md` issue 4).
-  - Needs a defensible Γ estimate and threshold, applied in both `RTD.py` and
-    `c_RTD.pyx`. Choosing the threshold is physics, not a lint fix.
-
-- [ ] Collect each approach's validity domain and known failure modes in one
-      documented place.
-  - The material exists but is scattered across tutorial 6's validity table,
-    the `qmeq/__init__.py` disclaimer, and the RTD bandwidth warnings. Promote
-    it into `docs/source/theory/` as one reference keyed by approach, and point
-    the warnings at it.
 
 ## P1: correctness gaps in shipped features
 
@@ -131,8 +99,7 @@ output ends up in papers.
     costs a user.
   - A handful of representative systems, timed reproducibly, is enough to start.
 
-## P2: documentation and contributor workflow
-
+## P2: documentation
 - [ ] Replace the Sphinx documentation with the successor being developed in
   `new_docs/`.
   - `new_docs/` is intentionally an experimental, ignored working tree for the
@@ -148,6 +115,13 @@ output ends up in papers.
     output, running the fast and slow suites, building the docs, validating
     artifacts — and which files must change together when a `.py`/`.pyx` pair is
     touched.
+
+- [ ] Collect each approach's validity domain and known failure modes in one
+      documented place.
+  - The material exists but is scattered across tutorial 6's validity table,
+    the `qmeq/__init__.py` disclaimer, and the RTD bandwidth warnings. Promote
+    it into `docs/source/theory/` as one reference keyed by approach, and point
+    the warnings at it.
 
 ## Release gate
 

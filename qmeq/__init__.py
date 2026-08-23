@@ -42,6 +42,8 @@ from ._backend import get_backend_status as get_backend_status
 from ._backend import get_requested_backend as get_requested_backend
 from ._warnings import QmeqRuntimeWarning as QmeqRuntimeWarning
 from ._warnings import QmeqWarning as QmeqWarning
+from .approach.base.RTD import RTDCoherenceWarning as RTDCoherenceWarning
+from .approach.base.RTD import RTDNoBroadeningWarning as RTDNoBroadeningWarning
 from .approach.aprclass import Approach as Approach
 from .approach.aprclass import ApproachElPh as ApproachElPh
 from .approach.aprclass import ApproachBase2vN as ApproachBase2vN
@@ -59,9 +61,5 @@ from .indexing import StateIndexingDMc as StateIndexingDMc
 from .leadstun import LeadsTunneling as LeadsTunneling
 from .baths import PhononBaths as PhononBaths
 from .qdot import QuantumDot as QuantumDot
-
-# Legacy class names
-from .builder.builder_base import BuilderManyBody as Builder_many_body  # noqa: F401
-from .builder.builder_elph import BuilderElPh as Builder_elph  # noqa: F401
 
 __version__ = '1.2.0.dev1'

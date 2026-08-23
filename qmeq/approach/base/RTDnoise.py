@@ -15,6 +15,7 @@ from .RTD import ApproachPyRTD
 from .RTD import _warn_if_unequal_temperature_cutoff_is_small
 from ..counting import nonmarkovian_current_noise_matrix
 from ..counting import stationary_projected_pseudoinverse
+from ..diagnostics import check_stationary_solution
 from ..kernel_handler import KernelHandlerRTDnoise
 
 class ApproachPyRTDnoise(ApproachPyRTD):
@@ -148,6 +149,8 @@ class ApproachPyRTDnoise(ApproachPyRTD):
             self.solve_kern()
             self.solve_kern_first()
             self.solve_kern_second()
+            if getattr(self, 'success', False):
+                check_stationary_solution(self)
             if currentq:
                 self.generate_currents()
 

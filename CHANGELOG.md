@@ -4,6 +4,30 @@
 
 ### Added
 
+- Warn when legacy RTD's diagonal-density-matrix approximation is not
+  spectrally resolved. The diagnostic estimates each same-charge coherence's
+  broadening from `2*pi*sum(|T|**2)` over adjacent-charge transitions, uses a
+  conservative ten-to-one splitting-to-broadening threshold, records the
+  closest case as `approach.rtd_coherence_diagnostics`, and emits one
+  `RTDCoherenceWarning` per approach. The check is shared by `pyRTD` and the
+  compiled `RTD` backend and does not modify the kernel.
+- Include the charge sector and state indices in the RTD coherence diagnostic,
+  report splittings affected by the inverse-Liouvillian clamp, expose the
+  RTD warning categories at the package top level, and warn when no tunnel
+  broadening is present for the active same-charge states.
+- Diagnose every stationary solution for physicality instead of returning it
+  silently. After each master-equation solve, the approach now checks the
+  reduced density matrix for negative populations, deviation of the trace from
+  one, and NaN/inf entries. An unphysical result emits a `QmeqRuntimeWarning`
+  (once per approach instance) and is recorded as a queryable
+  `approach.stationary_diagnostics` object with a `physical` flag plus the
+  minimum population, trace, trace deviation, and solver-reported conditioning
+  (least-squares rank and residual where the solver provides them), so
+  scripted sweeps can filter on the diagnostic rather than parse stderr. The
+  check runs in shared pure-Python code called from the approach `solve`
+  methods, so its behaviour is identical across approaches and backends; for
+  2vN only the state after the final iteration is diagnosed, since
+  intermediate iterates may be unphysical while still converging.
 - Add public `QmeqWarning` and `QmeqRuntimeWarning` categories so callers can
   capture or filter all QmeQ diagnostics as a group while distinguishing
   numerical/runtime failures from input fallbacks.

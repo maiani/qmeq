@@ -13,6 +13,7 @@ from ..wrappers.mytypes import complexnp
 from .kernel_handler import KernelHandler
 from .kernel_handler import KernelHandlerMatrixFree
 from .counting import generate_counting_statistics, validate_counting_request
+from .diagnostics import check_stationary_solution
 
 
 class Approach(object):
@@ -47,6 +48,11 @@ class Approach(object):
         Values of the heat current having nleads entries.
     funcp : FunctionProperties
         FunctionProperties object.
+    stationary_diagnostics : StationarySolutionDiagnostics or None
+        Diagnostics of the latest stationary solution: None before the first
+        solve, otherwise a queryable record with a `physical` flag, the
+        minimum population, the trace deviation, and solver conditioning.
+        A QmeqRuntimeWarning is emitted when a solution is unphysical.
     paulifct : array
         Factors used for generating Pauli master equation kernel.
     phi1fct : array
@@ -172,6 +178,7 @@ class Approach(object):
         self.kern, self.bvec, self.norm_vec = None, None, None
         self.sol0, self.phi0, self.phi1 = None, None, None
         self.dphi0_dt = None
+        self.stationary_diagnostics = None
         self.current = None
         self.energy_current = None
         self.heat_current = None
@@ -453,6 +460,8 @@ class Approach(object):
                 self.solve_kern()
             else:
                 self.solve_matrix_free()
+            if getattr(self, 'success', False):
+                check_stationary_solution(self)
             if currentq:
                 self.generate_current()
                 generate_counting_statistics(self)
@@ -679,3 +688,8 @@ class ApproachBase2vN(Approach):
                 self.iteration()
                 if func_iter is not None:
                     func_iter(self)
+
+            # Only the stationary state after the last iteration is diagnosed:
+            # intermediate iterates may be unphysical while still converging.
+            if getattr(self, 'success', False):
+                check_stationary_solution(self)

@@ -265,6 +265,14 @@ cdef class Approach:
 
         if self._solver.info == 0:
             self._success = True
+            # Store the solver provenance in the same tuple shape as
+            # numpy.linalg.lstsq, so the stationary solution diagnostics
+            # report identical conditioning information under both backends.
+            if self.funcp.solmethod == 'lsqr':
+                self.sol0 = (
+                    self.phi0, (), int((<LapackSolverDGELSD> self._solver).rank), ())
+            else:
+                self.sol0 = [self.phi0]
         else:
             self.funcp.print_error("Singular matrix.")
             self._phi0[::1] = 0.0

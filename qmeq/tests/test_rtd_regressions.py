@@ -4,6 +4,9 @@ import warnings
 
 import qmeq
 from qmeq.approach.base.RTD import RTDBandwidthWarning
+from qmeq.approach.base.RTD import RTDCoherenceWarning
+from qmeq.approach.base.RTD import RTDNoBroadeningWarning
+from qmeq.approach.base.RTD import _RTD_COHERENCE_RATIO_WARNING
 
 
 def _roundoff_phase_current(imaginary_part, kerntype="RTD"):
@@ -139,6 +142,88 @@ def test_RTD_unequal_temperature_python_selected_backend_parity():
         selected_system.phi0, python_system.phi0,
         rtol=1e-11, atol=1e-13,
     )
+
+
+@pytest.mark.parametrize("kerntype", ["pyRTD", "RTD"])
+def test_RTD_warns_for_unresolved_same_charge_coherence(kerntype):
+    system = qmeq.Builder(
+        nsingle=2,
+        hsingle={(0, 0): 0.0, (1, 1): 0.004},
+        nleads=2,
+        tleads={(0, 0): 1.0/np.sqrt(2*np.pi),
+                (0, 1): 1.0/np.sqrt(2*np.pi),
+                (1, 0): 1.0/np.sqrt(2*np.pi),
+                (1, 1): 1.0/np.sqrt(2*np.pi)},
+        mulst=[0.0, 0.0], tlst=[1.0, 1.0], dband=1000.0,
+        kerntype=kerntype, itype=1, off_diag_corrections=True,
+    )
+    with pytest.warns(RTDCoherenceWarning, match="diagonal density-matrix"):
+        system.solve()
+
+    diagnostic = system.appr.rtd_coherence_diagnostics
+    assert diagnostic.ratio < _RTD_COHERENCE_RATIO_WARNING
+    assert diagnostic.gamma > 0.0
+    assert diagnostic.state_a != diagnostic.state_b
+    assert diagnostic.charge == 1
+    assert diagnostic.clamped_coherences == 0
+
+
+@pytest.mark.parametrize("kerntype", ["pyRTD", "RTD"])
+def test_RTD_does_not_warn_when_same_charge_splitting_is_resolved(kerntype):
+    system = qmeq.Builder(
+        nsingle=2,
+        hsingle={(0, 0): 0.0, (1, 1): 100.0},
+        nleads=2,
+        tleads={(0, 0): 1.0/np.sqrt(2*np.pi),
+                (0, 1): 1.0/np.sqrt(2*np.pi),
+                (1, 0): 1.0/np.sqrt(2*np.pi),
+                (1, 1): 1.0/np.sqrt(2*np.pi)},
+        mulst=[0.0, 0.0], tlst=[1.0, 1.0], dband=1000.0,
+        kerntype=kerntype, itype=1,
+    )
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        system.solve()
+    assert not [w for w in caught if issubclass(w.category, RTDCoherenceWarning)]
+    assert system.appr.rtd_coherence_diagnostics.ratio >= _RTD_COHERENCE_RATIO_WARNING
+
+
+@pytest.mark.parametrize("kerntype", ["pyRTD", "RTD"])
+def test_RTD_reports_zero_tunnel_broadening(kerntype):
+    system = qmeq.Builder(
+        nsingle=2, hsingle={(0, 0): 0.0, (1, 1): 0.1},
+        nleads=2, tleads={}, mulst=[0.0, 0.0], tlst=[1.0, 1.0],
+        dband=1000.0, kerntype=kerntype, itype=1,
+    )
+    with pytest.warns(RTDNoBroadeningWarning, match="no tunnel broadening"):
+        system.solve()
+
+
+def test_RTD_coherence_warning_is_once_but_diagnostic_updates():
+    system = qmeq.Builder(
+        nsingle=2, hsingle={(0, 0): 0.0, (1, 1): 0.004},
+        nleads=2,
+        tleads={(0, 0): 1.0/np.sqrt(2*np.pi),
+                (0, 1): 1.0/np.sqrt(2*np.pi),
+                (1, 0): 1.0/np.sqrt(2*np.pi),
+                (1, 1): 1.0/np.sqrt(2*np.pi)},
+        mulst=[0.0, 0.0], tlst=[1.0, 1.0], dband=1000.0,
+        kerntype="pyRTD", itype=1,
+    )
+    system.solve()
+    appr = system.appr
+    from qmeq.approach.base.RTD import _warn_if_rtd_coherence_is_not_resolved
+    appr.printed_warning_coherence = False
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        _warn_if_rtd_coherence_is_not_resolved(appr)
+        first = appr.rtd_coherence_diagnostics
+        appr.qd.Ea[first.state_b] += 0.004
+        _warn_if_rtd_coherence_is_not_resolved(appr)
+        second = appr.rtd_coherence_diagnostics
+    coherence_warnings = [w for w in caught if issubclass(w.category, RTDCoherenceWarning)]
+    assert len(coherence_warnings) == 1
+    assert second.minimum_splitting == pytest.approx(2*first.minimum_splitting)
 
 
 @pytest.mark.parametrize("kerntype", ["RTD", "pyRTD"])

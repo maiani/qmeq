@@ -17,6 +17,7 @@ import warnings
 from ..._warnings import QmeqRuntimeWarning
 from ...approach.base.RTD import ApproachPyRTD as ApproachPyRTD
 from ...approach.base.RTD import _warn_if_unequal_temperature_cutoff_is_small
+from ...approach.base.RTD import _warn_if_rtd_coherence_is_not_resolved
 from ...approach.aprclass import Approach as ApproachPy
 
 from ...wrappers.mytypes import doublenp
@@ -208,6 +209,7 @@ cdef class ApproachRTD(Approach):
         cdef bool_t off_diag_corrections = self.funcp.off_diag_corrections
 
         _warn_if_unequal_temperature_cutoff_is_small(self.qd, self.leads)
+        _warn_if_rtd_coherence_is_not_resolved(self)
 
         if np.any(abs(self.leads.Tba.imag)>0):
             self.set_Ozaki_params()

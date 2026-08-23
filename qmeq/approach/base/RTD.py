@@ -1,6 +1,7 @@
 """Module containing RTD Approach."""
 
 from itertools import product
+from dataclasses import dataclass
 
 import numpy as np
 import itertools
@@ -23,6 +24,7 @@ from ..kernel_handler import KernelHandlerRTD
 
 _IMAGINARY_TUNNEL_PRODUCT_RTOL = 1e-12
 _RTD_WIDEBAND_RATIO_WARNING = 1e3
+_RTD_COHERENCE_RATIO_WARNING = 10.0
 
 
 def _has_significant_imaginary_part(value):
@@ -32,6 +34,40 @@ def _has_significant_imaginary_part(value):
 
 class RTDBandwidthWarning(QmeqRuntimeWarning):
     """Warning that an unequal-temperature RTD cutoff may be too small."""
+
+
+class RTDCoherenceWarning(QmeqRuntimeWarning):
+    """Warning that RTD's diagonal-density-matrix approximation is marginal."""
+
+
+class RTDNoBroadeningWarning(QmeqRuntimeWarning):
+    """Warning that RTD has no tunnel broadening for its active states."""
+
+
+@dataclass(frozen=True)
+class RTDCoherenceDiagnostics:
+    """Validity diagnostic for RTD's eliminated same-charge coherences.
+
+    ``gamma`` is a conservative golden-rule estimate: ``2*pi`` times the
+    sum of squared many-body tunnel amplitudes out of each state, averaged
+    over the two states in the closest same-charge pair.  It omits Fermi
+    factors, so it is an upper-scale estimate of the coherence broadening.
+    The diagonal approximation is flagged when the closest splitting is less
+    than ten times this scale.
+
+    ``charge``, ``state_a`` and ``state_b`` identify the closest pair, and
+    ``clamped_coherences`` counts same-charge splittings below the inverse
+    Liouvillian clamp used by RTD.
+    """
+
+    minimum_splitting: float
+    gamma: float
+    ratio: float
+    threshold: float
+    charge: int
+    state_a: int
+    state_b: int
+    clamped_coherences: int
 
 
 def _rtd_bandwidth_ratio(qd, leads):
@@ -75,6 +111,87 @@ def _warn_if_unequal_temperature_cutoff_is_small(qd, leads):
         )
 
 
+def _warn_if_rtd_coherence_is_not_resolved(appr):
+    """Warn when RTD's population-only treatment is outside its regime.
+
+    The legacy RTD kernel eliminates same-charge coherences with a bare
+    inverse energy difference.  For each many-body state we estimate its
+    tunnel width from all adjacent-charge transitions, using
+    ``Gamma = 2*pi*sum(|T|**2)``.  The coherence width is the mean of the two
+    state widths.  A ten-to-one splitting-to-width margin is used as a
+    conservative validity screen: the warning is diagnostic only and does
+    not change the kernel.
+    """
+    si, energies, Tba = appr.si, np.asarray(appr.qd.Ea), np.asarray(appr.leads.Tba)
+    widths = np.zeros(si.nmany, dtype=float)
+    for charge, states in enumerate(si.statesdm):
+        neighbours = []
+        if charge:
+            neighbours.extend(si.statesdm[charge - 1])
+        if charge + 1 < si.ncharge:
+            neighbours.extend(si.statesdm[charge + 1])
+        for state in states:
+            widths[state] = 2.0*np.pi*sum(
+                np.sum(np.abs(Tba[:, state, other])**2) for other in neighbours
+            )
+
+    closest = None
+    clamped_coherences = 0
+    for states in si.statesdm:
+        for i, state in enumerate(states):
+            for other in states[i + 1:]:
+                splitting = abs(float(energies[state] - energies[other]))
+                if splitting < 1e-10:
+                    clamped_coherences += 1
+                gamma = 0.5*(widths[state] + widths[other])
+                ratio = splitting/gamma if gamma > 0.0 else np.inf
+                if closest is None or ratio < closest.ratio:
+                    closest = RTDCoherenceDiagnostics(
+                        splitting, gamma, ratio, _RTD_COHERENCE_RATIO_WARNING,
+                        -1, state, other, 0,
+                    )
+
+    if closest is not None:
+        # Recover the sector without relying on the global state ordering.
+        for charge, states in enumerate(si.statesdm):
+            if closest.state_a in states:
+                closest = RTDCoherenceDiagnostics(
+                    closest.minimum_splitting, closest.gamma, closest.ratio,
+                    closest.threshold, charge, closest.state_a,
+                    closest.state_b, clamped_coherences,
+                )
+                break
+    appr.rtd_coherence_diagnostics = closest
+    if closest is not None and closest.gamma == 0.0:
+        if not getattr(appr, 'printed_warning_no_broadening', False):
+            warnings.warn(
+                "RTD found no tunnel broadening for the same-charge states "
+                "used in its population kernel. The stationary kernel may be "
+                "singular; check that tunnel amplitudes connect the intended "
+                "states and leads.",
+                RTDNoBroadeningWarning,
+                stacklevel=3,
+            )
+            appr.printed_warning_no_broadening = True
+        return
+    if (closest is not None and closest.ratio < _RTD_COHERENCE_RATIO_WARNING
+            and not getattr(appr, 'printed_warning_coherence', False)):
+        warnings.warn(
+            "RTD eliminates same-charge coherences although the closest "
+            "intra-sector splitting is %.3g for states (%d, %d) in charge "
+            "%d, the estimated coherence "
+            "broadening is %.3g (ratio %.3g; required %.3g). The diagonal "
+            "density-matrix approximation is not controlled at this point; "
+            "use a coherence-retaining method or verify convergence away "
+            "from the degeneracy." % (
+                closest.minimum_splitting, closest.state_a, closest.state_b,
+                closest.charge, closest.gamma, closest.ratio, closest.threshold),
+            RTDCoherenceWarning,
+            stacklevel=3,
+        )
+        appr.printed_warning_coherence = True
+
+
 class ApproachPyRTD(Approach):
 
     kerntype = 'pyRTD'
@@ -92,6 +209,7 @@ class ApproachPyRTD(Approach):
 
     def restart(self):
         Approach.restart(self)
+        self.rtd_coherence_diagnostics = None
         self.Wdd = None
         self.WE1 = None
         self.WE2 = None
@@ -180,6 +298,7 @@ class ApproachPyRTD(Approach):
         off_diag_corrections = self.funcp.off_diag_corrections
 
         _warn_if_unequal_temperature_cutoff_is_small(self.qd, self.leads)
+        _warn_if_rtd_coherence_is_not_resolved(self)
 
         if (not np.all(np.isclose(self.leads.tlst, self.leads.tlst[0]))) or np.any(abs(self.leads.Tba.imag)>0):
             self.set_Ozaki_params()

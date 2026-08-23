@@ -56,6 +56,10 @@ class FunctionProperties(object):
         Multiplication factor used in neumann2py.get_grid_ext(sys), when determining emin and emax.
     suppress_err : bool
         Determines whether to print the warning when the inversion of the kernel failed.
+    suppress_unphysical_wrn : bool
+        Determines whether to warn when a stationary solution is found to be
+        unphysical; the warning is shown at most once per approach instance,
+        while ``approach.stationary_diagnostics`` is updated on every solve.
     off_diag_corrections: bool
         Determines wether to include first oder off-diagonal corrections to the kernel in the
         RTD approach.
@@ -101,6 +105,8 @@ class FunctionProperties(object):
         self.suppress_err = False
         # Warnings shown at most once: 0 - missing phi0_init for mfreeq=True.
         self.suppress_wrn = [False]
+        #
+        self.suppress_unphysical_wrn = False
         #
         self.off_diag_corrections = off_diag_corrections
         #
