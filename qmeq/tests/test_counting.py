@@ -12,7 +12,7 @@ from qmeq.approach.counting import stationary_projected_pseudoinverse
 from qmeq.tests.reference_data import load_reference_bundle
 
 
-_COUNTING_BUNDLE = load_reference_bundle("counting_simon")
+_COUNTING_BUNDLE = load_reference_bundle("counting_reference")
 _COUNTING_SNAPSHOTS = _COUNTING_BUNDLE.resolve(
     _COUNTING_BUNDLE.manifest["snapshots"]
 )
@@ -58,7 +58,7 @@ def _rtd_system(gate, bias, countingleads=(0,)):
 
 @pytest.mark.parametrize("kerntype", FIRST_ORDER_REFERENCE)
 @pytest.mark.parametrize("point_index", range(len(FIRST_ORDER_POINTS)))
-def test_first_order_matches_simon_reference(kerntype, point_index):
+def test_first_order_matches_pinned_counting_reference(kerntype, point_index):
     gate, bias = FIRST_ORDER_POINTS[point_index]
     system = _first_order_system(kerntype, gate, bias)
     system.solve()
@@ -96,7 +96,7 @@ def test_first_order_python_and_selected_backend_agree(kerntype):
 
 
 @pytest.mark.parametrize("point_index", range(len(RTD_POINTS)))
-def test_rtd_matches_simon_reference(point_index):
+def test_rtd_matches_pinned_counting_reference(point_index):
     gate, bias = RTD_POINTS[point_index]
     expected = RTD_REFERENCE[point_index]
     system = _rtd_system(gate, bias)

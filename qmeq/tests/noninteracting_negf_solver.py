@@ -20,7 +20,10 @@ Conventions, fixed here and pinned by ``test_noninteracting_negf_solver.py``:
   :math:`c` is :math:`\\Gamma_c=u_cu_c^\\dagger` with
   :math:`(u_c)_j=g_{cj}^{\\ast}` -- the *conjugate* amplitude; see
   :meth:`NoninteractingModel.amplitude_matrix`. This is QmeQ's own
-  normalisation of ``tleads`` up to :math:`g=\\sqrt{2\\pi}\\,t`.
+  normalisation of ``tleads`` up to
+  :math:`g=\\sqrt{2\\pi}\\,t^{\\ast}`.  The conjugation follows from QmeQ
+  storing the electron-adding matrix element as ``tleads`` whereas ``g``
+  multiplies :math:`\\gamma_c^\\dagger d_j` in the convention above.
 * Currents are **positive inward** (into the dot).
 * The zero-frequency noise is
   :math:`S=\\lim_{t\\to\\infty}\\mathrm d\\,\\mathrm{Var}X(t)/\\mathrm dt`, with
@@ -246,11 +249,13 @@ def model_from_qmeq(nsingle, hsingle=None, coulomb=None, nleads=0,
     )
     if not np.allclose(hamiltonian, hamiltonian.conj().T, atol=1e-12, rtol=0.0):
         raise ValueError("hsingle must define a Hermitian Hamiltonian.")
-    # QmeQ indexes tleads as (lead, state); NEGF stores channels as columns.
+    # QmeQ indexes tleads as (lead, state) and stores the electron-adding
+    # matrix element.  Here g multiplies gamma^dagger d, so g=sqrt(2*pi)*t^*;
+    # NEGF stores channels as columns.
     tleads_matrix = _qmeq_matrix(tleads, nleads, nsingle, "tleads")
     return NoninteractingModel(
         hamiltonian=hamiltonian,
-        couplings=tleads_matrix.T,
+        couplings=np.sqrt(2.0 * np.pi) * tleads_matrix.T.conj(),
         mu=_qmeq_lead_array(mulst, nleads, "mulst"),
         temperature=_qmeq_lead_array(tlst, nleads, "tlst"),
         lead_of_channel=np.arange(nleads),

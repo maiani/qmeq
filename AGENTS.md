@@ -1,228 +1,155 @@
 # AGENTS.md
 
-Guidance for AI agents working in the QmeQ repository.
+Operational guidance for AI agents working in QmeQ. For the project overview,
+features, installation, examples, authorship, and citation information, use
+[README.md](README.md), [INSTALL.md](INSTALL.md), and
+[AUTHORS.md](AUTHORS.md); do not duplicate them here.
 
-## What this is
+## Start with the sources of truth
 
-QmeQ is a Python package for calculating electron transport (particle and
-energy currents) through quantum-dot devices described by Anderson-type models,
-using approximate density-matrix / quantum master equation methods. It is a
-scientific library — correctness of the physics matters more than convenience,
-and results from different approximations are expected to disagree (see the
-"Physics disclaimer" in [qmeq/__init__.py](qmeq/__init__.py)).
+- [TODO.md](TODO.md) owns priorities and open implementation work.
+- [CHANGELOG.md](CHANGELOG.md) owns user-visible changes under `[Unreleased]`.
+- [issues.md](issues.md) owns findings and unresolved questions.
+- Root `*_devplan.md` files are temporary coordination documents. They may
+  guide implementation, but production code, tests, fixtures, and permanent
+  documentation must state durable conventions and provenance directly rather
+  than link to a development plan or copy its phase labels.
+- [docs/README.md](docs/README.md) describes documentation ownership and build
+  status. The successor tree is [docs/](docs/); [legacy_docs/](legacy_docs/) is
+  retained temporarily and must not receive new material.
 
-Implemented approaches: Pauli, Lindblad, Redfield, first-order von Neumann
-(1vN), second-order von Neumann (2vN), and Real Time Diagrammatics (RTD).
-First-order methods also have electron-phonon variants. Zero-frequency current
-counting statistics are opt-in via `countingleads`, with a dedicated
-pure-Python `RTDnoise` approach.
+Read the relevant source and tests before editing. Treat line numbers and status
+claims in plans as snapshots: verify them against the working tree.
 
-## Current focus & direction
+## Preserve scientific meaning
 
-The active effort is **modernization and maintenance**, not new physics. The
-prioritized roadmap lives in [TODO.md](TODO.md) and user-facing changes go in
-[CHANGELOG.md](CHANGELOG.md) under `[Unreleased]`; read both before starting —
-they are the source of truth for what is in flight.
+QmeQ's approaches are approximations and are expected to disagree outside
+their validity regimes. Do not make results agree by weakening tolerances,
+renormalizing outputs, hiding warnings, or changing a convention without a
+derivation. Diagnose differences at the smallest observable layer available:
+kernel blocks, stationary state, current, then derived quantities.
 
-Done recently (see the changelog): the newer `cvsvensson/qmeq` maintenance
-history was merged; packaging moved to `pyproject.toml` with a `>=3.11` Python
-floor and dependency extras (`test`, `docs`, `docs-sphinx`, `dev`); tutorials
-and example scripts were vendored into [examples/](examples/), rendered in the
-legacy Sphinx docs, and run as tests; the docs build cleanly with
-warnings-as-errors; backend selection is explicit through `QMEQ_BACKEND` and
-OpenMP through `QMEQ_OPENMP`; Cython 3 is the standardized build range;
-counting statistics were integrated; and wheels plus Conda packages are built
-and published from CI. Documentation is migrating from Sphinx to MkDocs: the
-Sphinx tree is now [legacy_docs/](legacy_docs/) (still the complete, warning-clean
-release gate) and the MkDocs successor lives at [docs/](docs/) (see
-[docs/README.md](docs/README.md) and the "P2: documentation" section of
-[TODO.md](TODO.md)).
+For numerical changes:
 
-Where it is going, roughly in priority order:
+- write down units, signs, index orientation, conjugation, and normalization;
+- separate structural identities from historical regression values and from
+  independent analytic or exact checks;
+- preserve order-resolved quantities when agreement of a sum could hide a
+  cancellation;
+- exercise nontrivial controls such as unequal couplings, physical complex
+  phases, degeneracies, and limiting scalings where relevant; and
+- document the validity domain and known failure mode, not only the happy path.
 
-- **CI coverage** — still missing: the `-W` docs build, a scheduled/dispatched
-  `--runslow` example job, and a Python-version matrix (only 3.11 is tested,
-  though 3.11-3.14 are claimed and shipped).
-- **Distribution validation** — inspect wheel and sdist contents, run
-  `twine check`, and test the *installed* artifacts rather than the working
-  tree. `build_wheels.yml`'s smoke test does not yet assert that a wheel
-  actually got the compiled backend.
-- **Runtime maintenance** — converting stray `print`s to structured warnings,
-  and clearing deprecated NumPy/SciPy/Cython APIs.
-- **Scientific regression coverage** — a systematic backend-parity layer
-  (electron-phonon approaches have no parity test) and numerical edge cases.
+## Reference data are immutable test inputs
 
-Guiding principle: this is a scientific library — **physics correctness comes
-before convenience**, and different approximations are expected to disagree.
-When in doubt, prefer a change that is easy to verify against the existing
-tests and reference data over a cleverer one that is not.
+Reference bundles live under `qmeq/tests/data/<bundle>/` as validated JSON/NPZ
+pairs and are loaded through `qmeq/tests/reference_data.py`.
 
-## Layout
+- Routine tests must never regenerate or overwrite expected values.
+- Generators belong in `scripts/reference_data/` and must require an explicit
+  output location.
+- Historical bundles must name an exact source revision, generator, model
+  inputs, array schema, and trust classification. Generate them only from the
+  pinned pristine source checkout.
+- A current-tree snapshot is a characterization fixture, not independent proof
+  of correctness. Use analytic limits, exact solvers, conservation laws, or
+  independently derived results for correctness claims.
+- When arrays change, explain which physical or convention change requires it;
+  never refresh a fixture merely to make a failing test green.
 
-- [qmeq/builder/](qmeq/builder/) — user-facing entry points. `Builder` is the
-  main class; `BuilderManyBody` / `BuilderElPh` handle many-body input and
-  electron-phonon coupling. Start here to understand the public API.
-- [qmeq/approach/](qmeq/approach/) — the master-equation solvers.
-  - [qmeq/approach/base/](qmeq/approach/base/) — the six core approaches, plus
-    `RTDnoise.py` for RTD counting statistics.
-  - [qmeq/approach/elph/](qmeq/approach/elph/) — electron-phonon variants.
-  - `aprclass.py` (`Approach`, `ApproachElPh`, `ApproachBase2vN`),
-    `kernel_handler.py`, and `counting.py` are the shared machinery.
-- [qmeq/specfunc/](qmeq/specfunc/) — special functions used by the kernels.
-- [qmeq/wrappers/](qmeq/wrappers/) — LAPACK wrappers and shared numeric types
-  (`mytypes.py`: `doublenp`, `complexnp`).
-- [qmeq/_backend.py](qmeq/_backend.py) — centralized runtime backend selection,
-  extension-group loading, and diagnostic status.
-- `qdot.py`, `indexing.py`, `leadstun.py`, `baths.py` — quantum-dot
-  Hamiltonian, Fock-state indexing, lead tunneling, phonon baths.
-- [qmeq/tests/](qmeq/tests/) — pytest suite (`test_*.py`); external numerical
-  snapshots live under `data/<bundle>/` as validated JSON/NPZ pairs and are
-  loaded through `reference_data.py`. `test_examples.py` runs the vendored
-  examples (see below).
-- [scripts/reference_data/](scripts/reference_data/) — explicit maintainer-only
-  reference generators. Pytest never regenerates expected values.
-- [examples/](examples/) — vendored learning material: `tutorials/` (the
-  numbered `01`-`07` learning path), `scripts/` (runnable `.py`), `appendix/`
-  (reference notebooks), and `legacy_tutorials/` (kept for reference, superseded
-  by the numbered path). Rendered into the legacy Sphinx docs via
-  nbsphinx-link (`legacy_docs/source/examples/*.nblink`); not shipped in the
-  package.
-- [.github/workflows/](.github/workflows/) — `test.yml` (both backends, three
-  toolchains), `lint.yml` (Ruff), `build_wheels.yml` (PyPI-style wheels), and
-  `release.yml` (Conda packages via [recipe/](recipe/) to prefix.dev). The last
-  two are tag/dispatch only and each split into a build job and a publish job.
+## Python and Cython are separate gates
 
-## Cython / pure-Python duality (important)
+Hot paths often have a pure-Python `.py` implementation and a compiled `c_*.pyx`
+twin. Keep them behaviorally consistent. `.pyx` and `.pxd` files are canonical;
+generated `.c`, shared libraries, and build directories are not reviewable
+source changes.
 
-Many hot-path modules exist in two forms: a pure-Python `.py` and a Cython
-`.pyx` (with a `.pxd` header), the latter prefixed `c_` — e.g.
-`base/pauli.py` and `base/c_pauli.pyx`. The compiled versions are optional:
-the package **imports and runs without the extensions built**, falling back to
-pure Python. When editing a `.py` that has a `c_` twin, keep the two
-implementations behaviorally consistent, and remember tests may be exercising
-only the fallback if extensions aren't compiled.
+`QMEQ_BACKEND` is process-wide and read before the first `import qmeq`:
 
-Backend selection is process-wide and is read before the first `import qmeq`:
+- `python` forces the pure-Python implementation;
+- `cython` requires the complete compiled implementation; and
+- `auto` selects Cython only when the extension set is complete.
 
-- `QMEQ_BACKEND=auto` (default) uses Cython when the complete extension set is
-  available and falls back quietly only when extensions are cleanly absent;
-  broken or partial installations still fail.
-- `QMEQ_BACKEND=python` forces the pure-Python runtime and skips extension
-  builds.
-- `QMEQ_BACKEND=cython` requires the compiled runtime and fails clearly if an
-  extension is absent or broken.
+Never restore per-module broad `ImportError` fallbacks; use `qmeq._backend` for
+backend routing. Test forced backends in separate processes and confirm the
+active implementation with `qmeq.get_backend_status()`. A successful build does
+not prove that tests imported the compiled classes.
 
-Do not restore broad `ImportError` fallbacks around individual extensions.
-They hide ABI and dependency failures and can produce a mixed installation.
-Use the centralized loader in `qmeq._backend` for any new optional compiled
-component. `qmeq.get_backend_status()` reports the selected implementation and
-must agree with the classes exercised by backend tests.
+When changing `.pyx` or `.pxd`, regenerate and rebuild before testing. Keep
+OpenMP optional through the existing `QMEQ_OPENMP=auto|on|off` machinery; do
+not call `omp_*` directly from Cython outside the guarded shim.
 
-## Build / test / docs
+## Testing workflow
+
+Start focused, then expand in proportion to risk. The standard fast gates are:
 
 ```bash
-# Editable compiled install (needs Cython and a C compiler; OpenMP is optional)
-QMEQ_BACKEND=cython pip install -e '.[dev]'
-# Force the OpenMP decision instead of probing: on = fail if unavailable,
-# off = build the extensions serially
-QMEQ_OPENMP=on QMEQ_BACKEND=cython pip install -e '.[dev]'
-# Editable pure-Python install
-QMEQ_BACKEND=python pip install -e '.[test]'
-
-# Regenerate C from .pyx/.pxd and build in place
-QMEQ_BACKEND=cython python setup.py build_ext --inplace
-
-# Run the fast suite against each backend in separate processes
+ruff check .
 QMEQ_BACKEND=python pytest qmeq/tests
 QMEQ_BACKEND=cython pytest qmeq/tests
-# Run all Python example scripts (including the slow sweeps)
-QMEQ_BACKEND=python pytest qmeq/tests/test_examples.py --runslow -m "example and not notebook"
-# Run the notebooks explicitly where Jupyter kernels may open local sockets
-QMEQ_BACKEND=python pytest qmeq/tests/test_examples.py --runslow -m notebook
+```
 
-# Build the legacy Sphinx docs (legacy_docs/); needs the `docs-sphinx` extra
-# + the pandoc binary. This is the current warning-clean release gate.
+Run both forced backends after changing backend routing, paired Python/Cython
+logic, numerical types, build configuration, packaged contents, or shared
+reference infrastructure. Tests that switch backends must spawn fresh
+processes rather than mutate the environment after import.
+
+Examples and notebooks are explicit slow tests:
+
+```bash
+QMEQ_BACKEND=python pytest qmeq/tests/test_examples.py --runslow -m "example and not notebook"
+QMEQ_BACKEND=python pytest qmeq/tests/test_examples.py --runslow -m notebook
+```
+
+Run examples through their tests so generated figures and data stay in a
+temporary directory. For packaging work, build wheel and sdist, inspect their
+contents, install each outside the source tree, confirm backend status, and run
+the installed-copy tests. A working-tree pass is not an artifact qualification.
+
+## Documentation routing
+
+Documentation is part of a behavior change:
+
+- public API and parameter semantics: NumPy-style source docstrings;
+- user workflows and approach validity: `docs/docs/guide/`;
+- derivations: `docs/docs/theory/`;
+- internal index, sign, layout, and sentinel contracts:
+  `docs/docs/conventions/`;
+- findings and open questions: `issues.md`;
+- planned work: `TODO.md` or the relevant root development plan; and
+- user-visible release notes: `CHANGELOG.md`.
+
+Do not leave project-management notes in production source or user pages. A
+reader should learn what the code does, not which temporary pass discovered it.
+Do not add new content to `legacy_docs/`.
+
+After a docstring or documentation edit, run the builds used by CI:
+
+```bash
 cd legacy_docs
 QMEQ_BACKEND=python sphinx-build -b html -W --keep-going source build/html
 cd ..
-
-# Build the MkDocs successor (docs/) in strict mode; needs the `docs` extra.
-mkdocs build --strict -f docs/mkdocs.yml
-
-# Remove all build artifacts + generated .c/.so files
-python clean.py
+mkdocs build -f docs/mkdocs.yml
 ```
 
-The example scripts write figures (`*.png`) and data (`*.dat`) into the working
-directory; these are gitignored. `test_examples.py` runs scripts in a temp dir
-so they never touch the tree. Notebook execution is a separate, explicit marker
-group because Jupyter kernels require local sockets.
+## Worktree and finish discipline
 
-Build details live in [setup.py](setup.py) (extension list, OpenMP flags) and
-[pyproject.toml](pyproject.toml). The `.pyx`/`.pxd` files are the canonical
-extension sources and are always cythonized on build; generated `.c` files are
-build artifacts, ignored and untracked. `cimport scipy.linalg.cython_lapack`
-in `c_lapack.pyx` means `scipy` must be present at build time (declared in
-`[build-system] requires`), not just at runtime.
+Assume uncommitted changes belong to the user. Before editing or staging:
 
-OpenMP is optional and selected by `QMEQ_OPENMP=auto|on|off` (default `auto`):
-`setup.py` probes candidate flag sets for the active compiler (`/openmp` for
-MSVC, `-fopenmp` for GCC, `-Xpreprocessor -fopenmp` plus an explicit `-lomp`
-for Apple clang, optionally under `QMEQ_OPENMP_PREFIX`) and falls back to a
-serial build with a warning when none work. `on` turns that fallback into an
-error. A serial build is fully functional: Cython lowers `prange` to an
-ordinary loop, and the two OpenMP API calls in `c_RTD.pyx` go through a
-`#ifdef _OPENMP` shim that reports one thread. Do not call `omp_*` directly
-from a `.pyx` — an unresolved OpenMP symbol is a hard link error on macOS and,
-on Linux, silently yields a module that imports only when something else has
-already loaded an OpenMP runtime. Serial and threaded builds can differ in the
-last bits of reduced quantities (the RTD energy current), because the number of
-per-thread accumulation buffers changes the summation order.
+- confirm the repository top level;
+- inspect staged and unstaged changes separately;
+- preserve unrelated edits, generated artifacts, and intentional deletions;
+- stage explicit relevant paths only; and
+- do not commit, tag, push, or publish without the corresponding user approval.
 
-The supported build range is Cython `>=3.0,<4`, but CI only regenerates the
-extensions with the current Cython 3 release — the declared floor is not
-exercised (tracked under "Test the dependency floors" in [TODO.md](TODO.md)).
-Compiler directives are explicit in `setup.py`. Treat future exception/`nogil` warning cleanup as
-semantic work: do not add `noexcept` merely to silence a diagnostic when an
-error needs to propagate.
+Before handing off a change:
 
-## Conventions & gotchas
-
-- Python 3.11 or newer; runtime dependencies are NumPy and SciPy.
-- Build-time environment: `QMEQ_BACKEND=auto|python|cython` selects the
-  implementation, `QMEQ_OPENMP=auto|on|off` (plus `QMEQ_OPENMP_PREFIX`) selects
-  OpenMP. Both are read at build time *and* `QMEQ_BACKEND` again at import.
-- Use `doublenp` / `complexnp` from [qmeq/wrappers/mytypes.py](qmeq/wrappers/mytypes.py)
-  for array dtypes rather than hard-coding, to stay consistent with the Cython side.
-- Legacy class aliases (`Builder_many_body`, `Builder_elph`) are kept for
-  backwards compatibility — don't remove them.
-- If you change a `.pyx`/`.pxd`, force regeneration and verify behavior against
-  the pure-Python twin. Generated `.c` and platform binaries are build
-  artifacts, not reviewable source changes.
-- `QMEQ_BACKEND` is captured on first import. Use separate processes when
-  testing more than one backend; changing the environment afterward does not
-  switch an imported package.
-- A successful native build and a green compiled suite are separate gates.
-  Confirm the active implementation with `qmeq.get_backend_status()`.
-- Example scripts can produce ignored figures and data in their working
-  directory; run them through `test_examples.py` or from a temporary directory.
-- Known maintenance work and priorities are tracked in [TODO.md](TODO.md);
-  user-facing changes go in [CHANGELOG.md](CHANGELOG.md) under `[Unreleased]`.
-
-## Before finishing a change
-
-- Run the fast suite with the backend relevant to the change.
-- If you touched backend routing, a `.py`/`.pyx` pair, `.pyx`/`.pxd`, numeric
-  types, build configuration, or package contents, run both forced backends in
-  separate processes and confirm the reported backend.
-- For compiled changes, regenerate the extensions from source before testing;
-  do not rely on stale `.c` or `.so` files.
-- Build the Sphinx docs (`legacy_docs/`) with `-W --keep-going` after touching a
-  docstring in one of its four autodoc modules or any other Sphinx source; run
-  the MkDocs build (`docs/`) with `--strict` after touching a page there.
-- For packaging changes, inspect a clean wheel and source distribution and test
-  the installed artifacts, not only the working tree.
-- After changing a workflow, validate it with `actionlint` before pushing; a
-  retired runner label or an unknown action version only shows up at run time
-  otherwise.
-- Update [CHANGELOG.md](CHANGELOG.md) for user-visible changes.
+- run `git diff --check` and the focused tests;
+- run the backend, documentation, packaging, or slow-test gates triggered by
+  the files changed;
+- validate workflow changes with `actionlint` when available;
+- confirm that no test regenerated its own expected data;
+- inspect the final staged diff and list anything intentionally left unstaged;
+  and
+- update durable documentation and `[Unreleased]` when behavior visible to
+  users changed.

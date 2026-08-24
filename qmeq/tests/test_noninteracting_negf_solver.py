@@ -53,12 +53,16 @@ def spinful_double_dot(epsilon1, epsilon2, tc, b1, b2, g_left, g_right,
     hamiltonian[0:2, 2:4] = tc * identity
     hamiltonian[2:4, 0:2] = np.conj(tc) * identity
 
-    tleads = np.zeros((4, 4), dtype=complex)
+    physical_couplings = np.zeros((4, 4), dtype=complex)
     for spin in (0, 1):
-        tleads[spin, spin] = g_left[0]
-        tleads[spin, 2 + spin] = g_left[1]
-        tleads[2 + spin, spin] = g_right[0]
-        tleads[2 + spin, 2 + spin] = g_right[1]
+        physical_couplings[spin, spin] = g_left[0]
+        physical_couplings[spin, 2 + spin] = g_left[1]
+        physical_couplings[2 + spin, spin] = g_right[0]
+        physical_couplings[2 + spin, 2 + spin] = g_right[1]
+
+    # The helper arguments are physical g amplitudes, while the adapter takes
+    # QmeQ's public t convention: g=sqrt(2*pi)*conj(t).
+    tleads = physical_couplings.conj() / np.sqrt(2.0 * np.pi)
 
     # The DQD is expressed through the generic adapter: it is a regression
     # fixture, not a privileged NEGF model.

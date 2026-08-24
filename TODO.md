@@ -35,20 +35,45 @@ Ground rules for anything below:
     with an inline reason. Diagnose and fix that numerical divergence without
     weakening tolerances or normalizing it into the historical fixture.
 
+- [ ] Audit the real projections in the RTD population kernel.
+  - The second-order assembly discards the imaginary part of the four-amplitude
+    product at 16 sites (`tempD.real`/`tempX.real`, `RTD.py:716-846`, mirrored
+    in `c_RTD.pyx`), as does `xcb` at `RTD.py:458`. Either each discarded part
+    is cancelled by a conjugate partner diagram, or flux-dependent physics is
+    being dropped from the *charge* current. Nothing currently distinguishes
+    the two, and `test_RTD_ignores_roundoff_scale_tunnel_phase` only pins that
+    a 2e-18 phase is inert.
+  - Validate this independently against the U=0 reference solver before
+    changing the projection sites.
+
 - [ ] Support the RTD energy and heat currents for complex tunnel amplitudes.
   - Both are currently filled with `nan` and a warning while the charge current
     is computed. That is a sharp edge for any model with flux or interference.
+  - The unfinished derivation is visible as the commented-out `gamma.imag`
+    terms at `RTD.py:543,544,563,564,613,614,632,633`. Validate the energy and
+    heat channels separately from the particle current.
 
 - [ ] Reconcile `RTDnoise` with the default RTD kernel.
   - `RTDnoise` refuses to run unless `off_diag_corrections=False`, so its noise
     comes from a kernel that differs from the one RTD uses by default. Either
     implement the corrections there or quantify and document the discrepancy.
+  - It cannot be bolted on: `RTDnoise` duplicates only the *diagonal* loops as
+    `..._lpm` variants and never generates `Wdn^(1)`/`Wnd^(1)` at all, so the
+    first-order coherence blocks must be made transfer-resolved before the
+    broader traversal can be unified.
+  - Related: the production Laplace derivatives are finite differences at a
+    fixed `lpm_h = 1e-8`, which puts a ~1e-8 roundoff floor under every
+    non-Markovian noise value the package reports. Characterize that floor
+    before replacing the correction's z-dependence analytically.
 
 - [ ] Turn the unequal-temperature RTD cutoff warning into an answer.
   - Thermal-bias results depend on `dband` at percent-to-tens-of-percent level
     and the user is simply told to rerun with larger values. A helper that
     sweeps `dband` and reports observable-level convergence would make the
     documented requirement actually followable.
+  - The U=0 reference solver has no bandwidth cutoff and no equal-temperature
+    restriction, so it can supply the converged answer the sweep should approach,
+    at least in the non-interacting limit.
 
 - [ ] Expand numerical edge-case coverage.
   - Zero and extreme temperatures, narrow and wide bands, nearly degenerate
@@ -116,12 +141,19 @@ Ground rules for anything below:
     artifacts — and which files must change together when a `.py`/`.pyx` pair is
     touched.
 
-- [ ] Collect each approach's validity domain and known failure modes in one
+- [x] Collect each approach's validity domain and known failure modes in one
       documented place.
-  - The material exists but is scattered across tutorial 6's validity table,
-    the `qmeq/__init__.py` disclaimer, and the RTD bandwidth warnings. Promote
-    it into `docs/source/theory/` as one reference keyed by approach, and point
-    the warnings at it.
+  - Done: consolidated into
+    [docs/docs/guide/approaches.md](docs/docs/guide/approaches.md), covering
+    Pauli, Lindblad, Redfield, 1vN, 2vN, RTD, and RTDnoise — pulled from
+    tutorial 6's validity table, the `qmeq/__init__.py` disclaimer, and the
+    RTD bandwidth/coherence/no-broadening warnings in
+    `qmeq/approach/base/RTD.py`, with every claim marked Verified, Stated, or
+    Open per the site's evidence discipline.
+  - Still open: the RTD warning *messages* in `RTD.py` do not yet point
+    readers at the page (a code change, out of scope for a documentation
+    pass) — and this line item's own completion still needs a `CHANGELOG.md`
+    entry, which is left for the next edit to that file.
 
 ## Release gate
 

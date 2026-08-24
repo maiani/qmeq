@@ -33,10 +33,10 @@ jobs:
           qmeq-wheel/bin/python -m pip install "$GITHUB_WORKSPACE"/dist/*.whl
           QMEQ_BACKEND=cython qmeq-wheel/bin/python -c "import qmeq; status = qmeq.get_backend_status(); print(status); assert status['active'] == 'cython'"
           QMEQ_BACKEND=cython qmeq-wheel/bin/python -m pytest --pyargs qmeq.tests.test_reference_data qmeq.tests.test_qmeq_11_references -q
-          QMEQ_BACKEND=cython qmeq-wheel/bin/python -m pytest --pyargs qmeq.tests.test_builder qmeq.tests.test_builder_elph qmeq.tests.test_counting -k "Builder_double_dot_spinful or Builder_elph_double_dot_spinful or simon_reference" -q
+          QMEQ_BACKEND=cython qmeq-wheel/bin/python -m pytest --pyargs qmeq.tests.test_builder qmeq.tests.test_builder_elph qmeq.tests.test_counting -k "Builder_double_dot_spinful or Builder_elph_double_dot_spinful or pinned_counting_reference" -q
           QMEQ_BACKEND=python qmeq-wheel/bin/python -c "import qmeq; status = qmeq.get_backend_status(); print(status); assert status['active'] == 'python'"
           QMEQ_BACKEND=python qmeq-wheel/bin/python -m pytest --pyargs qmeq.tests.test_reference_data qmeq.tests.test_qmeq_11_references -q
-          QMEQ_BACKEND=python qmeq-wheel/bin/python -m pytest --pyargs qmeq.tests.test_builder qmeq.tests.test_builder_elph qmeq.tests.test_counting -k "Builder_double_dot_spinful or Builder_elph_double_dot_spinful or simon_reference" -q
+          QMEQ_BACKEND=python qmeq-wheel/bin/python -m pytest --pyargs qmeq.tests.test_builder qmeq.tests.test_builder_elph qmeq.tests.test_counting -k "Builder_double_dot_spinful or Builder_elph_double_dot_spinful or pinned_counting_reference" -q
 
       - name: Test the installed source distribution
         working-directory: ${{ runner.temp }}
@@ -46,7 +46,7 @@ jobs:
           qmeq-sdist/bin/python -m pip install "$GITHUB_WORKSPACE"/dist/*.tar.gz
           QMEQ_BACKEND=cython qmeq-sdist/bin/python -c "import qmeq; status = qmeq.get_backend_status(); print(status); assert status['active'] == 'cython'"
           QMEQ_BACKEND=cython qmeq-sdist/bin/python -m pytest --pyargs qmeq.tests.test_reference_data qmeq.tests.test_qmeq_11_references -q
-          QMEQ_BACKEND=cython qmeq-sdist/bin/python -m pytest --pyargs qmeq.tests.test_builder qmeq.tests.test_builder_elph qmeq.tests.test_counting -k "Builder_double_dot_spinful or Builder_elph_double_dot_spinful or simon_reference" -q
+          QMEQ_BACKEND=cython qmeq-sdist/bin/python -m pytest --pyargs qmeq.tests.test_builder qmeq.tests.test_builder_elph qmeq.tests.test_counting -k "Builder_double_dot_spinful or Builder_elph_double_dot_spinful or pinned_counting_reference" -q
           QMEQ_BACKEND=python qmeq-sdist/bin/python -c "import qmeq; status = qmeq.get_backend_status(); print(status); assert status['active'] == 'python'"
           QMEQ_BACKEND=python qmeq-sdist/bin/python -m pytest --pyargs qmeq.tests.test_reference_data qmeq.tests.test_qmeq_11_references -q
-          QMEQ_BACKEND=python qmeq-sdist/bin/python -m pytest --pyargs qmeq.tests.test_builder qmeq.tests.test_builder_elph qmeq.tests.test_counting -k "Builder_double_dot_spinful or Builder_elph_double_dot_spinful or simon_reference" -q
+          QMEQ_BACKEND=python qmeq-sdist/bin/python -m pytest --pyargs qmeq.tests.test_builder qmeq.tests.test_builder_elph qmeq.tests.test_counting -k "Builder_double_dot_spinful or Builder_elph_double_dot_spinful or pinned_counting_reference" -q
