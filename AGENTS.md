@@ -9,7 +9,8 @@ features, installation, examples, authorship, and citation information, use
 
 - [TODO.md](TODO.md) owns priorities and open implementation work.
 - [CHANGELOG.md](CHANGELOG.md) owns user-visible changes under `[Unreleased]`.
-- [issues.md](issues.md) owns findings and unresolved questions.
+- [REFERENCES.md](REFERENCES.md) owns stable keys for external literature used
+  by the implementation. The README remains the source for citing QmeQ itself.
 - Root `*_devplan.md` files are temporary coordination documents. They may
   guide implementation, but production code, tests, fixtures, and permanent
   documentation must state durable conventions and provenance directly rather
@@ -39,6 +40,16 @@ For numerical changes:
 - exercise nontrivial controls such as unequal couplings, physical complex
   phases, degeneracies, and limiting scalings where relevant; and
 - document the validity domain and known failure mode, not only the happy path.
+
+For non-obvious formulas, diagram rules, or numerical constructions derived
+from the literature, add a nearby source comment or docstring using a stable
+key from `REFERENCES.md` and the relevant equation or section, for example
+`[Emary2009, Eqs. (40)-(41)]`. Explain any local sign, normalization, or index
+mapping instead of implying that adapted code is a verbatim transcription.
+Verify new bibliographic entries before using them; do not guess equation
+numbers or add vague author-year comments. Paired Python/Cython implementations
+must cite the same source. Avoid citations on routine code where they add no
+scientific provenance.
 
 ## Reference data are immutable test inputs
 
@@ -115,12 +126,13 @@ Documentation is part of a behavior change:
 - derivations: `docs/docs/theory/`;
 - internal index, sign, layout, and sentinel contracts:
   `docs/docs/conventions/`;
-- findings and open questions: `issues.md`;
-- planned work: `TODO.md` or the relevant root development plan; and
+- findings, open questions, and planned work: `TODO.md` or the relevant
+  root development plan; and
 - user-visible release notes: `CHANGELOG.md`.
 
 Do not leave project-management notes in production source or user pages. A
 reader should learn what the code does, not which temporary pass discovered it.
+
 Do not add new content to `legacy_docs/`.
 
 After a docstring or documentation edit, run the builds used by CI:

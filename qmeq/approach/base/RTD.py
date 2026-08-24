@@ -2,6 +2,7 @@
 
 from itertools import product
 from dataclasses import dataclass
+from typing import Literal
 
 import numpy as np
 import itertools
@@ -21,6 +22,10 @@ from ...specfunc.specfunc import BW_Ozaki
 from ...specfunc.specfunc import func_pauli
 from ..aprclass import Approach
 from ..kernel_handler import KernelHandlerRTD
+from ..rtd_blocks import FirstOrderTerm
+from ..rtd_blocks import first_order_block_derivative
+from ..rtd_blocks import generate_population_coherence_blocks
+from ..rtd_blocks import zero_field_coherence_correction
 
 _IMAGINARY_TUNNEL_PRODUCT_RTOL = 1e-12
 _RTD_WIDEBAND_RATIO_WARNING = 1e3
@@ -195,6 +200,7 @@ def _warn_if_rtd_coherence_is_not_resolved(appr):
 class ApproachPyRTD(Approach):
 
     kerntype = 'pyRTD'
+    coherence_laplace_derivatives = False
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -217,6 +223,10 @@ class ApproachPyRTD(Approach):
         self.ImWnd = None
         self.ReWdn = None
         self.ImWdn = None
+        self.ReWnd_dz = None
+        self.ImWnd_dz = None
+        self.ReWdn_dz = None
+        self.ImWdn_dz = None
         self.Lnn_inv = None
 
     def prepare_kernel_handler(self):
@@ -250,6 +260,19 @@ class ApproachPyRTD(Approach):
             self.ImWnd = np.zeros((nleads, kern_size2, kern_size), dtype=self.dtype)
             self.ReWdn = np.zeros((nleads, kern_size, kern_size2), dtype=self.dtype)
             self.ImWdn = np.zeros((nleads, kern_size, kern_size2), dtype=self.dtype)
+            if self.coherence_laplace_derivatives:
+                self.ReWnd_dz = np.zeros(
+                    (nleads, kern_size2, kern_size), dtype=self.dtype
+                )
+                self.ImWnd_dz = np.zeros(
+                    (nleads, kern_size2, kern_size), dtype=self.dtype
+                )
+                self.ReWdn_dz = np.zeros(
+                    (nleads, kern_size, kern_size2), dtype=self.dtype
+                )
+                self.ImWdn_dz = np.zeros(
+                    (nleads, kern_size, kern_size2), dtype=self.dtype
+                )
             self.Lnn_inv = np.zeros((kern_size2, kern_size2), dtype=self.dtype)
 
             kh.ReWnd = self.ReWnd
@@ -276,6 +299,11 @@ class ApproachPyRTD(Approach):
             self.ImWnd.fill(0.0)
             self.ReWdn.fill(0.0)
             self.ImWdn.fill(0.0)
+            if self.coherence_laplace_derivatives:
+                self.ReWnd_dz.fill(0.0)
+                self.ImWnd_dz.fill(0.0)
+                self.ReWdn_dz.fill(0.0)
+                self.ImWdn_dz.fill(0.0)
             self.Lnn_inv.fill(0.0)
 
     def generate_kern(self):
@@ -312,20 +340,11 @@ class ApproachPyRTD(Approach):
                 self.generate_row_1st_energy_kernel(b, bcharge)
                 self.generate_row_2nd_energy_kernel(b, bcharge)
 
-                if off_diag_corrections:
-                    self.generate_col_nondiag_kern_1st_order_nd(b, bcharge)
-
         kern_size = self.get_kern_size()
         self.kern[:kern_size, :kern_size] += np.sum(self.Wdd, 0)
 
         if off_diag_corrections:
-            for bcharge in range(ncharge):
-                for b in statesdm[bcharge]:
-                    for bp in statesdm[bcharge]:
-                        if b == bp:
-                            continue
-                        self.generate_col_nondiag_kern_1st_order_dn(b, bp, bcharge)
-                        self.generate_row_inverse_Liouvillian(b, bp, bcharge)
+            generate_population_coherence_blocks(self)
             self.add_off_diag_corrections()
 
     def add_off_diag_corrections(self):
@@ -340,15 +359,7 @@ class ApproachPyRTD(Approach):
         self.Wdd : ndarray
             (Modifies) The lead-resolved diagonal kernel
         """
-        kh = self.kernel_handler
-        Wcorr = np.zeros(self.Wdd.shape, dtype=doublenp)
-        for l in range(self.si.nleads):
-            # Since off-diagonal kernels contain imaginary numbers we get two contributions to
-            # the kernel
-            Wcorr[l, :, :] += np.matmul(np.matmul(kh.ReWdn[l, :, :], kh.Lnn_inv[:, :]),
-                                        np.sum(kh.ImWnd[:, :], 0))
-            Wcorr[l, :, :] += np.matmul(np.matmul(kh.ImWdn[l, :, :], kh.Lnn_inv[:, :]),
-                                        np.sum(kh.ReWnd[:, :], 0))
+        Wcorr = zero_field_coherence_correction(self)
         self.Wdd += Wcorr
         kern_size = self.get_kern_size()
         self.kern[:kern_size, :kern_size] += np.sum(Wcorr, 0)
@@ -668,7 +679,8 @@ class ApproachPyRTD(Approach):
         # 1) t = Tba(i->f) if charge_i < charge_f else t = Tba(f->i).conj()
         # 2) t_n = t_n.conj() if p_n == -1
         #
-        # Variable names follow Leijnse et al PRB 78, 235424 (2008). Specifically:
+        # [LeijnseWegewijs2008, Eqs. (61)-(65)] Diagram notation.
+        # Specifically:
         # - aNp/aNm: states
         # - eta : electron-hole index
         # - r : lead index
@@ -845,6 +857,75 @@ class ApproachPyRTD(Approach):
                             tempX = -t2X * integralX(-1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, _has_significant_imaginary_part(t2X))
                             kh.add_element_2nd_order(r1, tempX.real, indx0, indx1, a1p, charge + 1, a3m, charge + 2)
 
+    def _coherence_block_derivative(
+            self, tunnel_product: complex, temperature: float,
+            *terms: tuple[int, int, float]) -> tuple[float, float]:
+        """Return the Laplace derivative of one first-order block element.
+
+        Thin adapter over
+        :func:`qmeq.approach.rtd_blocks.first_order_block_derivative`, which
+        owns the term algebra and documents it; the ``(amplitude, eta, u)``
+        triples are described by
+        :class:`qmeq.approach.rtd_blocks.FirstOrderTerm`.  Keeping the algebra
+        there rather than here is what lets the counting composition and the
+        finite-``z`` gate use the same records.
+
+        Parameters
+        ----------
+        tunnel_product : complex
+            The element's common tunnel amplitude product.
+        temperature : float
+            Lead temperature; the block's arguments are scaled by it, so the
+            Laplace derivative carries ``1/T``.
+        *terms : tuple of (int, int, float)
+            ``(amplitude, eta, scaled_energy)`` per Keldysh contribution.
+
+        Returns
+        -------
+        tuple of (float, float)
+            Real and imaginary stored channels of the derivative.
+        """
+        if not self.coherence_laplace_derivatives:
+            return 0.0, 0.0
+        value = first_order_block_derivative(
+            tunnel_product, temperature,
+            tuple(FirstOrderTerm(*term) for term in terms),
+        )
+        return value.real, value.imag
+
+    def _add_coherence_element(
+            self, direction: Literal["dn", "nd"],
+            value_real: float, value_imag: float,
+            derivative_real: float, derivative_imag: float,
+            lead: int, b: int, bp: int, bcharge: int,
+            a: int, ap: int, acharge: int) -> None:
+        """Insert one first-order coherence value and its Laplace derivative."""
+        if direction == "dn":
+            real_dz, imag_dz = self.ReWdn_dz, self.ImWdn_dz
+            real_selector, imag_selector = RtdMatrix.ReWdn, RtdMatrix.ImWdn
+        elif direction == "nd":
+            real_dz, imag_dz = self.ReWnd_dz, self.ImWnd_dz
+            real_selector, imag_selector = RtdMatrix.ReWnd, RtdMatrix.ImWnd
+        else:
+            raise ValueError(f"Unknown coherence-block direction: {direction!r}")
+
+        kh = self.kernel_handler
+        kh.add_matrix_element(
+            value_real, lead, b, bp, bcharge, a, ap, acharge, real_selector
+        )
+        kh.add_matrix_element(
+            value_imag, lead, b, bp, bcharge, a, ap, acharge, imag_selector
+        )
+        if self.coherence_laplace_derivatives:
+            kh.add_matrix_element_to(
+                real_dz, derivative_real, lead,
+                b, bp, bcharge, a, ap, acharge,
+            )
+            kh.add_matrix_element_to(
+                imag_dz, derivative_imag, lead,
+                b, bp, bcharge, a, ap, acharge,
+            )
+
     def generate_col_nondiag_kern_1st_order_dn(self, a1, b1, charge):
         r""" Calculates a column in :math:`W_{dn}^{(1)}`, the part of the full first order off-diagonal kernel
         connecting diagonal :math:`|a2><a2|` and non-diagonal :math:`|a1><b1|` entries of the density matrix.
@@ -868,12 +949,12 @@ class ApproachPyRTD(Approach):
             (Modifies) :math:`\Re(W_{dn}^{(1)})`, the real part of the first order kernel that connects
             diagonal and non-diagonal elements of the density matrix.
         """
-        # Variables naming follow Leijnse et al.PRB 78, 235424(2008).
+        # [LeijnseWegewijs2008, Secs. III-IV] Diagram notation.
 
         (E, si, Tba, mulst, tlst, dlst) = (self.qd.Ea, self.si, self.leads.Tba,
                                            self.leads.mulst, self.leads.tlst, self.leads.dlst)
         PI = np.pi
-        si, kh = self.si, self.kernel_handler
+        si = self.si
         nleads, statesdm, ncharge = si.nleads, si.statesdm, si.ncharge
 
         # final state in higher charge state
@@ -889,8 +970,15 @@ class ApproachPyRTD(Approach):
                                      dlst[l, 0] / tlst[l], dlst[l, 1] / tlst[l])
                     temp1 = PI * t2.real * f - t2.imag * phi0
                     temp2 = t2.real * phi0 + PI * t2.imag * f
-                    kh.add_matrix_element(temp1, l, a2, a2, charge + 1, a1, b1, charge, RtdMatrix.ReWdn)
-                    kh.add_matrix_element(temp2, l, a2, a2, charge + 1, a1, b1, charge, RtdMatrix.ImWdn)
+                    dtemp1, dtemp2 = self._coherence_block_derivative(
+                        t2, tlst[l],
+                        (1, 1, (E1 - mulst[l])/tlst[l]),
+                        (1, -1, (E2 - mulst[l])/tlst[l]),
+                    )
+                    self._add_coherence_element(
+                        "dn", temp1, temp2, dtemp1, dtemp2, l,
+                        a2, a2, charge + 1, a1, b1, charge,
+                    )
         # Final state in lower charge state
         if charge != 0:
             # Loop through diagonal final states
@@ -904,8 +992,15 @@ class ApproachPyRTD(Approach):
                                      dlst[l, 0] / tlst[l], dlst[l, 1] / tlst[l], sign=-1)
                     temp1 = PI * t2.real * f - t2.imag * phi0
                     temp2 = t2.real * phi0 + PI * t2.imag * f
-                    kh.add_matrix_element(temp1, l, a2, a2, charge - 1, a1, b1, charge, RtdMatrix.ReWdn)
-                    kh.add_matrix_element(temp2, l, a2, a2, charge - 1, a1, b1, charge, RtdMatrix.ImWdn)
+                    dtemp1, dtemp2 = self._coherence_block_derivative(
+                        t2, tlst[l],
+                        (1, -1, -(E1 - mulst[l])/tlst[l]),
+                        (1, 1, -(E2 - mulst[l])/tlst[l]),
+                    )
+                    self._add_coherence_element(
+                        "dn", temp1, temp2, dtemp1, dtemp2, l,
+                        a2, a2, charge - 1, a1, b1, charge,
+                    )
         # Loop over final state, conserving charge
         for a2 in statesdm[charge]:
             if charge != ncharge - 1:
@@ -920,8 +1015,14 @@ class ApproachPyRTD(Approach):
                                        dlst[l, 1] / tlst[l], sign=1)
                             temp1 = -PI * t2.real * f - t2.imag * phi0
                             temp2 = -PI * t2.imag * f + t2.real * phi0
-                            kh.add_matrix_element(temp1, l, a2, a2, charge, a1, b1, charge, RtdMatrix.ReWdn)
-                            kh.add_matrix_element(temp2, l, a2, a2, charge, a1, b1, charge, RtdMatrix.ImWdn)
+                            dtemp1, dtemp2 = self._coherence_block_derivative(
+                                t2, tlst[l],
+                                (-1, -1, (E1 - mulst[l])/tlst[l]),
+                            )
+                            self._add_coherence_element(
+                                "dn", temp1, temp2, dtemp1, dtemp2, l,
+                                a2, a2, charge, a1, b1, charge,
+                            )
                     if a1 == a2:  # vertices on lower prop -> state on upper prop cannot change
                         E1 = E[c] - E[a2]
                         for l in range(si.nleads):
@@ -931,8 +1032,14 @@ class ApproachPyRTD(Approach):
                                        dlst[l, 1] / tlst[l], sign=1)
                             temp1 = - PI * t2.real * f + t2.imag * phi0
                             temp2 = - PI * t2.imag * f - t2.real * phi0
-                            kh.add_matrix_element(temp1, l, a2, a2, charge, a1, b1, charge, RtdMatrix.ReWdn)
-                            kh.add_matrix_element(temp2, l, a2, a2, charge, a1, b1, charge, RtdMatrix.ImWdn)
+                            dtemp1, dtemp2 = self._coherence_block_derivative(
+                                t2, tlst[l],
+                                (-1, 1, (E1 - mulst[l])/tlst[l]),
+                            )
+                            self._add_coherence_element(
+                                "dn", temp1, temp2, dtemp1, dtemp2, l,
+                                a2, a2, charge, a1, b1, charge,
+                            )
             if charge != 0:
                 # Intermediate state in lower charge state
                 for c in statesdm[charge - 1]:
@@ -945,8 +1052,14 @@ class ApproachPyRTD(Approach):
                                        dlst[l, 1] / tlst[l], sign=-1)
                             temp1 = - PI * t2.real * f + t2.imag * phi0
                             temp2 = - PI * t2.imag * f - t2.real * phi0
-                            kh.add_matrix_element(temp1, l, a2, a2, charge, a1, b1, charge, RtdMatrix.ReWdn)
-                            kh.add_matrix_element(temp2, l, a2, a2, charge, a1, b1, charge, RtdMatrix.ImWdn)
+                            dtemp1, dtemp2 = self._coherence_block_derivative(
+                                t2, tlst[l],
+                                (-1, -1, -(E1 - mulst[l])/tlst[l]),
+                            )
+                            self._add_coherence_element(
+                                "dn", temp1, temp2, dtemp1, dtemp2, l,
+                                a2, a2, charge, a1, b1, charge,
+                            )
                     if a1 == a2:  # vertices on lower prop -> state on upper prop cannot change
                         E1 = E[a2] - E[c]
                         for l in range(nleads):
@@ -956,8 +1069,14 @@ class ApproachPyRTD(Approach):
                                        dlst[l, 1] / tlst[l], sign=-1)
                             temp1 = - PI * t2.real * f - t2.imag * phi0
                             temp2 = - PI * t2.imag * f + t2.real * phi0
-                            kh.add_matrix_element(temp1, l, a2, a2, charge, a1, b1, charge, RtdMatrix.ReWdn)
-                            kh.add_matrix_element(temp2, l, a2, a2, charge, a1, b1, charge, RtdMatrix.ImWdn)
+                            dtemp1, dtemp2 = self._coherence_block_derivative(
+                                t2, tlst[l],
+                                (-1, 1, -(E1 - mulst[l])/tlst[l]),
+                            )
+                            self._add_coherence_element(
+                                "dn", temp1, temp2, dtemp1, dtemp2, l,
+                                a2, a2, charge, a1, b1, charge,
+                            )
 
     def generate_col_nondiag_kern_1st_order_nd(self, a1, charge):
         r""" Calculates a column in :math:`W_{nd}^{(1)}`, the part of the full first order off-diagonal kernel
@@ -979,12 +1098,12 @@ class ApproachPyRTD(Approach):
             (Modifies) :math:`\Re(W_{nd}^{(1)})`, the real part of the first order kernel that connects
             non-diagonal and diagonal elements of the density matrix.
         """
-        # Variables naming follow Leijnse et al.PRB 78, 235424(2008).
+        # [LeijnseWegewijs2008, Secs. III-IV] Diagram notation.
 
         (E, si, Tba, mulst, tlst, dlst) = (self.qd.Ea, self.si, self.leads.Tba,
                                            self.leads.mulst, self.leads.tlst, self.leads.dlst)
 
-        si, kh = self.si, self.kernel_handler
+        si = self.si
         nleads, statesdm, ncharge = si.nleads, si.statesdm, si.ncharge
         PI = np.pi
 
@@ -1003,8 +1122,15 @@ class ApproachPyRTD(Approach):
                                          dlst[l, 0] / tlst[l], dlst[l, 1] / tlst[l])
                         temp1 = PI * t2.real * f - t2.imag * phi0
                         temp2 = t2.real * phi0 + PI * t2.imag * f
-                        kh.add_matrix_element(temp1, l, a2, b2, charge + 1, a1, a1, charge, RtdMatrix.ReWnd)
-                        kh.add_matrix_element(temp2, l, a2, b2, charge + 1, a1, a1, charge, RtdMatrix.ImWnd)
+                        dtemp1, dtemp2 = self._coherence_block_derivative(
+                            t2, tlst[l],
+                            (1, 1, (E1 - mulst[l])/tlst[l]),
+                            (1, -1, (E2 - mulst[l])/tlst[l]),
+                        )
+                        self._add_coherence_element(
+                            "nd", temp1, temp2, dtemp1, dtemp2, l,
+                            a2, b2, charge + 1, a1, a1, charge,
+                        )
         if charge != 0:
             # Loop over final states, removing electron from the QD
             for a2 in statesdm[charge - 1]:
@@ -1020,8 +1146,15 @@ class ApproachPyRTD(Approach):
                                          dlst[l, 0] / tlst[l], dlst[l, 1] / tlst[l], sign=-1)
                         temp1 = PI * t2.real * f - t2.imag * phi0
                         temp2 = t2.real * phi0 + PI * t2.imag * f
-                        kh.add_matrix_element(temp1, l, a2, b2, charge - 1, a1, a1, charge, RtdMatrix.ReWnd)
-                        kh.add_matrix_element(temp2, l, a2, b2, charge - 1, a1, a1, charge, RtdMatrix.ImWnd)
+                        dtemp1, dtemp2 = self._coherence_block_derivative(
+                            t2, tlst[l],
+                            (1, -1, -(E1 - mulst[l])/tlst[l]),
+                            (1, 1, -(E2 - mulst[l])/tlst[l]),
+                        )
+                        self._add_coherence_element(
+                            "nd", temp1, temp2, dtemp1, dtemp2, l,
+                            a2, b2, charge - 1, a1, a1, charge,
+                        )
         # Loop over final state conserving charge
         for a2 in statesdm[charge]:
             for b2 in statesdm[charge]:
@@ -1038,8 +1171,14 @@ class ApproachPyRTD(Approach):
                                 phi0 = phi((E1 - mulst[l]) / tlst[l], dlst[l, 0] / tlst[l], dlst[l, 1] / tlst[l])
                                 temp1 = - PI * t2.real * f - t2.imag * phi0
                                 temp2 = - PI * t2.imag * f + t2.real * phi0
-                                kh.add_matrix_element(temp1, l, a2, b2, charge, a1, a1, charge, RtdMatrix.ReWnd)
-                                kh.add_matrix_element(temp2, l, a2, b2, charge, a1, a1, charge, RtdMatrix.ImWnd)
+                                dtemp1, dtemp2 = self._coherence_block_derivative(
+                                    t2, tlst[l],
+                                    (-1, -1, (E1 - mulst[l])/tlst[l]),
+                                )
+                                self._add_coherence_element(
+                                    "nd", temp1, temp2, dtemp1, dtemp2, l,
+                                    a2, b2, charge, a1, a1, charge,
+                                )
                         if a1 == a2:
                             E1 = E[c] - E[a2]
                             for l in range(nleads):
@@ -1048,8 +1187,14 @@ class ApproachPyRTD(Approach):
                                 phi0 = phi((E1 - mulst[l]) / tlst[l], dlst[l, 0] / tlst[l], dlst[l, 1] / tlst[l])
                                 temp1 = - PI * t2.real * f + t2.imag * phi0
                                 temp2 = - PI * t2.imag * f - t2.real * phi0
-                                kh.add_matrix_element(temp1, l, a2, b2, charge, a1, a1, charge, RtdMatrix.ReWnd)
-                                kh.add_matrix_element(temp2, l, a2, b2, charge, a1, a1, charge, RtdMatrix.ImWnd)
+                                dtemp1, dtemp2 = self._coherence_block_derivative(
+                                    t2, tlst[l],
+                                    (-1, 1, (E1 - mulst[l])/tlst[l]),
+                                )
+                                self._add_coherence_element(
+                                    "nd", temp1, temp2, dtemp1, dtemp2, l,
+                                    a2, b2, charge, a1, a1, charge,
+                                )
                 if charge != 0:
                     # Intermediate state in lower charge state
                     for c in statesdm[charge - 1]:
@@ -1061,8 +1206,14 @@ class ApproachPyRTD(Approach):
                                 phi0 = phi((E1 - mulst[l])/tlst[l], dlst[l, 0] / tlst[l], dlst[l, 1] / tlst[l], sign=-1)
                                 temp1 = - PI * t2.real * f + t2.imag * phi0
                                 temp2 = - PI * t2.imag * f - t2.real * phi0
-                                kh.add_matrix_element(temp1, l, a2, b2, charge, a1, a1, charge, RtdMatrix.ReWnd)
-                                kh.add_matrix_element(temp2, l, a2, b2, charge, a1, a1, charge, RtdMatrix.ImWnd)
+                                dtemp1, dtemp2 = self._coherence_block_derivative(
+                                    t2, tlst[l],
+                                    (-1, -1, -(E1 - mulst[l])/tlst[l]),
+                                )
+                                self._add_coherence_element(
+                                    "nd", temp1, temp2, dtemp1, dtemp2, l,
+                                    a2, b2, charge, a1, a1, charge,
+                                )
                         if a1 == a2:
                             E1 = E[a2] - E[c]
                             for l in range(nleads):
@@ -1071,8 +1222,14 @@ class ApproachPyRTD(Approach):
                                 phi0 = phi((E1 - mulst[l])/tlst[l], dlst[l, 0] / tlst[l], dlst[l, 1] / tlst[l], sign=-1)
                                 temp1 = - PI * t2.real * f - t2.imag * phi0
                                 temp2 = - PI * t2.imag * f + t2.real * phi0
-                                kh.add_matrix_element(temp1, l, a2, b2, charge, a1, a1, charge, RtdMatrix.ReWnd)
-                                kh.add_matrix_element(temp2, l, a2, b2, charge, a1, a1, charge, RtdMatrix.ImWnd)
+                                dtemp1, dtemp2 = self._coherence_block_derivative(
+                                    t2, tlst[l],
+                                    (-1, 1, -(E1 - mulst[l])/tlst[l]),
+                                )
+                                self._add_coherence_element(
+                                    "nd", temp1, temp2, dtemp1, dtemp2, l,
+                                    a2, b2, charge, a1, a1, charge,
+                                )
 
     def generate_row_inverse_Liouvillian(self, a1, b1, charge):
         """ Calculates a row of :math:`1/(L_{nn})` (in practice only the diagonal is needed) where :math:`L_{nn}` is the part
@@ -1093,7 +1250,7 @@ class ApproachPyRTD(Approach):
             (Modifies) an ndarray representing :math:`1/L_{nn}`. This kernel has noffdiag * noffdiag entries.
 
         """
-        # Variables names follow Leijnse et al PRB 78, 235424 (2008).
+        # [LeijnseWegewijs2008, Sec. IV] Diagram notation.
         E = self.qd.Ea
 
         minE = 1e-10

@@ -443,6 +443,20 @@ class KernelHandlerRTD(KernelHandler):
         """
 
 
+        self.add_matrix_element_to(
+            self.mats[mi], fct, l, b, bp, bcharge, a, ap, acharge
+        )
+
+    def add_matrix_element_to(
+            self, matrix: np.ndarray, fct: float | complex,
+            l: int, b: int, bp: int, bcharge: int,
+            a: int, ap: int, acharge: int) -> None:
+        """Insert into an explicit RTD block using the canonical packed layout.
+
+        This is the composable counterpart of :meth:`add_matrix_element` for
+        block families that are not part of the historical ``RtdMatrix`` enum,
+        such as Laplace derivatives of the population-coherence blocks.
+        """
         indx1 = self.si.get_ind_dm0(b, bp, bcharge)
         indx2 = self.si.get_ind_dm0(a, ap, acharge)
         if b != bp:
@@ -454,8 +468,7 @@ class KernelHandlerRTD(KernelHandler):
             if a > ap:
                 indx2 += self.imag_offset
 
-        mat = self.mats[mi]
-        mat[l, indx1, indx2] += fct
+        matrix[l, indx1, indx2] += fct
 
     def set_matrix_element_dd(self, l, fctm, fctp, bb, aa, mi):
         """
@@ -551,16 +564,16 @@ class KernelHandlerRTD(KernelHandler):
 class KernelHandlerRTDnoise(KernelHandlerNoise, KernelHandlerRTD):
     """Class used for inserting matrix elements into the matrices used in the RTD noise approach."""
 
-    def set_matrix_element_lpm_first(self,l,pfct,dpfct,pm,bb,aa):
-        """ Adds a kernel value (pfct) and the corresponding energy derivative (dpfct) to the the matrix element connecting the states
+    def set_matrix_element_lpm_first(self,l,pfct,pfct_dz,pm,bb,aa):
+        """ Adds a kernel value and its Laplace derivative to the matrix element connecting the states
         bb and aa with counting index pm in the in the counting field dependend first order kernels.
 
         Parameters
         ----------
         pfct : double
             value to be added to Lpm_first[l,pm,bb,aa]
-        dpfct : double
-            value to be added to Lpm_first_dot[l,pm,bb,aa]
+        pfct_dz : double
+            Laplace derivative to be added to Lpm_first_dz[l,pm,bb,aa]
         pm : int
             counting index
         bb : int
@@ -569,14 +582,16 @@ class KernelHandlerRTDnoise(KernelHandlerNoise, KernelHandlerRTD):
             second state/index
         self.Lpm_first : ndarray
             (modifies) the first order counting kernel
-        self.Lpm_first_dot : ndarray
-            (modifies) the energy derivatives of the first order counting kernel
+        self.Lpm_first_dz : ndarray
+            (modifies) the Laplace derivatives of the first order counting kernel
         """
 
         self.Lpm_first[l,pm,bb,aa] += pfct
-        self.Lpm_first_dot[l,pm,bb,aa] += dpfct
+        self.Lpm_first_dz[l,pm,bb,aa] += pfct_dz
 
-    def add_element_2nd_order(self, r0, r1, eta0, eta1, p1, p2, fct, fcth, h, indx0, indx1, a3, charge3, a4, charge4, dx):
+    def add_element_2nd_order(self, r0, r1, eta0, eta1, p1, p2, fct,
+                              fct_dz, indx0, indx1, a3, charge3, a4,
+                              charge4, dx):
         """
         Adds a value to the counting index resolved noise kernel for the diagonal density matrix. Uses symmetries
         between second order diagrams in the RTD approach to add the value to four places in the matrices.
@@ -598,8 +613,9 @@ class KernelHandlerRTDnoise(KernelHandlerNoise, KernelHandlerRTD):
             keldysh index
         fct : float
             value to be added
-        fcth : float
-            shifted value to add numerical derivative
+        fct_dz : complex
+            Laplace derivative, represented by a common negative shift of all
+            three propagator energies
         indx0 : int
             index for inital state
         indx1 : int
@@ -614,8 +630,6 @@ class KernelHandlerRTDnoise(KernelHandlerNoise, KernelHandlerRTD):
             charge of the final state
         dx : string
             indicates if direct or exchange integral
-        dot : bool
-            indicate if energy shifted version for derivative Jprimedot
         self.Wdd : ndarray
             (Modifies) the lead-resolved kernel for the diagonal density matrix.
         """
@@ -645,14 +659,13 @@ class KernelHandlerRTDnoise(KernelHandlerNoise, KernelHandlerRTD):
         self.Lpm_second[r0,r1,cind3[0],cind3[1], indx3, indx1] += -fct
 
         # add derivatives
-        fct_dot = (fcth-fct)/h
-        self.Lpm_second_dot[r0,r1,cind0[0],cind0[1], indx4, indx0] += fct_dot
+        self.Lpm_second_dz[r0,r1,cind0[0],cind0[1], indx4, indx0] += fct_dz
         # Flipping left-most vertex p3 = -p3
-        self.Lpm_second_dot[r0,r1,cind1[0],cind1[1], indx3, indx0] += -fct_dot
+        self.Lpm_second_dz[r0,r1,cind1[0],cind1[1], indx3, indx0] += -fct_dz
         # Flipping right-most vertex p0 = -p0
-        self.Lpm_second_dot[r0,r1,cind2[0],cind2[1], indx4, indx1] += fct_dot
+        self.Lpm_second_dz[r0,r1,cind2[0],cind2[1], indx4, indx1] += fct_dz
         # Flipping left-most and right-most vertices p0 = -p0 and p3 = -p3
-        self.Lpm_second_dot[r0,r1,cind3[0],cind3[1], indx3, indx1] += -fct_dot
+        self.Lpm_second_dz[r0,r1,cind3[0],cind3[1], indx3, indx1] += -fct_dz
 
         # for std currents
         if dx == 'd':

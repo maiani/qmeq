@@ -1,7 +1,7 @@
 """Zero-frequency particle-current cumulants from counting fields.
 
-The implementation follows Eqs. (40) and (41) of C. Emary,
-Phys. Rev. B 80, 235306 (2009).  It constructs the lead-selected jump
+The implementation follows [Emary2009, Eqs. (40)-(41)].
+It constructs the lead-selected jump
 superoperators for QmeQ's first-order approaches and evaluates the first two
 cumulants with the projected pseudoinverse of the stationary kernel.
 """
@@ -314,17 +314,17 @@ def markovian_current_noise_matrix(
 def nonmarkovian_current_noise_matrix(
         kernel, stationary_state, trace_vector, first_derivatives,
         second_derivatives, kernel_derivative,
-        first_derivative_dots):
+        first_derivatives_dz):
     """Evaluate a lead covariance matrix for an energy-dependent kernel.
 
     The derivative arrays are derivatives with respect to the individual
-    counting fields at zero field. ``kernel_derivative`` is the energy
-    derivative of the physical kernel, while ``first_derivative_dots`` holds
-    the mixed energy/counting-field derivatives.
+    counting fields at zero field. ``kernel_derivative`` is the Laplace
+    derivative of the physical kernel, while ``first_derivatives_dz`` holds
+    the mixed Laplace/counting-field derivatives.
     """
     first_derivatives = np.asarray(first_derivatives)
     second_derivatives = np.asarray(second_derivatives)
-    first_derivative_dots = np.asarray(first_derivative_dots)
+    first_derivatives_dz = np.asarray(first_derivatives_dz)
     ncounted = first_derivatives.shape[0]
     expected_second_shape = (
         ncounted, ncounted, *first_derivatives.shape[1:]
@@ -333,9 +333,9 @@ def nonmarkovian_current_noise_matrix(
         raise ValueError(
             "second_derivatives has an incompatible covariance shape."
         )
-    if first_derivative_dots.shape != first_derivatives.shape:
+    if first_derivatives_dz.shape != first_derivatives.shape:
         raise ValueError(
-            "first_derivative_dots must match first_derivatives."
+            "first_derivatives_dz must match first_derivatives."
         )
 
     right, left, _, pseudoinverse = stationary_projected_pseudoinverse(
@@ -350,7 +350,7 @@ def nonmarkovian_current_noise_matrix(
             left @ first_derivatives[i] @ right
         )).item()
         responses[i] = (left @ (
-            first_derivative_dots[i]
+            first_derivatives_dz[i]
             - first_derivatives[i] @ pseudoinverse @ kernel_derivative
         ) @ right).item()
 

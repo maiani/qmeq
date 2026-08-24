@@ -1,8 +1,7 @@
 """RTDnoise structural invariants.
 
 These hold independently of the known real-part truncations in the current
-second-order kernel and RTDnoise's present
-``off_diag_corrections=False``-only limitation. They are computed from a **live
+second-order kernel. They are computed from a **live
 solve** of the same scenario builders used to generate the pinned reference
 bundle (``qmeq/tests/rtdnoise_reference_models.py``); nothing here compares
 against the pinned ``counting_reference`` arrays, so these tests retain

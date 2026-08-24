@@ -320,7 +320,7 @@ def digamma(z):
 @lru_cache(MAX_CACHE)
 def phi(x, Dp, Dm, sign=1):
     """
-    Calculates the phi function, i.e. eq. C4 in PRB 78, 235424, 2008.
+    Calculates the phi function from [LeijnseWegewijs2008, Eq. (C4)].
 
     Parameters
     ----------
@@ -345,7 +345,7 @@ def phi(x, Dp, Dm, sign=1):
 @lru_cache(MAX_CACHE)
 def phi_lpm(x, Dp, Dm, sign=1):
     """
-    Calculates the phi function, i.e. eq. C4 in PRB 78, 235424, 2008.
+    Calculates the phi function from [LeijnseWegewijs2008, Eq. (C4)].
 
     Parameters
     ----------
@@ -660,6 +660,33 @@ def integralD_lpm(lpm_imaginary_2nd, p1, eta0, eta1, E1, E2, E3, T1, T2, mu1, mu
     else:
         return -1j*ret.imag
 
+
+def integralD_lpm_derivative(
+        lpm_imaginary_2nd: bool, p1: int, eta0: int, eta1: int,
+        E1: float, E2: float, E3: float, T1: float, T2: float,
+        mu1: float, mu2: float, D: float, b_and_R: np.ndarray,
+        ImGamma: bool) -> complex:
+    """Centered derivative for a common negative Laplace-energy shift.
+
+    Differentiates the 'direct' integral of
+    [LeijnseWegewijs2008, Eqs. (61)-(65)] numerically rather than in closed
+    form: both branch-stabilised sums would have to be re-derived to
+    differentiate them analytically.  See :func:`_lpm_derivative_step` for the
+    step.
+    """
+    step = _lpm_derivative_step(E1, E2, E3, T1, T2)
+    lower = integralD_lpm(
+        lpm_imaginary_2nd, p1, eta0, eta1,
+        E1-step, E2-step, E3-step, T1, T2, mu1, mu2, D, b_and_R,
+        ImGamma,
+    )
+    upper = integralD_lpm(
+        lpm_imaginary_2nd, p1, eta0, eta1,
+        E1+step, E2+step, E3+step, T1, T2, mu1, mu2, D, b_and_R,
+        ImGamma,
+    )
+    return (lower-upper)/(2.0*step)
+
 def integralX(p1, eta1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma):
     """ Evaluates the 'exchange' integral in the RTD approach. Picks the appropriate way
     of evaluating the integral based on the temperatures. Assumes that the wide band limit is valid.
@@ -760,6 +787,70 @@ def integralX_lpm(lpm_imaginary_2nd, p1, eta0, eta1, E1, E2, E3, T1, T2, mu1, mu
         return -1j*ret
     else:
         return -1j*ret.imag
+
+
+def integralX_lpm_derivative(
+        lpm_imaginary_2nd: bool, p1: int, eta0: int, eta1: int,
+        E1: float, E2: float, E3: float, T1: float, T2: float,
+        mu1: float, mu2: float, D: float, b_and_R: np.ndarray,
+        ImGamma: bool) -> complex:
+    """Centered derivative for a common negative Laplace-energy shift.
+
+    The 'exchange' counterpart of :func:`integralD_lpm_derivative`; the
+    integral is that of [LeijnseWegewijs2008, Eqs. (61)-(65)].
+    """
+    step = _lpm_derivative_step(E1, E2, E3, T1, T2)
+    lower = integralX_lpm(
+        lpm_imaginary_2nd, p1, eta0, eta1,
+        E1-step, E2-step, E3-step, T1, T2, mu1, mu2, D, b_and_R,
+        ImGamma,
+    )
+    upper = integralX_lpm(
+        lpm_imaginary_2nd, p1, eta0, eta1,
+        E1+step, E2+step, E3+step, T1, T2, mu1, mu2, D, b_and_R,
+        ImGamma,
+    )
+    return (lower-upper)/(2.0*step)
+
+
+_CENTERED_DERIVATIVE_STEP_FRACTION = float(np.cbrt(np.finfo(float).eps))
+"""Relative step minimising truncation plus roundoff for a centered rule.
+
+For a centered difference the truncation error is ``O((h/s)**2)`` and the
+roundoff error ``O(eps*s/h)`` in units of the function value, where ``s`` is the
+scale on which the integrand varies.  Their sum is minimised at
+``h/s ~ cbrt(eps)``, leaving a relative error of order ``eps**(2/3)``.
+"""
+
+
+def _lpm_derivative_step(
+        E1: float, E2: float, E3: float,
+        T1: float, T2: float) -> float:
+    """Return a unit-covariant step for a centered first derivative.
+
+    The step is a pure *fraction* of the model's own energy scale, with no
+    absolute floor.  An absolute floor would silently break unit covariance:
+    every argument here is an energy, so multiplying the whole model --
+    energies, chemical potentials, temperatures and couplings -- by a constant
+    must leave the dimensionless difference quotient unchanged.  A step clamped
+    at ``1`` in whatever unit the caller happens to use does not scale with the
+    model, so a model expressed in, say, eV rather than meV would be
+    differentiated with a step thousands of times too coarse relative to its own
+    features.  The remedy is a relative step, not an instruction to the user to
+    rescale their model.
+
+    ``max`` over the arguments is what sets the magnitude, but the *variation*
+    scale of the integrand is the temperature, so the temperatures are included
+    and never dropped even when the energies dominate.  Pinned by
+    ``test_noise_is_covariant_under_an_overall_energy_rescaling``, which is run
+    both far above and far below the removed floor.
+    """
+    scale = max(abs(E1), abs(E2), abs(E3), abs(T1), abs(T2))
+    if scale == 0.0:
+        # Every propagator energy and both temperatures vanish; there is no
+        # scale to be relative to and the integrand is degenerate anyway.
+        return _CENTERED_DERIVATIVE_STEP_FRACTION
+    return _CENTERED_DERIVATIVE_STEP_FRACTION*scale
 
 def _D_integral_equal_T(p1, p2, E1, deltaE, E2, Dp, Dm):
     """
@@ -870,11 +961,10 @@ def _D_integral(p1, p2, z1, z2, z3, T1, T2, mu1, mu2, Dp, Dm, b_and_R):
     Evaluates the 'direct' integral for the RTD approach using the residue theorem to express
     one integral as a sum of Matsubara frequencies, which yields the
     digamma function in the wide band limit. The remaining integral is solved
-    by approximating tanh(z) as a sum of Ozaki frequencies (see Phys. Rev. B
-    75, 035123, 2007).
+    by approximating tanh(z) as a sum of Ozaki frequencies (see [Ozaki2007]).
 
-    See section I.B. of the SI of PRL 120, 017701, 2018 for a  similar procedure
-    without using the Ozaki approximation.
+    See [GergsEtAl2018, Supplemental Material, Sec. I.B] for a similar
+    procedure without the Ozaki approximation.
 
     Parameters
     ----------
@@ -940,11 +1030,10 @@ def _X_integral(p1, p2, z1, z2, z3, T1, T2, mu1, mu2, Dp, Dm, b_and_R):
     """Evaluates the 'direct' integral for the RTD approach using the residue theorem to express
     one integral as a sum of Matsubara frequencies, which is equal to the
     digamma function in the wide band limit. The remaining integral is solved
-    by approximating tanh(z) as a sum of Ozaki frequencies (see Phys. Rev. B
-    75, 035123, 2007).
+    by approximating tanh(z) as a sum of Ozaki frequencies (see [Ozaki2007]).
 
-    See section I.B. of the SI of PRL 120, 017701, 2018 for a  similar procedure
-    without using the Ozaki approximation.
+    See [GergsEtAl2018, Supplemental Material, Sec. I.B] for a similar
+    procedure without the Ozaki approximation.
 
     Parameters
     ----------
@@ -1002,8 +1091,8 @@ def _X_integral(p1, p2, z1, z2, z3, T1, T2, mu1, mu2, Dp, Dm, b_and_R):
 def Ozaki(N):
     """
     Calculates N/2 poles and residues for the Ozaki expansion
-    of tanh(z) along the imaginary axis. See Phys. Rev. B 75, 035123, 2007
-    and Phys. Rev. B 82, 125114, 2010 for details.
+    of tanh(z) along the imaginary axis. See [Ozaki2007] and
+    [KarraschMedenSchoenhammer2010].
 
     Parameters
     ----------

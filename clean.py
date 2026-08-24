@@ -1,9 +1,20 @@
 """Remove build artifacts and generated files from the repository.
 
-Run with ``--dry-run`` to list what would be removed without deleting
-anything. All paths are resolved relative to this script's location, not the
-current working directory, so the cleanup targets stay the same regardless of
-where the script is invoked from.
+Two kinds of artifact are removed, and they have very different costs:
+
+* **caches** -- ``build/``, ``dist/``, ``*.egg-info``, ``__pycache__``, and the
+  test caches. Cheap to regenerate, and stale ones cause real confusion: a
+  leftover ``qmeq.egg-info/SOURCES.txt`` silently overrides ``MANIFEST.in``, so
+  an sdist keeps shipping files the manifest no longer lists.
+* **compiled extensions** -- the in-place ``.so``/``.c``/``.o`` files produced
+  by ``setup.py build_ext --inplace``. Removing these costs a rebuild, and
+  until you do, ``QMEQ_BACKEND=cython`` fails and ``auto`` quietly falls back
+  to pure Python.
+
+The default removes both, as it always has. Use ``--caches-only`` to clear the
+caches while keeping a working compiled backend. ``--dry-run`` lists targets
+without deleting. Paths resolve relative to this script, not the working
+directory.
 """
 
 import argparse
@@ -29,6 +40,9 @@ GENERATED_FILE_PATTERNS = [
     '*.o', '*.so', '*.pyd', '*.dll', '*.pyc', '*.c', '*.html',
 ]
 
+# Of those, the ones whose removal costs a full extension rebuild.
+EXTENSION_SUFFIXES = {'.o', '.so', '.pyd', '.dll', '.c'}
+
 
 def find_targets():
     """Return the directories and files this script would remove."""
@@ -52,9 +66,16 @@ def main():
         '--dry-run', action='store_true',
         help='List what would be removed without deleting anything.',
     )
+    parser.add_argument(
+        '--caches-only', action='store_true',
+        help=('Remove build and test caches but keep the in-place compiled '
+              'extensions, so the Cython backend keeps working.'),
+    )
     args = parser.parse_args()
 
     dirs, files = find_targets()
+    if args.caches_only:
+        files = [f for f in files if f.suffix not in EXTENSION_SUFFIXES]
 
     for d in dirs:
         print(('would remove' if args.dry_run else 'removing') + f' directory {d}')
@@ -65,6 +86,14 @@ def main():
         print(('would remove' if args.dry_run else 'removing') + f' file {f}')
         if not args.dry_run:
             f.unlink()
+
+    removed = sum(1 for f in files if f.suffix in EXTENSION_SUFFIXES)
+    if removed and not args.dry_run:
+        print(
+            f'\nRemoved {removed} compiled artifacts. Rebuild with '
+            '"python setup.py build_ext --inplace" before using '
+            'QMEQ_BACKEND=cython; until then "auto" falls back to pure Python.'
+        )
 
 
 if __name__ == '__main__':

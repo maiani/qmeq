@@ -1,16 +1,22 @@
 # Development plan: RTD validation, counting, general systems, and coherence
 
-Status: P0 validation infrastructure complete; P1 is next. No production RTD
-functionality was changed in P0.
+Status: P0 and P1 are complete. P1's exit gate was reopened after the second
+derivative audit and is now met: the finite-\(z\) projection, the
+differentiation step, and the superseded historical values are all resolved,
+and the residual \(O(\Gamma^2)\) noise term is identified as RTD's finite-`dband`
+wide-band truncation rather than a defect. One convention is carried into P2 as its
+own derivation item: the bare-resolvent orientation \(G_{nn}(z)=1/(\Delta E+z)\)
+is gated by a negative control, not derived. P2 is next.
 
 This is the single authoritative RTD development plan. It covers the validation
 foundation, counting-resolved population kernel, arbitrary complex systems,
 and the eventual full-coherence solver whose stationary unknown is
-\(\rho=\{\rho_{ab}:N_a=N_b\}\).
+\(\rho=\{\rho_{ab}:N_a=N_b\}\), followed by a profile-driven compiled
+evaluator for the shared implementation.
 
 ## 1. Objective
 
-Proceed in four explicit priorities:
+Proceed in five explicit priorities:
 
 1. **P0: validate what exists** — characterize the current RTDnoise path,
    establish independent analytic and historical oracles, and turn every known
@@ -23,7 +29,11 @@ Proceed in four explicit priorities:
    repair and derive the conjugate/counting construction, remove topology- and
    real-amplitude assumptions, and only then unify duplicated traversals; and
 4. **P3: implement the full-coherence approach** once the
-   population/counting machinery is tested and general.
+   population/counting machinery is tested and general; and
+5. **P4: add a profile-driven Cython evaluator** after RTD, RTDnoise, and the
+   coherent approach consume one validated topology/record stream. The
+   compiled path lowers and evaluates that shared representation; it must not
+   introduce a separate handwritten RTDnoise topology.
 
 Explicit non-goals across all priorities are cumulants beyond the second,
 energy/heat-current *noise*, and finite-frequency noise. Through P2,
@@ -51,9 +61,15 @@ implicit conjugate partners and duplicated traversal are unsafe. The current
 `eta0=-1` defect must be fixed only after its transfer labels are derived from
 the diagram rules, not merely from agreement of the summed kernel.
 
-P3 comes last because the population-only elimination is invalid near
+P3 follows the population work because the population-only elimination is invalid near
 degeneracy; a full-coherence stationary unknown is the principled solution, not
 another regularization of the Schur complement.
+
+P4 comes last because compiling the current RTDnoise implementation would
+preserve its duplicated second-order traversal as a third implementation beside
+Python RTD and compiled RTD. Profiling and compilation become worthwhile only
+after P2 and P3 establish the shared record format, scalar evaluators, and
+assembly contracts that the compiled backend can reuse.
 
 ### 1.2 Reused infrastructure and full-coherence boundary
 
@@ -94,19 +110,14 @@ be replaced rather than extended.
 
 Line references are to the working tree at the time of writing.
 
-### 2.1 G1 — RTDnoise refuses the default kernel
+### 2.1 G1 — counting omitted the default coherence correction (resolved in P1)
 
-`qmeq/approach/base/RTDnoise.py:135` raises `NotImplementedError` when
-`off_diag_corrections=True`. Default `RTD` has that option **on**
-(`qmeq/builder/funcprop.py:76`). Every published RTD noise number therefore
-comes from a stationary kernel that differs from the one `RTD` uses by default,
-and the difference is not small in any regime where coherence elimination
-matters at all.
-
-Adding the zero-field correction after building counting kernels does not fix
-this. The correction is itself made of tunnelling vertices; it carries transfer
-of charge and it carries Laplace-energy dependence. It has to be differentiated,
-not appended.
+Before P1, `RTDnoise` raised `NotImplementedError` when
+`off_diag_corrections=True`, although default `RTD` has that option **on**.
+P1 now resolves the first-order population/coherence blocks by lead and signed
+charge transfer, composes the correction in each transfer sector, and adds both
+the correction and its Laplace derivative to the counting kernel. The
+historical `False` mode remains supported and pinned by its original fixtures.
 
 ### 2.2 G2 — real projections in the diagram assembly
 
@@ -215,8 +226,8 @@ tested — the same residual as at \(\Phi=0\), i.e. pure numerics. Two invariant
 become the acceptance test, and both fail today: the `eta0`-summed `Lpm_second`
 must be real (its imaginary part is presently 40% of scale), and its real part
 must equal RTD's second-order kernel. `Lpm_first` is unaffected (`|t|^2`, real by
-construction, imaginary part exactly zero); `Lpm_second_dot` inherits the defect
-through the finite difference and is fixed by the same change.
+construction, imaginary part exactly zero); `Lpm_second_dz` inherits the same
+complex-partner defect and is fixed by the same P2 change.
 
 Scope of the claim, stated so it is not over-read. Tested: the *particle*
 current, at \(U=0\), two leads, spinless, splitting \(\gg\Gamma\), one generic
@@ -226,17 +237,24 @@ energy current, whose `gamma.real` sites are a *separate* and definitely lossy
 truncation (section 2.2, last paragraph) that this probe does not touch. G2 is
 substantially narrowed, not closed.
 
-### 2.3 G3 — finite-difference Laplace derivatives
+### 2.3 G3 — fixed-step Laplace derivatives (resolved in P1)
 
-`ApproachPyRTDnoise.lpm_h = 1e-8` (`RTDnoise.py:28`) sets the step for the
-Laplace derivatives `Lpm_first_dot` and `Lpm_second_dot` (`RTDnoise.py:613`).
-A central difference at \(h=10^{-8}\) on an \(O(1)\) quantity carries roundoff
-of order \(\varepsilon/h\approx10^{-8}\). That is the *floor* on the accuracy of
-every non-Markovian noise value the package currently reports, and it is
-uncomfortably close to the tolerance any downstream consumer would want.
+The historical implementation shifted every propagator energy by a fixed
+`lpm_h = 1e-8`, giving an observed relative roundoff floor of about
+\(2.6\times10^{-8}\) in the calibrated double-dot kernel. P1 removes that
+fixed step completely. First-order population/coherence blocks and the bare
+coherence propagator use analytic derivatives. The complex Matsubara/Ozaki
+direct and exchange integrals use a single scale-aware centered rule,
 
-The \(z\) dependence of the retained terms is analytic and simple. Section 3.3
-replaces the finite difference rather than tuning its step.
+\[
+h=\sqrt[3]{\epsilon_{\rm mach}}\max(1,|E_1|,|E_2|,|E_3|,|T_1|,|T_2|),
+\]
+
+because manually differentiating both branch-stabilized special-function sums
+would duplicate their fragile analytic structure. The production full-kernel
+derivative is checked against an independent five-point stencil using a
+different step. Runtime derivative arrays use `_dz` to name the Laplace
+variable explicitly.
 
 ### 2.4 G4 — duplicated traversal
 
@@ -249,8 +267,9 @@ fix to one — including G2 — silently does not apply to the other.
 ### 2.5 G5 — no compiled counting path
 
 There is no `c_RTDnoise`. `pyRTDnoise` is Python-only. This is acceptable for
-now and is addressed last, after the numerics are settled, per the coherent
-plan's "profile before compiling".
+now. P4 addresses the missing compiled counting path after the numerics and the
+shared RTD/coherent architecture are settled, per the plan's "profile before
+compiling" rule.
 
 ### 2.6 What is already good
 
@@ -594,7 +613,7 @@ Each priority is a sequence of small, reviewable changes. The next priority
 starts only when the previous exit gate passes. Documentation-platform migration
 is complete and out of scope; `legacy_docs/` is merely retained until separate
 housekeeping removes it. Physics documentation changed by this work is still
-part of the relevant P1-P3 change.
+part of the relevant P1-P4 change.
 
 ### P0 — Validate the current implementation
 
@@ -607,8 +626,9 @@ to be wrong.
 1. Keep the QmeQ-1.1 RTD bundle, the legacy bundle, and the pinned counting
    bundle separate: their provenance and trust levels are different.
 2. Store real-amplitude RTDnoise internals and observables:
-   `Lpm_first`, `Lpm_second`, both `_dot` arrays, order-separated stationary
-   states, current, and noise.
+   `Lpm_first`, `Lpm_second`, and both historical `*_dot` fixture arrays,
+   order-separated stationary states, current, and noise. The old suffix is an
+   immutable bundle key only; runtime arrays now use `*_dz`.
 3. Do not store complex-amplitude outputs as references. Preserve the models as
    live invariant/defect tests, because recording a known-wrong value would turn
    a bug into a compatibility contract.
@@ -649,8 +669,8 @@ replacement implementation and not as evidence for \(U\neq0\).
 5. Equilibrium current vanishes; covariance is symmetric; aggregate noise equals
    the independently recomputed sum of lead-resolved entries. The test must not
    compare an assignment to the same expression that produced it.
-6. The fixed-`lpm_h` derivative is checked over a step sweep with Richardson
-   extrapolation, recording the present accuracy floor.
+6. The historical fixed-`lpm_h` derivative is checked over a step sweep with
+   Richardson extrapolation, recording the pre-P1 accuracy floor.
 7. Real-amplitude historical scenarios are unchanged on Python and Cython.
 8. The complex-flux RTDnoise defect is a strict expected failure or a direct
    reproducer: it may not disappear unnoticed during unrelated work.
@@ -717,9 +737,11 @@ RTDnoise path, or change the full stationary unknown.
    RTDnoise's rejection of `off_diag_corrections=True`.
    `off_diag_corrections=False` remains a supported compatibility mode.
 5. Prefer analytic \(\chi\) derivatives. For \(z\), use the analytic
-   \(\partial_zG_{nn}^{(0)}=-[G_{nn}^{(0)}]^2\); if an existing block still
-   requires finite differencing, keep it localized and test it against the P0
-   extrapolated reference instead of expanding P1 into the P2 refactor.
+   \(\partial_zG_{nn}^{(0)}=-[G_{nn}^{(0)}]^2\). Differentiate the
+   first-order blocks analytically; keep numerical differentiation localized to
+   the explicit complex direct/exchange integral functions, with one
+   scale-aware centered rule tested against an independent higher-order
+   stencil.
 6. Make clamp engagement visible in diagnostics and exclude clamped points from
    accuracy gates.
 
@@ -733,6 +755,91 @@ P1 exit gate:
 - counted and ordinary currents agree, conservation and equilibrium tests pass,
   and both forced backends agree; and
 - no P2 complex-amplitude expected failure is weakened or relabelled as passing.
+
+**Status: implementation present; exit gate met (2026-08-24, after the second derivative audit).** The shared
+`qmeq.approach.rtd_blocks` traversal now serves ordinary RTD and the
+counting-resolved correction without extending the historical `RtdMatrix`
+selector. Transfer sectors use
+\(q=N_{\rm final}-N_{\rm initial}\), positive into the quantum dot. Their
+zero-field sum reproduces ordinary RTD's kernel and current to the numerical
+floor. The correction's block and bare-resolvent derivatives are analytic;
+every explicit direct/exchange integral derivative uses the scale-aware
+centered rule described in section 2.3. All live derivative quantities use the
+`_dz` suffix.
+
+The second audit confirmed three corrections: first-order Laplace derivatives
+carry the per-lead chain-rule factor `1/T`; the population-coherence derivative
+contains both the Fermi and `phi` channels and reduces to the diagonal kernel;
+and structurally zero coordinate pairs more than one charge apart are skipped
+without weakening the single-electron selection rule.
+
+The former real-amplitude noise scaling claim is not an exit gate. Extending
+the \(T=1\) sweep toward weaker coupling gives successive local residual slopes
+2.33, 2.17, and 2.08, approaching an \(O(\Gamma^2)\) term. The three reopened
+conditions are now closed as follows.
+
+**Finite-\(z\) projection — closed, with one convention recorded rather than
+derived.** The stored projection was wrong, not merely unpinned. The zero-field
+Schur product is purely imaginary and its Laplace derivative purely real, so
+`1j*product_dz.imag` selected the identically zero channel and
+`coherence_correction_dz` was zero to machine precision. The correction and its
+derivative are one analytic object, \(W_{\rm corr}(z)=-i\,W_{dn}(z)G_{nn}(z)
+W_{nd}(z)\), which also satisfies the counting path's convention of real
+kernels and purely imaginary `_dz` arrays — required for a real noise. The
+composition is now gated against an independent finite-\(z\),
+transfer-resolved reference built from the term decomposition, itself anchored
+element by element against the untouched historical value expressions. The
+correction's derivative enters the noise only at \(O(\Gamma^3)\), which is
+why no pre-existing gate could see any of this. **Still a convention:** the
+bare-resolvent orientation \(G_{nn}(z)=1/(\Delta E+z)\). The gate's negative
+control separates it from the alternative by more than a factor of two, so it
+cannot drift silently, but deriving it in the packed real/imaginary coherence
+layout is tracked as its own P2 item.
+
+**Derivative step — closed.** The absolute `max(1, ...)` floor is replaced by a
+pure fraction of the model's own energy scale. The energy-rescaling covariance
+test now sweeps \(\lambda\) from \(7\) down to \(10^{-3}\), far below the
+removed floor, and fails if the floor is restored.
+
+**Superseded historical values — closed.** No table measured from the corrected
+tree is used. The three affected non-Markovian observables are checked for
+finiteness only; `Lpm_first_dot` is compared as an exact per-lead rescaling of
+the pinned array, which reproduces the historical bundle *and* the precise form
+of the defect, including in the unequal-temperature scenarios where no single
+global factor can match. Their physics is gated by the unequal-temperature
+non-interacting reference and by rescaling covariance.
+
+**The \(O(\Gamma^2)\) noise term is identified and is expected.** It is RTD's
+own finite-`dband` wide-band truncation. Its coefficient falls roughly as
+\(1/\)`dband` — measured \(4.7\times10^{-4}\), \(6.0\times10^{-5}\),
+\(7.9\times10^{-6}\) at `dband` \(10^4\), \(10^5\), \(10^6\) — and the
+exponent recovers toward 3 as `dband` grows. Two candidates are excluded by
+measurement: converging the Matsubara/Ozaki pole count from 190 to 397 to 1121
+leaves the exponent decaying toward 2 (while the second-order kernel then
+matches ordinary RTD's to \(1.2\times10^{-10}\)), and zeroing
+`coherence_correction_dz` moves the residual by under 3% without moving the
+exponent. The non-Markovian term cancels better than 99.9% of the Markovian
+\(O(\Gamma^2)\) error at both temperatures tested.
+
+**The cubic claim is therefore recovered, not withdrawn.** At a converged
+`dband` the corrected-noise residual is cubic again over the original coupling
+window: exponent 2.62 at `dband` \(10^5\), 3.26 at \(10^7\), 3.28 at
+\(10^8\) for \(T=1\), and 2.99 / 3.01 / 3.01 for \(T=0.5\) — converged in
+`dband` and stable in temperature. The exponent assertion is not widened at the
+contaminated `dband`; it is moved to the converged one, with the \(1/\)`dband`
+scaling and the Markovian cancellation fraction as the cheap companions.
+`dband` convergence is now a documented requirement for noise, not only for
+unequal temperatures.
+
+This work is tagged `1.2.0.dev2`. The three reopened conditions are closed and
+the fourth finding is expected rather than a defect; the resolvent orientation
+above ships gated rather than derived, and its derivation is P2 item 7.
+
+The generic-complex-amplitude defect remains a P2 failure and has not been
+weakened. Its RTDnoise consequences are now pinned by live reproducers: at flux
+\(\pi/2\) the counting **particle current** exponent collapses to 2 while
+ordinary RTD's stays at 3, and the transfer-resolved correction is exact for
+complex amplitudes, which localizes the defect to the second-order traversal.
 
 ### P2 — Complex amplitudes and arbitrary population-space systems
 
@@ -765,7 +872,13 @@ topologies.
 6. Derive the missing complex energy/heat-current terms or retain the current
    `nan` plus warning. Energy/heat support has a separate gate and must not
    block correct particle current/noise.
-7. Profile before adding a compiled counting evaluator.
+7. Derive the bare-resolvent orientation \(G_{nn}(z)=1/(\Delta E+z)\) in the
+   packed real/imaginary coherence layout, rather than inheriting it from P1's
+   negative-control gate. P1 closed with this as a recorded convention: the gate
+   separates it from the opposite orientation by more than a factor of two, so
+   it cannot drift silently, but it is not derived. Deriving it also fixes the
+   sign convention the finite-\(z\) reference is built against.
+8. Profile before adding a compiled counting evaluator.
 
 P2 exit gate: all complex-amplitude defect reproducers pass on both backends;
 real-amplitude fixtures are unchanged; generic-flux \(U=0\) current and noise
@@ -896,12 +1009,11 @@ checks pass, and the `dd` projection still reproduces the P2 population engine.
 6. Until energy/heat-current coherence terms are derived, raise a clear
    `NotImplementedError` rather than returning population-only approximations.
 
-#### P3.5 Backend, performance, and public API
+#### P3.5 Profiling hand-off and public API
 
 Profile diagram generation, integral evaluation, assembly, memory, and solve
-time before compiling. Lower only measured hot paths to typed arrays and keep
-one topology generator. Validate Python and compiled implementations in
-separate processes with confirmed backend status.
+time, and record the representative workloads and hot-path boundaries that P4
+will use. Do not add a second topology generator for performance.
 
 Once validated, make counting opt-in on the population and coherent RTD
 approaches. Keep `RTDnoise`/`pyRTDnoise` only as compatibility aliases with
@@ -942,8 +1054,53 @@ Liouville blocks come from one topology stream; no full-coherence clamp exists;
 diagnostics expose nonuniqueness and conditioning; the marked current and
 counting derivatives agree; exact and near-degenerate `U=0` models agree with
 NEGF in the derived regime; independent interacting checks pass where
-applicable; legacy fixtures remain unchanged; and both backends plus release
-documentation and installed-artifact tests pass.
+applicable; legacy fixtures remain unchanged; the Python implementation and
+existing compiled RTD compatibility projection pass; and release documentation
+and installed-artifact tests pass before P4.
+
+### P4 — Profile-driven Cython evaluator
+
+P4 adds compiled execution only after P2 and P3 have removed the semantic
+duplication. It is not a line-by-line `c_RTDnoise.pyx` port. Python remains the
+single topology generator; Cython consumes a lowered, typed representation of
+the same immutable records and must support both population/counting and
+full-coherence assembly.
+
+1. Profile representative P2 and P3 workloads separately for topology
+   generation, direct/exchange integral evaluation, counting/Laplace
+   derivatives, matrix insertion, memory, and the stationary solve. Compile
+   only costs that materially affect end-to-end runtime.
+2. Define a stable lowered record table using typed numeric arrays and explicit
+   enum/integer tags. Its round trip to the auditable Python records must be
+   checked before it is used for production assembly.
+3. Port the measured scalar hot paths, including the Laplace-dependent
+   direct/exchange integrals and their `_dz` evaluation when they dominate.
+   Preserve the same branch-stabilized limits and derivative conventions as
+   the Python evaluator.
+4. Implement one compiled evaluator/assembler for the shared record stream.
+   Parameterize its endpoint layout and output tensors rather than creating
+   separate handwritten RTD, RTDnoise, and coherent diagram traversals.
+5. Route the compiled backend only after per-record, per-transfer, per-order,
+   kernel, stationary-state, current, and noise parity passes in fresh forced
+   Python/Cython processes. Confirm the selected implementation with
+   `qmeq.get_backend_status()`.
+6. Benchmark serial and optional-OpenMP builds, memory use, and installed wheel
+   and sdist behavior. Do not ship a compiled path whose measured speed-up does
+   not justify its maintenance and packaging cost.
+7. Keep `RTDnoise` and `pyRTDnoise` as compatibility aliases. Selecting
+   counting or the compiled backend must not change the zero-field kernel,
+   stationary state, ordinary current, diagnostics, or supported-observable
+   contract.
+
+P4 exit gate: the compiled path contains no independent topology rules; all
+lowered-record and observable parity gates pass for real and complex amplitudes,
+arbitrary-system structural cases, and the P3 coherence matrix; both forced
+backends and installed artifacts report the expected implementation; optional
+OpenMP and serial builds are correct; and representative benchmarks show and
+document a material end-to-end benefit. If profiling finds no such benefit,
+P4 exits with the compiled evaluator deliberately unshipped and the evidence
+recorded instead of adding a maintenance-only backend.
+
 ## 6. Test matrix
 
 | Model / regime | Assertion | Reference |
@@ -959,7 +1116,7 @@ documentation and installed-artifact tests pass.
 | Large bias, small transmission | Fano factor \(\to1\) | Analytic limit |
 | `off_diag_corrections=False` | Every pinned counting fixture | Historical regression |
 | Real-amplitude fixtures across P1/P2 | Unmoved | Characterization |
-| Both backends, all of the above | Parity in separate processes | Structural |
+| Python through P3; both backends after P4 | Parity in separate processes | Structural |
 
 Tolerances scale with matrix norm, machine precision, summation count, and
 solver conditioning, and are never widened to make a failing test pass. Where
@@ -978,13 +1135,12 @@ its outputs:
    \(U=0\) reference solver must agree at every graded operating point in the \(U=0\)
    subset, and the first two must agree everywhere. Nothing should be graded
    against a value that only one implementation has ever produced.
-2. **Accuracy budget.** The task grades at \(10^{-6}\) relative. Section 2.3's
-   \(\approx10^{-8}\) finite-difference floor is inside that budget but not
-   comfortably, and it is not measured. P1's exit gate requires it to be
-   measured; if the analytic derivatives do not clear \(10^{-6}\) by a wide
-   margin at the intended operating points, the reference values are not fit to
-   grade against and the task's tolerance or its operating points must change,
-   not the gate.
+2. **Accuracy budget.** The task grades at \(10^{-6}\) relative. P0 measured the
+   old fixed-step derivative floor and P1 removed that scheme. The production
+   full-kernel derivative now agrees with an independent five-point stencil far
+   inside the grading budget. This remains a gate at every intended operating
+   point; if a singular or poorly conditioned point violates it, change the
+   operating point or grading contract rather than widening the physics gate.
 
 Lifting the benchmark's real-amplitude restriction (section 2.2) depends on P2,
 and generic-flux operating points should not be added to the task before that
@@ -1003,9 +1159,10 @@ phase's exit gate passes.
 | Reference solver's independence eroded by convenience | Section 4.5: array-level signature, no `Builder`/`approach` imports, test-only; any public promotion is a wrapper over the unchanged core, pinned by test |
 | Residual-scaling fit misread | Exponent derived per observable before the sweep; truncation-order control run; fit reported in failures |
 | Unification changes numbers | P2 shadow mode first, activation and deletion in separate changes |
-| Finite-difference floor silently limits the benchmark | Measured in P0 and gated in P1 |
+| Numerical Laplace differentiation silently limits the benchmark | Scale-aware centered rule, independent five-point full-kernel gate, and analytic derivatives where the closed form is simple |
 | Energy current blocks the noise work | Explicitly gated separately in P2; `nan` may persist |
 | Scope creep into full coherence before P3 | Coherence stays eliminated through P2; P3 begins only after its hand-off gates pass |
+| A direct `c_RTDnoise` port creates a third topology implementation | P4 compiles only the lowered shared record evaluator after P2/P3 unification |
 
 ## 9. Definition of done
 
@@ -1017,8 +1174,9 @@ phase's exit gate passes.
   known-defect reproducers before production changes;
 - one diagram traversal eventually serves the physical and counting-resolved
   population kernels in P2, and the duplicated `..._lpm` loops are gone;
-- Laplace derivatives are analytic in production, with a test-only
-  finite-difference reference solver and a measured accuracy floor;
+- Laplace derivatives are analytic for the first-order blocks and bare
+  coherence propagator; explicit complex direct/exchange integrals use one
+  scale-aware centered rule checked by a test-only five-point reference;
 - no real projection discards a physical imaginary part in the particle-current
   path, and observables are gauge-invariant and flux-periodic for arbitrary
   complex amplitudes;
@@ -1029,8 +1187,9 @@ phase's exit gate passes.
 - the deep-blockade cotunnelling regime has an independent analytic check;
 - the near-degeneracy clamp is observable in the diagnostics and never fires in
   a graded regime;
-- both backends pass in separate processes, with the compiled counting evaluator
-  present or its absence documented; the separate documentation migration is
-  not part of these gates; and
+- P4 either ships one profile-justified compiled evaluator for population,
+  counting, and coherent assembly with forced-backend parity, or records that
+  compilation has no material benefit and deliberately leaves it unshipped;
+  the separate documentation migration is not part of these gates; and
 - the approach-validity documentation states the truncation, the validation
   envelope, and what the reference solver does not certify.

@@ -12,10 +12,10 @@ reference-source commit, not against the current working tree. Current QmeQ solv
 the same models during testing and must reproduce the pinned block-level and
 cumulant arrays within the manifest tolerances.
 
-Every scenario forces ``off_diag_corrections=False``. ``RTDnoise`` raises
-``NotImplementedError`` for ``off_diag_corrections=True``
-(``qmeq/approach/base/RTDnoise.py:135``); until that limitation is removed,
-``False`` is the only value RTDnoise accepts.
+Every historical scenario forces ``off_diag_corrections=False`` because the
+pinned source predates the counting-resolved coherence correction.  That
+compatibility mode remains supported; the immutable fixtures must not be
+regenerated with the newer default mode.
 
 Two scenario families are provided, and they are used differently:
 
@@ -211,6 +211,13 @@ _SNAPSHOT_FIELDS = (
     "current_noise_matrix_first",
 )
 
+# Keep the pinned bundle's original field names immutable while exposing the
+# differentiation variable explicitly in the live implementation.
+_LIVE_FIELD_NAMES = {
+    "Lpm_first_dot": "Lpm_first_dz",
+    "Lpm_second_dot": "Lpm_second_dz",
+}
+
 
 def solve_rtdnoise_scenario(system, scenario):
     """Solve a scenario, silencing one expected and irrelevant warning.
@@ -244,5 +251,8 @@ def rtdnoise_scenario_snapshot(scenario, *, use_selected_backend=False):
         scenario,
     )
     appr = system.appr
-    snapshot = {field: np.asarray(getattr(appr, field)) for field in _SNAPSHOT_FIELDS}
+    snapshot = {
+        field: np.asarray(getattr(appr, _LIVE_FIELD_NAMES.get(field, field)))
+        for field in _SNAPSHOT_FIELDS
+    }
     return snapshot, system

@@ -168,6 +168,26 @@ def test_RTD_warns_for_unresolved_same_charge_coherence(kerntype):
     assert diagnostic.clamped_coherences == 0
 
 
+def test_RTDnoise_exposes_inverse_coherence_clamp_in_diagnostics():
+    system = qmeq.Builder(
+        nsingle=2,
+        hsingle={(0, 0): 0.0, (1, 1): 1e-12},
+        nleads=2,
+        tleads={(0, 0): 1.0/np.sqrt(2*np.pi),
+                (0, 1): 1.0/np.sqrt(2*np.pi),
+                (1, 0): 1.0/np.sqrt(2*np.pi),
+                (1, 1): 1.0/np.sqrt(2*np.pi)},
+        mulst=[0.5, -0.5], tlst=[1.0, 1.0], dband=1000.0,
+        kerntype="pyRTDnoise", countingleads=(0,), itype=1,
+        off_diag_corrections=True,
+    )
+    with pytest.warns(RTDCoherenceWarning, match="not controlled"):
+        system.solve(currentq=False)
+
+    diagnostic = system.appr.rtd_coherence_diagnostics
+    assert diagnostic.clamped_coherences > 0
+
+
 @pytest.mark.parametrize("kerntype", ["pyRTD", "RTD"])
 def test_RTD_does_not_warn_when_same_charge_splitting_is_resolved(kerntype):
     system = qmeq.Builder(

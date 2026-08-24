@@ -89,10 +89,10 @@ are covered in `legacy_docs/source/theory/counting_statistics.rst`.
 
 `off_diag_corrections` (default `True`) includes RTD's off-diagonal
 corrections in the population kernel. It has no effect for approaches other
-than RTD/RTDnoise, and `RTDnoise` specifically requires it to be `False` —
-passing `True` there raises `NotImplementedError` (RTDnoise does not
-implement the corrections; see [The approaches](approaches.md#rtdnoise)),
-per `qmeq/approach/base/RTDnoise.py`.
+than RTD/RTDnoise. RTDnoise resolves the same correction by lead and transferred
+charge so that it contributes consistently to current and noise. Set it to
+`False` only to reproduce the historical population-only RTDnoise kernel; see
+[The approaches](approaches.md#rtdnoise) for the remaining validity limits.
 
 ## The main result attributes
 

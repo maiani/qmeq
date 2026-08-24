@@ -117,8 +117,10 @@ cdef double_t bose(double_t x, double_t sign=1) noexcept nogil:
 
 @cython.cdivision(True)
 cdef double_t phi(double_t x, double_t Dp, double_t Dm, double_t sign=1) noexcept nogil:
-    """ Calculates the phi function in Leijnse & Wegevijs 2008. Assumes Dm
-        and Dp are rescaled with temperature."""
+    """Calculates phi from [LeijnseWegewijs2008, Eq. (C4)].
+
+    Assumes Dm and Dp are rescaled with temperature.
+    """
     cdef complex_t Z = 0.5 + x/(2*pi)*1j
     cdef double_t ret = sign*(-digamma(Z).real + log(0.5*(fabs(Dp)+fabs(Dm))/(2.0*pi)))
     return ret

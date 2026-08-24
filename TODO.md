@@ -53,19 +53,6 @@ Ground rules for anything below:
     terms at `RTD.py:543,544,563,564,613,614,632,633`. Validate the energy and
     heat channels separately from the particle current.
 
-- [ ] Reconcile `RTDnoise` with the default RTD kernel.
-  - `RTDnoise` refuses to run unless `off_diag_corrections=False`, so its noise
-    comes from a kernel that differs from the one RTD uses by default. Either
-    implement the corrections there or quantify and document the discrepancy.
-  - It cannot be bolted on: `RTDnoise` duplicates only the *diagonal* loops as
-    `..._lpm` variants and never generates `Wdn^(1)`/`Wnd^(1)` at all, so the
-    first-order coherence blocks must be made transfer-resolved before the
-    broader traversal can be unified.
-  - Related: the production Laplace derivatives are finite differences at a
-    fixed `lpm_h = 1e-8`, which puts a ~1e-8 roundoff floor under every
-    non-Markovian noise value the package reports. Characterize that floor
-    before replacing the correction's z-dependence analytically.
-
 - [ ] Turn the unequal-temperature RTD cutoff warning into an answer.
   - Thermal-bias results depend on `dband` at percent-to-tens-of-percent level
     and the user is simply told to rerun with larger values. A helper that
@@ -88,20 +75,32 @@ Ground rules for anything below:
     under a name you own (Trusted Publishing, no token) or point the
     instructions at the release assets or a git URL.
 
-- [ ] Make wheels and source distributions self-consistent and verified.
-  - Tighten `MANIFEST.in` so the sdist carries docs, tests, Cython sources, and
-    examples without `docs/build` or other generated artifacts; keep examples
-    out of the installed wheel.
-  - Build both artifacts, inspect their file lists and sizes, run
-    `twine check`, then install each into a clean environment and run import,
-    metadata, and fast-test checks against the installed copy.
-  - `build_wheels.yml`'s smoke test never asserts
-    `get_backend_status()['active'] == 'cython'`, so a wheel that silently fell
-    back to pure Python would ship unnoticed.
-  - A focused CI job now installs both artifacts outside the source tree,
-    asserts both requested backends, and runs the shared external-reference
-    checks. Extend that gate to inspect the complete artifact inventory and run
-    broader import, metadata, and fast-suite checks.
+- [x] Make wheels and source distributions self-consistent and verified.
+  - `MANIFEST.in` ships both documentation trees, the vendored examples, and
+    the root distribution documents, and prunes build output, the notebook
+    symlink, and generated figures. Root markdown is an explicit allowlist
+    rather than `*.md`, so agent guidance and development plans stay out of a
+    distribution. Cython sources and test bundles come from `package-data`.
+  - `.github/scripts/check_artifact_inventory.py` asserts what each artifact
+    must and must not contain, and runs in `artifacts.yml` after `twine check`.
+    `twine check` validates metadata rendering, not contents, and an install
+    only proves that what is present imports; neither notices a missing
+    notebook or a leaked development document. Verified in both directions
+    against a deliberately doctored sdist.
+  - `.github/scripts/check_installed_metadata.py` asserts that the installed
+    distribution version matches `qmeq.__version__`, plus name and
+    `Requires-Python`. It runs against both installed artifacts in
+    `artifacts.yml`. A skew here would make `build_wheels.yml`'s tag check
+    compare against one version while users see the other.
+  - `.github/scripts/check_wheel_backend.py` runs in `build_wheels.yml` before
+    the suite. `CIBW_TEST_COMMAND` runs with `QMEQ_BACKEND` unset, so `auto`
+    would let a wheel whose extensions failed to build pass silently. The
+    script forces `cython` ahead of the first import and asserts the active
+    backend; checked in both directions.
+  - `clean.py` gained `--caches-only`, and reports when it removed compiled
+    artifacts. The default is unchanged, but the rebuild it forces is no longer
+    silent. Worth keeping: a stale `qmeq.egg-info/SOURCES.txt` silently
+    overrode the `MANIFEST.in` change above until `clean.py` cleared it.
 
 - [ ] Test the dependency floors, not just the current releases.
   - NumPy, SciPy, Cython, and the build backend are unpinned and only ever

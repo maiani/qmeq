@@ -174,21 +174,45 @@ and noise at both orders for comparison; `current_noise_matrix` /
 
 **Known limitations:**
 
-- **Requires `off_diag_corrections=False`.** RTDnoise does not implement RTD's
-  off-diagonal corrections and raises `NotImplementedError` if they are
-  requested (`qmeq/approach/base/RTDnoise.py`) — so its noise comes from a
-  kernel that differs from the one RTD uses *by default*
-  (`off_diag_corrections=True`). The two kernels have not yet been
-  reconciled.
+- **Complex amplitudes are broken here, and silently.** With real tunnel
+  amplitudes, `off_diag_corrections=True` includes the same eliminated-coherence
+  block as ordinary RTD, resolved by lead and transferred charge for noise; the
+  legacy `False` mode remains available. But RTDnoise's *own* second-order
+  traversal conjugates one vertex factor instead of the whole amplitude
+  product, so at a generic flux its second-order kernel is wrong — and the
+  damage is not confined to the noise. Measured against the exact
+  non-interacting reference at flux `pi/2`, the **particle current** loses the
+  `O(Gamma**2)` accuracy it claims (residual exponent 2.0 instead of 3.0), with
+  no warning raised. Ordinary RTD is unaffected on that path: its exponent
+  stays 3.0 at the same operating point, so its second-order `.real`
+  projections are an identity there rather than a truncation. Treat any
+  RTDnoise number at complex amplitudes as unvalidated, including the current.
 - **Requires a nonempty `countingleads`** and raises `ValueError` without one;
   matrix-free solving (`mfreeq=True`) raises `NotImplementedError`.
-- **A fixed finite-difference step underlies every non-Markovian value.** The
-  Laplace-transform derivatives used internally are finite differences at a
-  hardcoded step `lpm_h = 1e-8` (set in `ApproachPyRTDnoise.__init__`,
-  `qmeq/approach/base/RTDnoise.py`), which puts a roughly `1e-8` roundoff
-  floor under every reported non-Markovian noise value; an analytic
-  derivative is not yet implemented.
-- Inherits every RTD limitation above, including the unequal-temperature
+- **Laplace derivatives use two controlled paths.** The first-order blocks and
+  bare coherence propagator are differentiated analytically, per-lead in
+  `1/T`, with the reduction to the diagonal first-order kernel as the
+  acceptance test. The explicit second-order direct/exchange integrals use a
+  scale-relative centered derivative, with a step proportional to the largest
+  energy or temperature scale; the assembled derivative is tested against an
+  independent five-point stencil. The step is a pure fraction of the model's
+  own energy scale with no absolute floor, so it is unit covariant: results do
+  not change if the whole model is expressed in different energy units.
+- **The noise inherits RTD's wide-band error as an `O(Gamma**2)` term.**
+  Against the exact non-interacting reference, the corrected-noise residual is
+  cubic in the coupling over a normal operating window but settles onto
+  `Gamma**2` deep in the weak-coupling tail. That term is the finite-`dband`
+  truncation, not a missing counting contribution: its coefficient falls
+  roughly as `1/dband` (measured `4.7e-4`, `6.0e-5`, `7.9e-6` at `dband` `1e4`,
+  `1e5`, `1e6`) and it is unaffected by converging the Matsubara/Ozaki pole
+  count. Converging `dband` restores the cubic residual over the same window
+  (exponent 2.62, 3.26, 3.28 at `dband` `1e5`, `1e7`, `1e8`). Treat `dband`
+  convergence as a requirement for noise, not only for unequal temperatures.
+- Inherits every RTD limitation above -- including RTD's own complex-amplitude
+  limitation on the *energy* and *heat* currents, which is separate from the
+  above: `WE1`/`WE2` keep only `gamma.real`, so with any significant
+  `gamma.imag` both are filled with `nan` and a warning is raised rather than a
+  wrong number returned -- and including the unequal-temperature
   `dband` requirement (RTDnoise counting calculations must also be repeated at
   increasing `dband` until convergence).
 - Counting is not implemented for 2vN, electron-phonon approaches, or

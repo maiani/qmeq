@@ -1,13 +1,31 @@
-# Include *.md files
-include *.md
+# Root documentation and metadata, listed explicitly. A blanket *.md would
+# also ship the agent guidance and the temporary root development plans, which
+# are repository-workflow documents, not part of a distribution. REFERENCES.md
+# is shipped because source docstrings cite its keys.
+include README.md
+include INSTALL.md
+include LICENSE.md
+include AUTHORS.md
+include CHANGELOG.md
+include REFERENCES.md
 
-# Include both documentation trees: the legacy Sphinx manual (legacy_docs/) and
-# the MkDocs successor (docs/). Neither build output is source, so prune it.
+# Both documentation trees: the legacy Sphinx manual and the MkDocs successor.
+# Neither build output is source, so prune it.
 recursive-include legacy_docs *
 prune legacy_docs/build
 recursive-include docs *
 prune docs/site
-# docs/docs/notebooks is a symlink to examples/, so MkDocs can render the
-# tutorial notebooks without a second copy of them. Following it into the
-# sdist would duplicate every notebook; examples/ is shipped on its own.
+
+# docs/docs/notebooks is a symlink to examples/. The notebooks are shipped
+# once, through examples/ below; following the symlink would duplicate them.
 prune docs/docs/notebooks
+
+# Vendored tutorials, scripts, and appendix notebooks. Shipped in the sdist so
+# a source distribution is self-contained, and excluded from the wheel because
+# packages.find only collects qmeq*, so examples/ is not an installed package.
+recursive-include examples *
+recursive-exclude examples *.png *.dat *.pyc
+prune examples/.ipynb_checkpoints
+
+# Cython sources and test reference bundles are declared as package-data in
+# pyproject.toml; setuptools carries them into the sdist from there.

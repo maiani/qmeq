@@ -25,12 +25,20 @@ jobs:
           python -m build
           python -m twine check dist/*
 
+      - name: Check the artifact inventory
+        # twine check validates metadata rendering, not contents, and an
+        # install only proves that what is present imports. Neither notices a
+        # missing notebook or a repository-workflow document leaking into a
+        # distribution.
+        run: python .github/scripts/check_artifact_inventory.py dist/
+
       - name: Test the installed wheel
         working-directory: ${{ runner.temp }}
         run: |
           python -m venv qmeq-wheel
           qmeq-wheel/bin/python -m pip install pytest
           qmeq-wheel/bin/python -m pip install "$GITHUB_WORKSPACE"/dist/*.whl
+          qmeq-wheel/bin/python "$GITHUB_WORKSPACE"/.github/scripts/check_installed_metadata.py
           QMEQ_BACKEND=cython qmeq-wheel/bin/python -c "import qmeq; status = qmeq.get_backend_status(); print(status); assert status['active'] == 'cython'"
           QMEQ_BACKEND=cython qmeq-wheel/bin/python -m pytest --pyargs qmeq.tests.test_reference_data qmeq.tests.test_qmeq_11_references -q
           QMEQ_BACKEND=cython qmeq-wheel/bin/python -m pytest --pyargs qmeq.tests.test_builder qmeq.tests.test_builder_elph qmeq.tests.test_counting -k "Builder_double_dot_spinful or Builder_elph_double_dot_spinful or pinned_counting_reference" -q
@@ -44,6 +52,7 @@ jobs:
           python -m venv qmeq-sdist
           qmeq-sdist/bin/python -m pip install pytest
           qmeq-sdist/bin/python -m pip install "$GITHUB_WORKSPACE"/dist/*.tar.gz
+          qmeq-sdist/bin/python "$GITHUB_WORKSPACE"/.github/scripts/check_installed_metadata.py
           QMEQ_BACKEND=cython qmeq-sdist/bin/python -c "import qmeq; status = qmeq.get_backend_status(); print(status); assert status['active'] == 'cython'"
           QMEQ_BACKEND=cython qmeq-sdist/bin/python -m pytest --pyargs qmeq.tests.test_reference_data qmeq.tests.test_qmeq_11_references -q
           QMEQ_BACKEND=cython qmeq-sdist/bin/python -m pytest --pyargs qmeq.tests.test_builder qmeq.tests.test_builder_elph qmeq.tests.test_counting -k "Builder_double_dot_spinful or Builder_elph_double_dot_spinful or pinned_counting_reference" -q

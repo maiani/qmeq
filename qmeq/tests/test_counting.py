@@ -305,19 +305,19 @@ def test_rtd_matrix_sum_matches_aggregate_nonmarkovian_formula():
         approach.Lpm_first, approach.Lpm_second, counted
     )
     L0p, Lp1p, Lp2p, Lm2p, Lm1p = approach.build_counting_kernels(
-        approach.Lpm_first_dot, approach.Lpm_second_dot, counted
+        approach.Lpm_first_dz, approach.Lpm_second_dz, counted
     )
     P, O, _, R = stationary_projected_pseudoinverse(
         approach.kern, approach.phi0, approach.norm_vec
     )
     Jp = 1j * (Lp1 - Lm1 + 2 * Lp2 - 2 * Lm2)
     Jpp = -Lp1 - Lm1 - 4 * Lp2 - 4 * Lm2
-    Jdot = L0p + Lp1p + Lp2p + Lm2p + Lm1p
-    Jdotp = 1j * (Lp1p - Lm1p + 2 * Lp2p - 2 * Lm2p)
+    Jdz = L0p + Lp1p + Lp2p + Lm2p + Lm1p
+    Jdzp = 1j * (Lp1p - Lm1p + 2 * Lp2p - 2 * Lm2p)
     current = -1j * (O @ Jp @ P)
     noise = (
         -(O @ (Jpp - 2 * Jp @ R @ Jp) @ P)
-        + 2 * current * (O @ (Jdotp - Jp @ R @ Jdot) @ P)
+        + 2 * current * (O @ (Jdzp - Jp @ R @ Jdz) @ P)
     )
 
     np.testing.assert_allclose(
@@ -498,12 +498,6 @@ def test_unsupported_counting_modes_raise():
         qmeq.Builder(
             nleads=1, kerntype="pyRTD", countingleads=(0,)
         ).solve()
-
-    with pytest.raises(NotImplementedError, match="off-diagonal"):
-        qmeq.Builder(
-            nleads=1, kerntype="pyRTDnoise", countingleads=(0,)
-        ).solve()
-
 
 def test_rtd_sequential_limit_agrees_with_pauli():
     gamma = 1e-4

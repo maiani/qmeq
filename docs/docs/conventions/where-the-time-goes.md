@@ -182,7 +182,7 @@ The levers, in the order the profile suggests:
     per-thread axis. Memory is reached before flops become the limit, and
     because the matrix is 99 % dense there is no sparse escape.
 
-This is the profiling data the coherent-RTD plan's Phase 8 asks for
-("record diagram counts, generation time, integral time, assembly time, memory,
-solve time"). It answers that question in advance: the cost will be integrals
-and enumeration, not linear algebra.
+For future coherence-retaining RTD work, record diagram counts, generation
+time, integral time, assembly time, memory, and solve time against this
+baseline. The data already show that the dominant cost will be integrals and
+enumeration, not linear algebra.

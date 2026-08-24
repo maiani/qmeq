@@ -2,8 +2,81 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Store the counting-resolved coherence correction's Laplace derivative in the
+  channel that is not identically zero. The zero-field Schur product
+  `Wdn G Wnd` is purely imaginary and its Laplace derivative purely real, so
+  `1j*product_dz.imag` kept nothing: `coherence_correction_dz` was zero to
+  machine precision and the correction contributed nothing to the
+  non-Markovian noise. The pair is one analytic object,
+  `W_corr(z) = -1j*Wdn(z) G(z) Wnd(z)`, which also matches the counting path's
+  convention of real kernels and purely imaginary `_dz` arrays. Gated against
+  an independent finite-`z`, transfer-resolved reference; the effect on the
+  noise is `O(Gamma**3)`, which is why no existing gate saw it.
+- Make the second-order Laplace differentiation step unit covariant. The
+  `max(1.0, ...)` floor was absolute, so a model whose whole energy scale sat
+  below `1` in the caller's units was differentiated with a step orders of
+  magnitude too coarse relative to its own features. The step is now a pure
+  fraction of the model's energy scale, and the energy-rescaling covariance
+  test sweeps far below the removed floor as well as above it.
+
+- Correct the RTDnoise first-order Laplace derivatives. `phi` and the Fermi
+  function take the scaled argument `(E-mu)/T`, so `d/dz` carries `1/T_lead`;
+  the pre-existing diagonal derivative and the new population-coherence blocks
+  both omitted it. The reported non-Markovian noise was therefore not
+  covariant under an overall rescaling of `E`, `mu`, `T` and `Gamma`, and
+  carried a leading `O(Gamma**2)` error against the exact non-interacting
+  reference at every temperature except `T = 1` -- which is where every
+  existing gate ran. The pinned QmeQ-1.1 `Lpm_first_dot` bundle now confirms
+  the correction exactly: current values equal the historical array divided by
+  `T_lead` per lead, in the unequal-temperature scenarios too.
+- Complete the analytic population-coherence Laplace derivative. `pi*f(u) +
+  1j*phi(u)` is a single analytic function of the scaled energy, so its
+  derivative cannot keep the `phi'` channel and drop the `pi*f'` one; the
+  latter is ~0.8 times the size of the former and cancels only in the diagonal
+  limit. Four of the twelve call sites also took the sign of the `phi`
+  coefficient where the sign of the `pi*f` coefficient was required, which
+  cancelled the charge-conserving derivative outright. The block's reduction to
+  the diagonal first-order kernel at `a1 == b1` is now a test, at unequal lead
+  temperatures.
+- Stop rejecting population/coherence coordinate pairs whose charges differ by
+  more than one electron. Such pairs are not connected by a first-order vertex,
+  so their block is structurally zero; rejecting them by charge alone made
+  `off_diag_corrections=True` raise `ValueError` in RTDnoise for any dot with
+  more than two single-particle levels. Rejection is now conditional on a
+  nonzero amplitude, and a three-level scenario covers it.
+
 ### Added
 
+- Support RTD's eliminated-coherence correction in `RTDnoise` when
+  `off_diag_corrections=True`. First-order population-coherence blocks now have
+  one shared traversal, an explicit-array insertion path independent of the
+  historical `RtdMatrix` selector, and a lead- and transfer-resolved Schur
+  composition with analytic Laplace derivatives. Summing its transfer sectors
+  reproduces the ordinary RTD kernel and current, and the exact non-interacting
+  reference confirms the corrected real-amplitude *current* at the retained
+  order. The corresponding noise claim is **not** settled: see the open item
+  below. `off_diag_corrections=False` remains the immutable historical-fixture
+  mode; the known generic-complex-amplitude defect is unchanged.
+- Replace RTDnoise's fixed `1e-8` Laplace-energy shifts with analytic
+  derivatives for first-order coherence blocks and the bare propagator, plus a
+  scale-aware centered derivative for every explicit second-order
+  direct/exchange integral. A full-kernel test compares the latter against an
+  independent five-point stencil. Live derivative arrays use the explicit
+  `_dz` suffix; the old `*_dot` names remain only as immutable historical
+  fixture keys.
+- Identify the surviving `O(Gamma**2)` term in the corrected RTDnoise noise
+  residual as RTD's own finite-`dband` wide-band truncation, not a missing
+  counting contribution. Its coefficient falls roughly as `1/dband` and is
+  unaffected by converging the Matsubara/Ozaki pole count or by the coherence
+  correction's Laplace derivative. `dband` convergence is therefore a
+  requirement for noise, not only for unequal temperatures. The former
+  `superquadratic` exponent assertion is not widened to accommodate it; it is
+  moved to a converged `dband`, where the residual is cubic again over the same
+  coupling window (exponent 2.62, 3.26, 3.28 at `dband` 1e5, 1e7, 1e8), and
+  joined by gates on the `1/dband` scaling and on how much of the Markovian
+  `O(Gamma**2)` error the non-Markovian term cancels.
 - Warn when legacy RTD's diagonal-density-matrix approximation is not
   spectrally resolved. The diagnostic estimates each same-charge coherence's
   broadening from `2*pi*sum(|T|**2)` over adjacent-charge transitions, uses a
