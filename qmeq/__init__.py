@@ -14,20 +14,23 @@ implemented the following first-order methods
 * Redfield approach
 * First order von Neumann (1vN) approach
 
-which can describe the effect of Coulomb blockade. QmeQ also has one
-second-order method
+which can describe the effect of Coulomb blockade, and the following
+second-order methods
 
 * Second order von Neumann (2vN) approach
+* Real Time Diagrammatics (RTD) approach
 
 which can additionally address cotunneling, pair tunneling, and
-broadening effects.
+broadening effects. Zero-frequency current noise and lead-resolved covariance
+are available as an opt-in view of the same kernels through ``countingleads``;
+see ``RTDnoise`` for the RTD case.
 
 Physics disclaimer
 ------------------
 
 All the methods in QmeQ are approximate so depending on parameter regime they
 can fail, and a good knowledge of the method is required whether to trust the
-result or not. For example, Redfield, 1vN, and 2vN approaches can violate
+result or not. For example, Redfield, 1vN, 2vN, and RTD approaches can violate
 positivity of the reduced density matrix and lead to currents flowing against
 the bias. We still think it is important to have a package where a user can
 duplicate existing calculations, check applicability of different methods, or
