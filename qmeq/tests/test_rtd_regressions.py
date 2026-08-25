@@ -163,6 +163,8 @@ def test_RTD_warns_for_unresolved_same_charge_coherence(kerntype):
     diagnostic = system.appr.rtd_coherence_diagnostics
     assert diagnostic.ratio < _RTD_COHERENCE_RATIO_WARNING
     assert diagnostic.gamma > 0.0
+    assert diagnostic.gamma < diagnostic.gamma_upper_bound
+    assert diagnostic.ratio > diagnostic.upper_bound_ratio
     assert diagnostic.state_a != diagnostic.state_b
     assert diagnostic.charge == 1
     assert diagnostic.clamped_coherences == 0

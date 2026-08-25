@@ -29,7 +29,7 @@ from ..rtd_blocks import zero_field_coherence_correction
 
 _IMAGINARY_TUNNEL_PRODUCT_RTOL = 1e-12
 _RTD_WIDEBAND_RATIO_WARNING = 1e3
-_RTD_COHERENCE_RATIO_WARNING = 10.0
+_RTD_COHERENCE_RATIO_WARNING = 5.0
 
 
 def _has_significant_imaginary_part(value):
@@ -53,12 +53,17 @@ class RTDNoBroadeningWarning(QmeqRuntimeWarning):
 class RTDCoherenceDiagnostics:
     """Validity diagnostic for RTD's eliminated same-charge coherences.
 
-    ``gamma`` is a conservative golden-rule estimate: ``2*pi`` times the
-    sum of squared many-body tunnel amplitudes out of each state, averaged
-    over the two states in the closest same-charge pair.  It omits Fermi
-    factors, so it is an upper-scale estimate of the coherence broadening.
-    The diagonal approximation is flagged when the closest splitting is less
-    than ten times this scale.
+    ``gamma`` is the sequential escape broadening: the sum of the actual
+    Fermi-weighted golden-rule rates out of each state, averaged over the two
+    states in the closest same-charge pair.  For a coherence ``|a><b|`` this
+    is the damping scale ``(Gamma_a + Gamma_b)/2`` that competes with the bare
+    oscillation frequency ``|E_a-E_b|``.  The diagonal approximation is
+    flagged when the closest splitting is less than five times this scale.
+
+    ``gamma_upper_bound`` omits the reservoir occupations and is retained as
+    a deliberately conservative spectral-width scale.  It is reported for
+    comparison but no longer drives the warning: in Coulomb blockade it can
+    greatly exceed the available sequential decay rate.
 
     ``charge``, ``state_a`` and ``state_b`` identify the closest pair, and
     ``clamped_coherences`` counts same-charge splittings below the inverse
@@ -73,6 +78,8 @@ class RTDCoherenceDiagnostics:
     state_a: int
     state_b: int
     clamped_coherences: int
+    gamma_upper_bound: float
+    upper_bound_ratio: float
 
 
 def _rtd_bandwidth_ratio(qd, leads):
@@ -120,25 +127,32 @@ def _warn_if_rtd_coherence_is_not_resolved(appr):
     """Warn when RTD's population-only treatment is outside its regime.
 
     The legacy RTD kernel eliminates same-charge coherences with a bare
-    inverse energy difference.  For each many-body state we estimate its
-    tunnel width from all adjacent-charge transitions, using
-    ``Gamma = 2*pi*sum(|T|**2)``.  The coherence width is the mean of the two
-    state widths.  A ten-to-one splitting-to-width margin is used as a
-    conservative validity screen: the warning is diagnostic only and does
-    not change the kernel.
+    inverse energy difference.  For each many-body state we sum its outgoing
+    sequential rates, including the lead occupations already stored in
+    ``paulifct``.  The damping rate of ``|a><b|`` is estimated by the mean of
+    the two state escape rates.  This is the dissipative scale in the
+    first-order coherence block that the bare inverse neglects
+    [LeijnseWegewijs2008, Eqs. (53), (56)-(59)].  A five-to-one
+    splitting-to-rate margin is diagnostic only and does not change the
+    kernel.  The former occupation-independent value is retained as an upper
+    bound in :class:`RTDCoherenceDiagnostics`.
     """
     si, energies, Tba = appr.si, np.asarray(appr.qd.Ea), np.asarray(appr.leads.Tba)
     widths = np.zeros(si.nmany, dtype=float)
-    for charge, states in enumerate(si.statesdm):
-        neighbours = []
-        if charge:
-            neighbours.extend(si.statesdm[charge - 1])
-        if charge + 1 < si.ncharge:
-            neighbours.extend(si.statesdm[charge + 1])
-        for state in states:
-            widths[state] = 2.0*np.pi*sum(
-                np.sum(np.abs(Tba[:, state, other])**2) for other in neighbours
-            )
+    upper_widths = np.zeros(si.nmany, dtype=float)
+    for charge in range(si.ncharge - 1):
+        for lower in si.statesdm[charge]:
+            for upper in si.statesdm[charge + 1]:
+                pair = si.get_ind_dm1(upper, lower, charge)
+                # paulifct[..., 0] is lower -> upper (electron addition),
+                # while [..., 1] is upper -> lower (electron removal).
+                widths[lower] += np.sum(appr.paulifct[:, pair, 0])
+                widths[upper] += np.sum(appr.paulifct[:, pair, 1])
+                unweighted = 2.0*np.pi*np.sum(
+                    np.abs(Tba[:, upper, lower])**2
+                )
+                upper_widths[lower] += unweighted
+                upper_widths[upper] += unweighted
 
     closest = None
     clamped_coherences = 0
@@ -150,10 +164,18 @@ def _warn_if_rtd_coherence_is_not_resolved(appr):
                     clamped_coherences += 1
                 gamma = 0.5*(widths[state] + widths[other])
                 ratio = splitting/gamma if gamma > 0.0 else np.inf
+                gamma_upper_bound = 0.5*(
+                    upper_widths[state] + upper_widths[other]
+                )
+                upper_bound_ratio = (
+                    splitting/gamma_upper_bound
+                    if gamma_upper_bound > 0.0 else np.inf
+                )
                 if closest is None or ratio < closest.ratio:
                     closest = RTDCoherenceDiagnostics(
                         splitting, gamma, ratio, _RTD_COHERENCE_RATIO_WARNING,
-                        -1, state, other, 0,
+                        -1, state, other, 0, gamma_upper_bound,
+                        upper_bound_ratio,
                     )
 
     if closest is not None:
@@ -164,6 +186,7 @@ def _warn_if_rtd_coherence_is_not_resolved(appr):
                     closest.minimum_splitting, closest.gamma, closest.ratio,
                     closest.threshold, charge, closest.state_a,
                     closest.state_b, clamped_coherences,
+                    closest.gamma_upper_bound, closest.upper_bound_ratio,
                 )
                 break
     appr.rtd_coherence_diagnostics = closest
@@ -184,13 +207,14 @@ def _warn_if_rtd_coherence_is_not_resolved(appr):
         warnings.warn(
             "RTD eliminates same-charge coherences although the closest "
             "intra-sector splitting is %.3g for states (%d, %d) in charge "
-            "%d, the estimated coherence "
-            "broadening is %.3g (ratio %.3g; required %.3g). The diagonal "
+            "%d, the Fermi-weighted escape broadening is %.3g (ratio %.3g; required "
+            "%.3g; occupation-independent upper bound %.3g). The diagonal "
             "density-matrix approximation is not controlled at this point; "
             "use a coherence-retaining method or verify convergence away "
             "from the degeneracy." % (
                 closest.minimum_splitting, closest.state_a, closest.state_b,
-                closest.charge, closest.gamma, closest.ratio, closest.threshold),
+                closest.charge, closest.gamma, closest.ratio, closest.threshold,
+                closest.gamma_upper_bound),
             RTDCoherenceWarning,
             stacklevel=3,
         )

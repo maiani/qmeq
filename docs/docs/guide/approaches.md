@@ -145,10 +145,12 @@ else — and only `indexing='charge'`.
   largest transport scale, but the fix is "rerun with larger `dband` and check
   convergence" — there is no automated convergence answer yet.
 - **Near-degenerate same-charge states.** RTD warns (`RTDCoherenceWarning`)
-  when the closest same-charge splitting is within a factor of 10 of the
-  estimated tunnel-broadening scale, and separately (`RTDNoBroadeningWarning`)
-  when it finds no tunnel broadening at all for the active states — in the
-  latter case the stationary kernel may be singular.
+  when the closest same-charge splitting is within a factor of 5 of the
+  Fermi-weighted sequential escape broadening. The diagnostic also reports
+  `gamma_upper_bound`, the older occupation-independent spectral-width scale,
+  but does not warn from that deliberately conservative bound. Separately,
+  `RTDNoBroadeningWarning` reports when no sequential escape broadening exists
+  for the active states — in that case the stationary kernel may be singular.
 - **Complex tunnel amplitudes.** The energy and heat currents are filled with
   `nan` (with a warning) for models with flux or interference, because the
   derivation is unfinished (commented-out terms exist in `RTD.py`). The

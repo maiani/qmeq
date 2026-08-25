@@ -4,6 +4,14 @@
 
 ### Fixed
 
+- Base the RTD eliminated-coherence warning on the Fermi-weighted sequential
+  escape rates that actually damp the closest same-charge pair. The previous
+  `2*pi*sum(|T|**2)` estimate omitted reservoir occupations and could warn deep
+  in Coulomb blockade even when those sequential decay channels were closed.
+  The warning now uses a five-to-one splitting-to-damping margin, matching the
+  documented RTD validity screen instead of the former heuristic factor 10.
+  `RTDCoherenceDiagnostics.gamma_upper_bound` and `upper_bound_ratio` retain
+  that occupation-independent scale for conservative comparisons.
 - Store the counting-resolved coherence correction's Laplace derivative in the
   channel that is not identically zero. The zero-field Schur product
   `Wdn G Wnd` is purely imaginary and its Laplace derivative purely real, so
