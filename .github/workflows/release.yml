@@ -28,24 +28,33 @@ jobs:
     name: Resolve build matrix
     runs-on: ubuntu-24.04
     outputs:
-      runners: ${{ steps.pick.outputs.runners }}
+      platforms: ${{ steps.pick.outputs.platforms }}
     steps:
+      # Emit whole {runner, target} objects rather than a bare runner list with a
+      # static `include:`. An `include:` entry whose value conflicts with a matrix
+      # key cannot be merged into any combination, so Actions appends it as a new
+      # job carrying only that entry's keys -- which is how a linux-64-only
+      # pre-release still spawned aarch64 and macOS jobs, each with an empty
+      # python-version.
       - id: pick
         env:
           FULL: ${{ inputs.full-matrix }}
           REF: ${{ github.ref_name }}
         run: |
+          linux64='{"runner":"ubuntu-24.04","target":"linux-64"}'
+          rest='{"runner":"ubuntu-24.04-arm","target":"linux-aarch64"},'
+          rest="$rest"'{"runner":"macos-15","target":"osx-arm64"}'
           if [ "$FULL" = "true" ] || { [ "${{ github.event_name }}" = "push" ] \
               && ! printf '%s' "$REF" | grep -Eqi 'dev|rc|[ab][0-9]+$'; }; then
-            echo 'runners=["ubuntu-24.04","ubuntu-24.04-arm","macos-15"]' >> "$GITHUB_OUTPUT"
+            echo "platforms=[$linux64,$rest]" >> "$GITHUB_OUTPUT"
           else
-            echo 'runners=["ubuntu-24.04"]' >> "$GITHUB_OUTPUT"
+            echo "platforms=[$linux64]" >> "$GITHUB_OUTPUT"
           fi
 
   build:
-    name: Build ${{ matrix.target-platform }} packages
+    name: Build ${{ matrix.platform.target }} packages
     needs: resolve-matrix
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ matrix.platform.runner }}
     # Both `pixi publish` (build environment) and `pixi exec` (test environment)
     # resolve conda packages from scratch on a clean runner. Point them at one
     # cacheable directory so that download work is done once per recipe change
@@ -58,14 +67,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.12", "3.13", "3.14"]
-        runner: ${{ fromJSON(needs.resolve-matrix.outputs.runners) }}
-        include:
-          - runner: ubuntu-24.04
-            target-platform: linux-64
-          - runner: ubuntu-24.04-arm
-            target-platform: linux-aarch64
-          - runner: macos-15
-            target-platform: osx-arm64
+        platform: ${{ fromJSON(needs.resolve-matrix.outputs.platforms) }}
 
     steps:
       - uses: actions/checkout@v7
@@ -75,10 +77,10 @@ jobs:
         with:
           path: ${{ env.PIXI_CACHE_DIR }}
           key: >-
-            pixi-pkgs-${{ matrix.target-platform }}-py${{ matrix.python-version
+            pixi-pkgs-${{ matrix.platform.target }}-py${{ matrix.python-version
             }}-${{ hashFiles('recipe/recipe.yaml', 'pyproject.toml') }}
           restore-keys: |
-            pixi-pkgs-${{ matrix.target-platform }}-py${{ matrix.python-version }}-
+            pixi-pkgs-${{ matrix.platform.target }}-py${{ matrix.python-version }}-
 
       - uses: prefix-dev/setup-pixi@v0.10.1
         with:
@@ -97,7 +99,7 @@ jobs:
           --clean
           --path recipe/recipe.yaml
           --variant "python=${{ matrix.python-version }}"
-          --target-platform "${{ matrix.target-platform }}"
+          --target-platform "${{ matrix.platform.target }}"
           --target-dir "${{ runner.temp }}/qmeq-conda"
           --build-dir "${{ runner.temp }}/qmeq-pixi-build"
 
@@ -118,7 +120,7 @@ jobs:
       - name: Save the tested Conda packages
         uses: actions/upload-artifact@v7
         with:
-          name: qmeq-conda-${{ matrix.target-platform }}-py${{ matrix.python-version }}
+          name: qmeq-conda-${{ matrix.platform.target }}-py${{ matrix.python-version }}
           path: ${{ runner.temp }}/qmeq-conda/*.conda
 
   publish:
