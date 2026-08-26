@@ -13,7 +13,11 @@ from .specfunc import bose
 from .specfunc import polygamma
 from .specfunc import digamma
 from .specfunc import integralD
+from .specfunc import integralD_lpm
+from .specfunc import integralD_lpm_derivative
 from .specfunc import integralX
+from .specfunc import integralX_lpm
+from .specfunc import integralX_lpm_derivative
 from .specfunc import BW_Ozaki
 from .specfunc import func_pauli
 from .specfunc import func_lambshift
@@ -37,7 +41,11 @@ if _compiled is None:
     c_polygamma = polygamma
     c_digamma = digamma
     c_integralD = integralD
+    c_integralD_lpm = integralD_lpm
+    c_integralD_lpm_derivative = integralD_lpm_derivative
     c_integralX = integralX
+    c_integralX_lpm = integralX_lpm
+    c_integralX_lpm_derivative = integralX_lpm_derivative
     c_BW_Ozaki = BW_Ozaki
     c_func_pauli = func_pauli
     c_func_lambshift = func_lambshift
@@ -55,7 +63,11 @@ else:
     c_polygamma = _c_specfunc.c_polygamma
     c_digamma = _c_specfunc.c_digamma
     c_integralD = _c_specfunc.c_integralD
+    c_integralD_lpm = _c_specfunc.c_integralD_lpm
+    c_integralD_lpm_derivative = _c_specfunc.c_integralD_lpm_derivative
     c_integralX = _c_specfunc.c_integralX
+    c_integralX_lpm = _c_specfunc.c_integralX_lpm
+    c_integralX_lpm_derivative = _c_specfunc.c_integralX_lpm_derivative
     c_BW_Ozaki = _c_specfunc.c_BW_Ozaki
     c_func_pauli = _c_specfunc.c_func_pauli
     c_func_lambshift = _c_specfunc.c_func_lambshift

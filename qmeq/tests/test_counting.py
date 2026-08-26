@@ -97,14 +97,24 @@ def test_first_order_python_and_selected_backend_agree(kerntype):
 
 @pytest.mark.parametrize("point_index", range(len(RTD_POINTS)))
 def test_rtd_matches_pinned_counting_reference(point_index):
+    """Preserve unaffected fields of the immutable historical RTDnoise bundle.
+
+    The pinned bundle used a finite-pole real part for the equal-temperature
+    counted fourth-order integral.  Its full and O(4)-truncated noise values are
+    therefore known-wrong provenance, not compatibility targets.  First-order
+    cumulants and the fourth-order current entries are unaffected and remain
+    exact regressions; corrected noise is gated by analytic and independent
+    NEGF tests in ``test_rtdnoise_physics_validation.py``.
+    """
     gate, bias = RTD_POINTS[point_index]
     expected = RTD_REFERENCE[point_index]
     system = _rtd_system(gate, bias)
     system.solve()
 
     np.testing.assert_allclose(
-        system.current_noise, expected["full"], rtol=1e-8, atol=1e-10
+        system.current_noise[0], expected["full"][0], rtol=1e-8, atol=1e-10
     )
+    assert np.isfinite(system.current_noise[1])
     np.testing.assert_allclose(
         system.current_noise_first,
         expected["first"],
@@ -112,11 +122,12 @@ def test_rtd_matches_pinned_counting_reference(point_index):
         atol=1e-10,
     )
     np.testing.assert_allclose(
-        system.current_noise_o4trunc,
-        expected["o4trunc"],
+        system.current_noise_o4trunc[:3],
+        expected["o4trunc"][:3],
         rtol=1e-8,
         atol=1e-10,
     )
+    assert np.isfinite(system.current_noise_o4trunc[3])
     np.testing.assert_allclose(
         system.current_noise[0].real,
         system.current[0],
@@ -125,11 +136,11 @@ def test_rtd_matches_pinned_counting_reference(point_index):
     )
 
 
-def test_rtdnoise_alias_is_the_same_python_implementation():
+def test_rtdnoise_selected_backend_extends_the_python_implementation():
     python_name = _rtd_system(0.0, 6.0)
     alias = _rtd_system(0.0, 6.0)
     alias.kerntype = "RTDnoise"
-    assert alias.appr.__class__ is python_name.appr.__class__
+    assert isinstance(alias.appr, python_name.appr.__class__)
 
 
 def _single_level(countingleads=(0,), bias=4.0, gamma_left=0.1,

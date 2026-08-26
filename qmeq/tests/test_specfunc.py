@@ -16,7 +16,11 @@ from qmeq.specfunc import c_func_1vN
 from qmeq.specfunc import c_func_lambshift
 from qmeq.specfunc import c_func_pauli
 from qmeq.specfunc import c_integralD
+from qmeq.specfunc import c_integralD_lpm
+from qmeq.specfunc import c_integralD_lpm_derivative
 from qmeq.specfunc import c_integralX
+from qmeq.specfunc import c_integralX_lpm
+from qmeq.specfunc import c_integralX_lpm_derivative
 from qmeq.specfunc import c_phi
 from qmeq.specfunc import c_polygamma
 from qmeq.specfunc import delta_phi
@@ -29,10 +33,16 @@ from qmeq.specfunc import func_1vN
 from qmeq.specfunc import func_lambshift
 from qmeq.specfunc import func_pauli
 from qmeq.specfunc import integralD
+from qmeq.specfunc import integralD_lpm
+from qmeq.specfunc import integralD_lpm_derivative
 from qmeq.specfunc import integralX
+from qmeq.specfunc import integralX_lpm
+from qmeq.specfunc import integralX_lpm_derivative
 from qmeq.specfunc import phi
 from qmeq.specfunc import polygamma
 from qmeq.specfunc.specfunc_elph import FuncPauliElPh as PyFuncPauliElPh
+from qmeq.specfunc.specfunc import _D_integral
+from qmeq.specfunc.specfunc import _X_integral
 
 try:
     from qmeq.specfunc.c_specfunc_elph import FuncPauliElPh as CFuncPauliElPh
@@ -41,6 +51,11 @@ except ImportError:
 
 EPS = 1e-14
 EPS2 = 1e-11
+RTD_COUNTED_INTEGRAL_RTOL = 2e-13
+RTD_COUNTED_INTEGRAL_ATOL = 2e-13
+RTD_PYTHON_CYTHON_PARITY_RTOL = 6e-11
+RTD_PYTHON_CYTHON_PARITY_ATOL = 2e-12
+RTD_TEST_BANDWIDTH = 50.0
 
 
 def test_fermi_func():
@@ -254,6 +269,90 @@ def test_RTD_equal_temperature_branches_share_wide_band_component():
                     *args, BW_Ozaki(pole_bandwidth), True
                 )
                 assert abs(with_complex_component.real-wide_band) < EPS
+
+
+def test_RTDnoise_integrals_are_the_electron_hole_resolved_RTD_integrals():
+    """The zero-field counted integral is the physical RTD integral.
+
+    Emary's fourth-order denominators contain ``xi1*mu1`` and ``xi2*mu2``
+    [Emary2009, Eqs. (A19)-(A21)].  QmeQ's opposite electron-hole convention
+    therefore makes the first chemical potential ``eta0*mu1``.  Counting
+    fields only weight diagrams; they do not define a second numerical
+    approximation to the integral at zero field.
+    """
+    E1, E2, E3 = -0.37, 0.82, 0.21
+    mu1, mu2, bandwidth = 0.31, -0.27, RTD_TEST_BANDWIDTH
+    poles = BW_Ozaki(bandwidth)
+
+    for T1, T2 in [(0.2, 0.2), (0.2, 0.23)]:
+        for p1 in (-1, 1):
+            for eta0 in (-1, 1):
+                for eta1 in (-1, 1):
+                    common = (
+                        p1, eta1, E1, E2, E3, T1, T2,
+                        eta0*mu1, mu2, bandwidth, poles, True,
+                    )
+                    counted = (
+                        True, p1, eta0, eta1, E1, E2, E3, T1, T2,
+                        mu1, mu2, bandwidth, poles, True,
+                    )
+                    np.testing.assert_allclose(
+                        integralD_lpm(*counted), integralD(*common),
+                        rtol=RTD_COUNTED_INTEGRAL_RTOL,
+                        atol=RTD_COUNTED_INTEGRAL_ATOL,
+                    )
+                    np.testing.assert_allclose(
+                        integralX_lpm(*counted), integralX(*common),
+                        rtol=RTD_COUNTED_INTEGRAL_RTOL,
+                        atol=RTD_COUNTED_INTEGRAL_ATOL,
+                    )
+
+
+def test_RTDnoise_integral_python_cython_parity():
+    """Compiled acceleration preserves values and Laplace derivatives."""
+    poles = BW_Ozaki(RTD_TEST_BANDWIDTH)
+    args = (
+        True, -1, -1, 1, -0.37, 0.82, 0.21,
+        0.2, 0.2, 0.31, -0.27, RTD_TEST_BANDWIDTH, poles, True,
+    )
+    for python_value, compiled_value in [
+            (integralD_lpm, c_integralD_lpm),
+            (integralX_lpm, c_integralX_lpm),
+            (integralD_lpm_derivative, c_integralD_lpm_derivative),
+            (integralX_lpm_derivative, c_integralX_lpm_derivative)]:
+        np.testing.assert_allclose(
+            compiled_value(*args), python_value(*args),
+            # The centered derivative divides independent Python/Cython
+            # digamma roundoff by h~eps**(1/3); the measured derivative floor
+            # is 4.3e-11 relative while values agree at 1e-15.
+            rtol=RTD_PYTHON_CYTHON_PARITY_RTOL,
+            atol=RTD_PYTHON_CYTHON_PARITY_ATOL,
+        )
+
+
+def test_RTDnoise_legacy_imaginary_only_integral_mode_is_unchanged():
+    """The dormant ``lpm_imaginary_2nd=False`` branch keeps its old meaning."""
+    p1, eta0, eta1 = -1, -1, 1
+    E1, E2, E3 = -0.37, 0.82, 0.21
+    T1 = T2 = 0.2
+    mu1, mu2, bandwidth = 0.31, -0.27, RTD_TEST_BANDWIDTH
+    poles = BW_Ozaki(bandwidth)
+    common = (
+        False, p1, eta0, eta1, E1, E2, E3, T1, T2,
+        mu1, mu2, bandwidth, poles, True,
+    )
+    raw_args = (
+        1, p1, -E1, -E2, -E3, T1, T2,
+        eta0*mu1, eta1*mu2, bandwidth/2, bandwidth/2, poles,
+    )
+    np.testing.assert_allclose(
+        integralD_lpm(*common), -1j*_D_integral(*raw_args).imag,
+        rtol=0, atol=EPS,
+    )
+    np.testing.assert_allclose(
+        integralX_lpm(*common), -1j*_X_integral(*raw_args).imag,
+        rtol=0, atol=EPS,
+    )
 
 
 def test_max_cache_is_bounded():

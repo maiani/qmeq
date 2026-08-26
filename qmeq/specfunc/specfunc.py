@@ -17,6 +17,9 @@ log = np.emath.log
 MAX_CACHE = 10000
 """Bound on the ``lru_cache`` of every memoised special functions."""
 
+_RTD_EQUAL_TEMPERATURE_ATOL = 1e-5
+"""Absolute temperature threshold used by the published equal-T RTD branch."""
+
 def func_pauli(Ecb, mu, T, Dm, Dp, itype):
     """
     Function used when generating Pauli master equation kernel.
@@ -592,8 +595,7 @@ def integralD(p1, eta1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma):
     double
         The integral value
     """
-    TMIN = 1e-5
-    equal_temperatures = abs(T2-T1) < TMIN
+    equal_temperatures = abs(T2-T1) < _RTD_EQUAL_TEMPERATURE_ATOL
     if equal_temperatures:
         lambda1 = (E1 - mu1) / T1
         lambda2 = (E2 - mu1 - eta1 * mu2) / T1
@@ -618,8 +620,18 @@ def integralD(p1, eta1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma):
     return ret
 
 def integralD_lpm(lpm_imaginary_2nd, p1, eta0, eta1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma):
-    """ Evaluates the 'direct' integral in the RTD approach. Always uses the general way of evaluating the integral
-     i.e. Matsubara sum. Assumes that the wide band limits is valid.
+    """Evaluate the direct integral for the counting-resolved RTD kernel.
+
+    At equal lead temperatures the real part is the analytic wide-band result
+    of [LeijnseWegewijs2008, Eqs. (D7)-(D11)].  Only the complementary
+    imaginary component is taken from the Ozaki sum.  This is the same split
+    used by :func:`integralD`: a finite-pole approximation of the real part
+    breaks the exact zero-counting-field identity between RTDnoise and RTD.
+
+    ``eta0`` is the electron-hole index of the first contraction.  In Emary's
+    notation the corresponding denominators contain ``xi1*mu1``
+    ([Emary2009, Eqs. (A19)-(A21)]); QmeQ uses the opposite eta convention, so
+    this routine consistently folds the index into ``eta0*mu1``.
 
     Parameters
     ----------
@@ -641,10 +653,9 @@ def integralD_lpm(lpm_imaginary_2nd, p1, eta0, eta1, E1, E2, E3, T1, T2, mu1, mu
         Chemical potential of lead 1
     mu2 : float
         Chemical potential of lead 2
-    Dp : float
-        Bandwidth (positive energy) over temperature
-    Dm : float
-        Bandwidth (negative energy) over temperature
+    D : float
+        Total symmetric bandwidth.  RTD constructs it as the sum of the
+        positive and negative lead half-bandwidths.
     b_and_R : ndarray
         2xN ndarray containing 1/b in the first row and R in the second row. b and R are the poles and residues
         of the Ozaki expansion of tanh(z), respectively.
@@ -654,11 +665,31 @@ def integralD_lpm(lpm_imaginary_2nd, p1, eta0, eta1, E1, E2, E3, T1, T2, mu1, mu
     double
         The integral value
     """
-    ret = _D_integral(1, p1, -E1, -E2, -E3, T1, T2, eta0*mu1, eta1*mu2, D/2, D/2, b_and_R)
-    if lpm_imaginary_2nd:
-        return -1j*ret
-    else:
-        return -1j*ret.imag
+    shifted_mu1 = eta0*mu1
+    equal_temperatures = (
+        abs(T2-T1) < _RTD_EQUAL_TEMPERATURE_ATOL
+    )
+    if lpm_imaginary_2nd and equal_temperatures:
+        lambda1 = (E1 - shifted_mu1) / T1
+        lambda2 = (E2 - shifted_mu1 - eta1*mu2) / T1
+        lambda3 = (E3 - shifted_mu1) / T1
+        wide_band_real = _D_integral_equal_T(
+            p1, 1, lambda3, lambda2, lambda1, D/2/T1, D/2/T1
+        ) * np.pi/T1
+
+    raw = _D_integral(
+        1, p1, -E1, -E2, -E3, T1, T2, shifted_mu1, eta1*mu2,
+        D/2, D/2, b_and_R,
+    )
+    if not lpm_imaginary_2nd:
+        # Historical imaginary-only mode.  RTDnoise currently hard-wires the
+        # full-complex mode, but preserve this branch byte-for-byte in meaning.
+        return -1j*raw.imag
+
+    finite_pole = -1j*raw
+    if equal_temperatures:
+        return wide_band_real + 1j*finite_pole.imag
+    return finite_pole
 
 
 def integralD_lpm_derivative(
@@ -725,8 +756,7 @@ def integralX(p1, eta1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma):
         The integral value
     """
 
-    TMIN = 1e-5
-    equal_temperatures = abs(T2-T1) < TMIN
+    equal_temperatures = abs(T2-T1) < _RTD_EQUAL_TEMPERATURE_ATOL
     if equal_temperatures:
         lambda1 = (E1 - mu1) / T1
         lambda2 = (E2 - mu1 - eta1 * mu2) / T1
@@ -746,8 +776,12 @@ def integralX(p1, eta1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma):
     return ret
 
 def integralX_lpm(lpm_imaginary_2nd, p1, eta0, eta1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma):
-    """ Evaluates the 'exchange' integral in the RTD approach. Always uses the general way of evaluating the integral
-     i.e. Matsubara sum. Assumes that the wide band limit is valid.
+    """Evaluate the exchange integral for the counting-resolved RTD kernel.
+
+    The equal-temperature real part uses the analytic wide-band expression.
+    Unlike the direct diagram, its last propagator contains the second
+    contraction's ``eta1*mu2`` chemical-potential shift; see
+    [LeijnseWegewijs2008, Eqs. (D7)-(D11)] and [Emary2009, Eq. (A21)].
 
     Parameters
     ----------
@@ -769,10 +803,9 @@ def integralX_lpm(lpm_imaginary_2nd, p1, eta0, eta1, E1, E2, E3, T1, T2, mu1, mu
         Chemical potential of lead 1
     mu2 : float
         Chemical potential of lead 2
-    Dp : float
-        Bandwidth (positive energy) over temperature
-    Dm : float
-        Bandwidth (negative energy) over temperature
+    D : float
+        Total symmetric bandwidth.  RTD constructs it as the sum of the
+        positive and negative lead half-bandwidths.
     b_and_R : ndarray
         2xN ndarray containing 1/b in the first row and R in the second row. b and R are the poles and residues
         of the Ozaki expansion of tanh(z), respectively.
@@ -782,11 +815,29 @@ def integralX_lpm(lpm_imaginary_2nd, p1, eta0, eta1, E1, E2, E3, T1, T2, mu1, mu
     double
         The integral value
     """
-    ret = _X_integral(1, p1, -E1, -E2, -E3, T1, T2, eta0*mu1, eta1*mu2, D/2, D/2, b_and_R)
-    if lpm_imaginary_2nd:
-        return -1j*ret
-    else:
-        return -1j*ret.imag
+    shifted_mu1 = eta0*mu1
+    equal_temperatures = (
+        abs(T2-T1) < _RTD_EQUAL_TEMPERATURE_ATOL
+    )
+    if lpm_imaginary_2nd and equal_temperatures:
+        lambda1 = (E1 - shifted_mu1) / T1
+        lambda2 = (E2 - shifted_mu1 - eta1*mu2) / T1
+        lambda3 = (E3 - eta1*mu2) / T1
+        wide_band_real = _X_integral_equal_T(
+            p1, 1, lambda3, lambda2, lambda1, D/2/T1, D/2/T1
+        ) * np.pi/T1
+
+    raw = _X_integral(
+        1, p1, -E1, -E2, -E3, T1, T2, shifted_mu1, eta1*mu2,
+        D/2, D/2, b_and_R,
+    )
+    if not lpm_imaginary_2nd:
+        return -1j*raw.imag
+
+    finite_pole = -1j*raw
+    if equal_temperatures:
+        return wide_band_real + 1j*finite_pole.imag
+    return finite_pole
 
 
 def integralX_lpm_derivative(

@@ -22,6 +22,8 @@ from libc.math cimport floor
 from libc.math cimport sqrt
 from libc.math cimport tan
 from libc.math cimport fabs
+from libc.math cimport cbrt
+from libc.float cimport DBL_EPSILON
 
 #Factors needed to evaluate the digamma function
 cdef double[8] Digamma_factors
@@ -75,6 +77,7 @@ C[ 4 ][ 4 ] = 130
 C[ 5 ][ 4 ] = -691
 
 cdef double_t TMIN = 1e-5
+cdef double_t RTD_EQUAL_TEMPERATURE_ATOL = 1e-5
 
 
 cdef double_t cabs(complex_t z) noexcept nogil:
@@ -497,6 +500,140 @@ cdef complex_t X_integral(double_t p1, double_t p2, double_t z1, double_t z2, do
     return ret
 
 
+@cython.cdivision(True)
+cdef complex_t integralD_lpm(
+        bint lpm_imaginary_2nd, double_t p1, double_t eta0,
+        double_t eta1, double_t E1, double_t E2, double_t E3,
+        double_t T1, double_t T2, double_t mu1, double_t mu2,
+        double_t bandwidth, double_t[:, :] b_and_R,
+        bint ImGamma) noexcept nogil:
+    """Compiled twin of the Python counting-resolved direct integral."""
+    cdef double_t shifted_mu1 = eta0*mu1
+    cdef double_t lambda1, lambda2, lambda3, wide_band_real = 0.0
+    cdef bint equal_temperatures = (
+        fabs(T2-T1) < RTD_EQUAL_TEMPERATURE_ATOL
+    )
+    cdef complex_t raw, finite_pole
+
+    if lpm_imaginary_2nd and equal_temperatures:
+        lambda1 = (E1-shifted_mu1)/T1
+        lambda2 = (E2-shifted_mu1-eta1*mu2)/T1
+        lambda3 = (E3-shifted_mu1)/T1
+        wide_band_real = D_integral_equal_T(
+            p1, 1, lambda3, lambda2, lambda1,
+            bandwidth/(2*T1), bandwidth/(2*T1)
+        )*pi/T1
+
+    raw = D_integral(
+        1, p1, -E1, -E2, -E3, T1, T2, shifted_mu1, eta1*mu2,
+        bandwidth/2, bandwidth/2, b_and_R
+    )
+    if not lpm_imaginary_2nd:
+        return -1j*raw.imag
+
+    finite_pole = -1j*raw
+    if equal_temperatures:
+        return wide_band_real + 1j*finite_pole.imag
+    return finite_pole
+
+
+@cython.cdivision(True)
+cdef complex_t integralX_lpm(
+        bint lpm_imaginary_2nd, double_t p1, double_t eta0,
+        double_t eta1, double_t E1, double_t E2, double_t E3,
+        double_t T1, double_t T2, double_t mu1, double_t mu2,
+        double_t bandwidth, double_t[:, :] b_and_R,
+        bint ImGamma) noexcept nogil:
+    """Compiled twin of the Python counting-resolved exchange integral."""
+    cdef double_t shifted_mu1 = eta0*mu1
+    cdef double_t lambda1, lambda2, lambda3, wide_band_real = 0.0
+    cdef bint equal_temperatures = (
+        fabs(T2-T1) < RTD_EQUAL_TEMPERATURE_ATOL
+    )
+    cdef complex_t raw, finite_pole
+
+    if lpm_imaginary_2nd and equal_temperatures:
+        lambda1 = (E1-shifted_mu1)/T1
+        lambda2 = (E2-shifted_mu1-eta1*mu2)/T1
+        lambda3 = (E3-eta1*mu2)/T1
+        wide_band_real = X_integral_equal_T(
+            p1, 1, lambda3, lambda2, lambda1,
+            bandwidth/(2*T1), bandwidth/(2*T1)
+        )*pi/T1
+
+    raw = X_integral(
+        1, p1, -E1, -E2, -E3, T1, T2, shifted_mu1, eta1*mu2,
+        bandwidth/2, bandwidth/2, b_and_R
+    )
+    if not lpm_imaginary_2nd:
+        return -1j*raw.imag
+
+    finite_pole = -1j*raw
+    if equal_temperatures:
+        return wide_band_real + 1j*finite_pole.imag
+    return finite_pole
+
+
+cdef double_t lpm_derivative_step(
+        double_t E1, double_t E2, double_t E3,
+        double_t T1, double_t T2) noexcept nogil:
+    """Unit-covariant centered-difference step used by the Python twin."""
+    cdef double_t scale = fabs(E1)
+    if fabs(E2) > scale:
+        scale = fabs(E2)
+    if fabs(E3) > scale:
+        scale = fabs(E3)
+    if fabs(T1) > scale:
+        scale = fabs(T1)
+    if fabs(T2) > scale:
+        scale = fabs(T2)
+    if scale == 0.0:
+        return cbrt(DBL_EPSILON)
+    return cbrt(DBL_EPSILON)*scale
+
+
+@cython.cdivision(True)
+cdef complex_t integralD_lpm_derivative(
+        bint lpm_imaginary_2nd, double_t p1, double_t eta0,
+        double_t eta1, double_t E1, double_t E2, double_t E3,
+        double_t T1, double_t T2, double_t mu1, double_t mu2,
+        double_t bandwidth, double_t[:, :] b_and_R,
+        bint ImGamma) noexcept nogil:
+    cdef double_t step = lpm_derivative_step(E1, E2, E3, T1, T2)
+    cdef complex_t lower = integralD_lpm(
+        lpm_imaginary_2nd, p1, eta0, eta1,
+        E1-step, E2-step, E3-step, T1, T2, mu1, mu2,
+        bandwidth, b_and_R, ImGamma
+    )
+    cdef complex_t upper = integralD_lpm(
+        lpm_imaginary_2nd, p1, eta0, eta1,
+        E1+step, E2+step, E3+step, T1, T2, mu1, mu2,
+        bandwidth, b_and_R, ImGamma
+    )
+    return (lower-upper)/(2*step)
+
+
+@cython.cdivision(True)
+cdef complex_t integralX_lpm_derivative(
+        bint lpm_imaginary_2nd, double_t p1, double_t eta0,
+        double_t eta1, double_t E1, double_t E2, double_t E3,
+        double_t T1, double_t T2, double_t mu1, double_t mu2,
+        double_t bandwidth, double_t[:, :] b_and_R,
+        bint ImGamma) noexcept nogil:
+    cdef double_t step = lpm_derivative_step(E1, E2, E3, T1, T2)
+    cdef complex_t lower = integralX_lpm(
+        lpm_imaginary_2nd, p1, eta0, eta1,
+        E1-step, E2-step, E3-step, T1, T2, mu1, mu2,
+        bandwidth, b_and_R, ImGamma
+    )
+    cdef complex_t upper = integralX_lpm(
+        lpm_imaginary_2nd, p1, eta0, eta1,
+        E1+step, E2+step, E3+step, T1, T2, mu1, mu2,
+        bandwidth, b_and_R, ImGamma
+    )
+    return (lower-upper)/(2*step)
+
+
 cdef double_t[:,:] BW_Ozaki(double_t BW):
     cdef double_t p, q
     cdef double_t[:,:] b_and_R
@@ -613,6 +750,54 @@ def c_integralD(double p1, double eta1, double z1, double z2, double z3, double 
 def c_integralX(double p1, double eta1, double z1, double z2, double z3, double T1, double T2,
                     double mu1, double mu2, double D, double_t[:,:] b_and_R, bint ImGamma):
     return integralX(p1, eta1, z1, z2, z3, T1, T2, mu1, mu2, D, b_and_R, ImGamma)
+
+
+def c_integralD_lpm(
+        bint lpm_imaginary_2nd, double p1, double eta0, double eta1,
+        double E1, double E2, double E3, double T1, double T2,
+        double mu1, double mu2, double bandwidth,
+        double_t[:, :] b_and_R, bint ImGamma):
+    """Compiled entry point for the counting-resolved direct integral."""
+    return integralD_lpm(
+        lpm_imaginary_2nd, p1, eta0, eta1, E1, E2, E3, T1, T2,
+        mu1, mu2, bandwidth, b_and_R, ImGamma
+    )
+
+
+def c_integralX_lpm(
+        bint lpm_imaginary_2nd, double p1, double eta0, double eta1,
+        double E1, double E2, double E3, double T1, double T2,
+        double mu1, double mu2, double bandwidth,
+        double_t[:, :] b_and_R, bint ImGamma):
+    """Compiled entry point for the counting-resolved exchange integral."""
+    return integralX_lpm(
+        lpm_imaginary_2nd, p1, eta0, eta1, E1, E2, E3, T1, T2,
+        mu1, mu2, bandwidth, b_and_R, ImGamma
+    )
+
+
+def c_integralD_lpm_derivative(
+        bint lpm_imaginary_2nd, double p1, double eta0, double eta1,
+        double E1, double E2, double E3, double T1, double T2,
+        double mu1, double mu2, double bandwidth,
+        double_t[:, :] b_and_R, bint ImGamma):
+    """Compiled entry point for the direct Laplace-energy derivative."""
+    return integralD_lpm_derivative(
+        lpm_imaginary_2nd, p1, eta0, eta1, E1, E2, E3, T1, T2,
+        mu1, mu2, bandwidth, b_and_R, ImGamma
+    )
+
+
+def c_integralX_lpm_derivative(
+        bint lpm_imaginary_2nd, double p1, double eta0, double eta1,
+        double E1, double E2, double E3, double T1, double T2,
+        double mu1, double mu2, double bandwidth,
+        double_t[:, :] b_and_R, bint ImGamma):
+    """Compiled entry point for the exchange Laplace-energy derivative."""
+    return integralX_lpm_derivative(
+        lpm_imaginary_2nd, p1, eta0, eta1, E1, E2, E3, T1, T2,
+        mu1, mu2, bandwidth, b_and_R, ImGamma
+    )
 
 
 def c_Ozaki(int_t N):

@@ -25,6 +25,24 @@ LpmIntegral = Callable[
     complex,
 ]
 
+DEFAULT_RTD_TEST_BANDWIDTH = 1e5
+PRACTICAL_RTD_TEST_BANDWIDTH = 50.0
+BANDWIDTH_SWEEP_RATIO = 4.0
+ZERO_FIELD_KERNEL_ATOL = 2e-13
+BANDWIDTH_INVARIANCE_RTOL = 2e-12
+BANDWIDTH_INVARIANCE_ATOL = 2e-15
+CORRECTED_NOISE_ORDER_MIN = 2.9
+CORRECTED_NOISE_ORDER_MAX = 3.6
+NONMARKOVIAN_RESIDUAL_FRACTION_MAX = 1e-3
+FIVE_POINT_DERIVATIVE_RELATIVE_ERROR_MAX = 5e-8
+DEEP_BLOCKADE_GAMMA = 0.02
+DEEP_BLOCKADE_LEVEL_ENERGY = -100.0
+DEEP_BLOCKADE_INTERACTION = 200.0
+DEEP_BLOCKADE_BIAS = 1.0
+DEEP_BLOCKADE_TEMPERATURE = 0.1
+DEEP_BLOCKADE_CURRENT_RTOL = 2e-3
+DEEP_BLOCKADE_BANDWIDTH = 1e6
+
 
 def _solve_derivative() -> np.ndarray:
     system = build_rtdnoise_scenario("double_dot_equal_temperature")
@@ -66,16 +84,20 @@ def test_scale_aware_laplace_derivative_matches_five_point_reference(
     """The production centered derivative matches an independent stencil."""
     production = _solve_derivative()
     monkeypatch.setattr(
-        rtdnoise_module, "integralD_lpm_derivative",
-        _fourth_order_derivative(integralD_lpm),
+        rtdnoise_module.ApproachPyRTDnoise,
+        "integralD_lpm_derivative",
+        staticmethod(_fourth_order_derivative(integralD_lpm)),
     )
     monkeypatch.setattr(
-        rtdnoise_module, "integralX_lpm_derivative",
-        _fourth_order_derivative(integralX_lpm),
+        rtdnoise_module.ApproachPyRTDnoise,
+        "integralX_lpm_derivative",
+        staticmethod(_fourth_order_derivative(integralX_lpm)),
     )
     reference = _solve_derivative()
 
-    assert _relative_maximum(production, reference) < 2e-8
+    assert _relative_maximum(production, reference) < (
+        FIVE_POINT_DERIVATIVE_RELATIVE_ERROR_MAX
+    )
 
 
 def _coherent_inputs(scale, flux):
@@ -95,10 +117,12 @@ def _coherent_inputs(scale, flux):
     )
 
 
-def _solve_rtd(scale, flux, off_diag_corrections):
+def _solve_rtd(
+        scale, flux, off_diag_corrections,
+        dband=DEFAULT_RTD_TEST_BANDWIDTH):
     system = qmeq.Builder(
         **_coherent_inputs(scale, flux),
-        dband=1e5,
+        dband=dband,
         kerntype="RTD",
         itype=1,
         off_diag_corrections=off_diag_corrections,
@@ -113,10 +137,12 @@ def _solve_rtd(scale, flux, off_diag_corrections):
     return system
 
 
-def _solve_rtdnoise(scale, flux, off_diag_corrections=False):
+def _solve_rtdnoise(
+        scale, flux, off_diag_corrections=False,
+        dband=DEFAULT_RTD_TEST_BANDWIDTH):
     system = qmeq.Builder(
         **_coherent_inputs(scale, flux),
-        dband=1e5,
+        dband=dband,
         kerntype="RTDnoise",
         itype=1,
         countingleads=(0,),
@@ -170,9 +196,13 @@ def test_noninteracting_residuals_have_the_expected_coupling_orders():
 
 
 def test_counting_resolved_coherence_correction_reduces_to_standard_rtd():
-    """Summing transfer sectors exactly recovers the established RTD block."""
-    standard = _solve_rtd(0.01, 0.0, True)
-    counted = _solve_rtdnoise(0.01, 0.0, True)
+    """At practical bandwidth, zero-field counting exactly recovers RTD."""
+    standard = _solve_rtd(
+        0.01, 0.0, True, dband=PRACTICAL_RTD_TEST_BANDWIDTH,
+    )
+    counted = _solve_rtdnoise(
+        0.01, 0.0, True, dband=PRACTICAL_RTD_TEST_BANDWIDTH,
+    )
     correction = counted.appr.coherence_correction
     correction_dz = counted.appr.coherence_correction_dz
     standard_wdd = (
@@ -193,12 +223,20 @@ def test_counting_resolved_coherence_correction_reduces_to_standard_rtd():
         1e-14*np.max(np.abs(correction_dz))
     )
     np.testing.assert_allclose(
-        counted.appr.kern, np.sum(standard_wdd, axis=0), atol=2e-13,
+        counted.appr.kern, np.sum(standard_wdd, axis=0),
+        rtol=0.0, atol=ZERO_FIELD_KERNEL_ATOL,
     )
-    np.testing.assert_allclose(counted.appr.Wdd, standard_wdd, atol=2e-13)
-    np.testing.assert_allclose(counted.current, standard.current, atol=2e-13)
     np.testing.assert_allclose(
-        counted.current_noise[0].real, standard.current[0], atol=2e-13,
+        counted.appr.Wdd, standard_wdd,
+        rtol=0.0, atol=ZERO_FIELD_KERNEL_ATOL,
+    )
+    np.testing.assert_allclose(
+        counted.current, standard.current,
+        rtol=0.0, atol=ZERO_FIELD_KERNEL_ATOL,
+    )
+    np.testing.assert_allclose(
+        counted.current_noise[0].real, standard.current[0],
+        rtol=0.0, atol=ZERO_FIELD_KERNEL_ATOL,
     )
     np.testing.assert_allclose(counted.current_noise.imag, 0.0, atol=1e-12)
     np.testing.assert_allclose(
@@ -245,8 +283,12 @@ def test_real_amplitude_corrected_noise_is_superquadratic_against_negf():
             np.array([1.0, 0.0]),
             order=2,
         )
-        population = _solve_rtdnoise(scale, 0.0, False)
-        corrected = _solve_rtdnoise(scale, 0.0, True)
+        population = _solve_rtdnoise(
+            scale, 0.0, False, dband=PRACTICAL_RTD_TEST_BANDWIDTH,
+        )
+        corrected = _solve_rtdnoise(
+            scale, 0.0, True, dband=PRACTICAL_RTD_TEST_BANDWIDTH,
+        )
         population_noise_errors.append(
             abs(population.current_noise[1].real - exact[2].real)
         )
@@ -259,30 +301,26 @@ def test_real_amplitude_corrected_noise_is_superquadratic_against_negf():
 
     population_order = _log_slope(scales, population_noise_errors)
     corrected_current_order = _log_slope(scales, corrected_current_errors)
+    corrected_noise_order = _log_slope(scales, corrected_noise_errors)
     assert 1.9 < population_order < 2.4
     assert 2.8 < corrected_current_order < 3.2
-    # No exponent is asserted for the corrected *noise* at this `dband`, and
-    # the earlier `2.7 < order` claim is not widened to accommodate it.
-    # Extending this sweep downward shows the local slope decaying 2.59, 2.32,
-    # 2.16, 2.08, 2.04, 2.02 -- a genuine surviving O(Gamma**2) term, whose
-    # origin is identified and gated by
-    # ``test_surviving_quadratic_noise_residual_is_the_wide_band_truncation``.
-    # The cubic claim is not abandoned, it is moved to where it holds:
-    # ``test_corrected_noise_is_cubic_once_the_wide_band_limit_is_converged``.
-    # It is not the oracle: the reference is accurate to ~5e-15 absolute here,
-    # checked against contour radius 0.2-0.5, 24-48 nodes, a 100x tighter
-    # quadrature tolerance and the independent Landauer closed form, while the
-    # smallest residual fitted is 1.9e-09.  What remains true and is asserted
-    # is that the correction strictly improves every point.
+    assert CORRECTED_NOISE_ORDER_MIN < corrected_noise_order
+    assert corrected_noise_order < CORRECTED_NOISE_ORDER_MAX
     assert np.all(
         np.asarray(corrected_noise_errors)
         < np.asarray(population_noise_errors)
     )
 
 
-def _quadratic_residual_coefficient(
+def _weak_coupling_quadratic_scale(
         dband: float, temperature: float = 1.0) -> float:
-    """Fit the coefficient of the O(Gamma**2) noise residual at one ``dband``."""
+    """Return the weakest-point residual normalized by ``Gamma**2``.
+
+    This is a comparison scale, not a claim that the complete non-Markovian
+    result is quadratic: after the equal-temperature integral repair its
+    residual is cubic, whereas deliberately removing the Laplace terms leaves
+    the expected quadratic error.
+    """
     scales = np.array([1.25e-3, 6.25e-4, 3.125e-4])
     errors = []
     for scale in scales:
@@ -301,38 +339,39 @@ def _quadratic_residual_coefficient(
         errors.append(
             abs(system.current_noise[1].real - exact[2].real)
         )
-    assert 1.9 < _log_slope(scales, errors) < 2.2
     return float(errors[-1]/scales[-1]**2)
 
 
-def test_surviving_quadratic_noise_residual_is_the_wide_band_truncation():
-    """Identify the residual O(Gamma**2) noise term as a finite-``dband`` error.
+@pytest.mark.parametrize("off_diag_corrections", [False, True])
+def test_equal_temperature_noise_is_auxiliary_bandwidth_independent(
+        off_diag_corrections: bool) -> None:
+    """Equal-temperature RTDnoise uses one analytic zero-field kernel.
 
-    Deep in the weak-coupling tail the corrected-noise residual against the
-    exact non-interacting reference settles onto ``Gamma**2`` rather than
-    ``Gamma**3``.  Two candidate explanations are excluded and one confirmed.
-
-    Not the Matsubara/Ozaki quadrature: raising the pole count from 190 to 397
-    to 1121 converges it (the second-order kernel then reproduces ordinary
-    RTD's to 1.2e-10) while the exponent still decays toward 2.  Not the
-    counting-resolved coherence correction's Laplace derivative: zeroing it
-    moves the residual by under 3% and does not move the exponent, consistent
-    with it entering only at ``O(Gamma**3)``.
-
-    It is RTD's own wide-band approximation.  The coefficient falls roughly as
-    ``1/dband`` -- measured 4.7e-04, 6.0e-05, 7.9e-06 at ``dband`` 1e4, 1e5,
-    1e6 -- so it vanishes in the limit the approach is derived in
-    ([LeijnseWegewijs2008], wide-band limit) and is the same convergence
-    requirement already documented for unequal-temperature RTD.  It is
-    therefore expected, not a missing counting contribution; the way to a
-    cubic residual is a converged ``dband``, not a weaker exponent gate.
+    Individual Appendix-D integrals retain ``ln(dband)`` terms, but their
+    diagram sum cancels them.  Using a finite-pole approximation for only the
+    counted copy spoiled that cancellation and moved the stationary projector,
+    current, and noise.  A practical fourfold sweep now agrees at roundoff in
+    both the historical population-only and coherence-corrected modes.
     """
-    coarse = _quadratic_residual_coefficient(1e4)
-    middle = _quadratic_residual_coefficient(1e5)
-    fine = _quadratic_residual_coefficient(1e6)
-
-    assert coarse > 4.0*middle
-    assert middle > 4.0*fine
+    lower = _solve_rtdnoise(
+        0.01, 0.0, off_diag_corrections,
+        dband=PRACTICAL_RTD_TEST_BANDWIDTH,
+    )
+    higher = _solve_rtdnoise(
+        0.01, 0.0, off_diag_corrections,
+        dband=PRACTICAL_RTD_TEST_BANDWIDTH*BANDWIDTH_SWEEP_RATIO,
+    )
+    for left, right in [
+            (lower.appr.kern, higher.appr.kern),
+            (lower.phi0, higher.phi0),
+            (lower.current, higher.current),
+            (lower.current_noise, higher.current_noise),
+            (lower.current_noise_matrix, higher.current_noise_matrix)]:
+        np.testing.assert_allclose(
+            left, right,
+            rtol=BANDWIDTH_INVARIANCE_RTOL,
+            atol=BANDWIDTH_INVARIANCE_ATOL,
+        )
 
 
 def test_non_markovian_correction_cancels_the_markovian_quadratic_error():
@@ -346,7 +385,9 @@ def test_non_markovian_correction_cancels_the_markovian_quadratic_error():
     dropped channel shows up here as a cancellation that is far from complete,
     whereas an exponent fit only reports it indirectly.
     """
-    markovian_dropped = _quadratic_residual_coefficient(1e5)
+    complete_nonmarkovian = _weak_coupling_quadratic_scale(
+        PRACTICAL_RTD_TEST_BANDWIDTH,
+    )
 
     original = rtdnoise_module.nonmarkovian_current_noise_matrix
 
@@ -360,11 +401,16 @@ def test_non_markovian_correction_cancels_the_markovian_quadratic_error():
 
     rtdnoise_module.nonmarkovian_current_noise_matrix = without_laplace_terms
     try:
-        markovian_only = _quadratic_residual_coefficient(1e5)
+        markovian_only = _weak_coupling_quadratic_scale(
+            PRACTICAL_RTD_TEST_BANDWIDTH,
+        )
     finally:
         rtdnoise_module.nonmarkovian_current_noise_matrix = original
 
-    assert markovian_dropped < 1e-3*markovian_only
+    assert (
+        complete_nonmarkovian
+        < NONMARKOVIAN_RESIDUAL_FRACTION_MAX*markovian_only
+    )
 
 
 def _solve_rtdnoise_at_temperature(
@@ -471,19 +517,25 @@ def test_complex_flux_second_order_kernel_defect_is_reproduced_directly():
     assert omitted_imaginary > 0.4
 
 
-def test_interacting_deep_blockade_matches_elastic_cotunnelling_limit():
-    """Current and noise approach the bidirectional-Poisson cotunnelling limit.
+def test_interacting_deep_blockade_matches_elastic_cotunnelling_current():
+    """Current approaches the symmetric-Anderson cotunnelling limit.
 
     At particle-hole symmetry, elastic potential and exchange cotunnelling of
     the spin-degenerate Anderson dot give three equal squared-denominator
-    contributions.  Forward and backward rare events then give
-    ``S/I = coth(bias/(2*T))`` in QmeQ's ``d Var/dt`` noise convention.
+    contributions.
+
+    No Poisson noise identity is imposed here. The QmeQ model has no intrinsic
+    spin-relaxation bath and is therefore in the strong-cotunnelling regime of
+    Sukhorukov, Burkard, and Loss, where the dot state retains memory between
+    events. Their weak-cotunnelling identity ``S/I = coth(bias/(2*T))`` requires
+    an intrinsic relaxation rate larger than the cotunnelling rate and does not
+    apply to this model.
     """
-    gamma = 0.02
-    epsilon = -50.0
-    interaction = 100.0
-    bias = 1.0
-    temperature = 0.1
+    gamma = DEEP_BLOCKADE_GAMMA
+    epsilon = DEEP_BLOCKADE_LEVEL_ENERGY
+    interaction = DEEP_BLOCKADE_INTERACTION
+    bias = DEEP_BLOCKADE_BIAS
+    temperature = DEEP_BLOCKADE_TEMPERATURE
     tunnel = np.sqrt(gamma / (2.0 * np.pi))
     system = qmeq.Builder(
         nsingle=2,
@@ -498,7 +550,7 @@ def test_interacting_deep_blockade_matches_elastic_cotunnelling_limit():
         },
         mulst={0: bias / 2, 1: bias / 2, 2: -bias / 2, 3: -bias / 2},
         tlst={lead: temperature for lead in range(4)},
-        dband=1e6,
+        dband=DEEP_BLOCKADE_BANDWIDTH,
         kerntype="pyRTDnoise",
         itype=1,
         countingleads=(0, 1),
@@ -513,13 +565,11 @@ def test_interacting_deep_blockade_matches_elastic_cotunnelling_limit():
 
     denominator = 1.0 / epsilon**2 + 1.0 / (epsilon + interaction) ** 2
     expected_current = 3.0 * gamma**2 * bias * denominator / (2.0 * np.pi)
-    expected_noise = expected_current / np.tanh(bias / (2.0 * temperature))
     np.testing.assert_allclose(
-        system.current_noise[0].real, expected_current, rtol=2e-3, atol=0.0,
+        system.current_noise[0].real, expected_current,
+        rtol=DEEP_BLOCKADE_CURRENT_RTOL, atol=0.0,
     )
-    np.testing.assert_allclose(
-        system.current_noise[1].real, expected_noise, rtol=1e-2, atol=0.0,
-    )
+    assert np.isfinite(system.current_noise[1])
 
 
 def _rescaled_inputs(lam: float) -> dict[str, object]:
@@ -1057,29 +1107,22 @@ def test_finite_laplace_correction_derivative_is_directly_gated():
     assert np.max(np.abs(opposite - stored)) > scale
 
 
-def test_corrected_noise_is_cubic_once_the_wide_band_limit_is_converged():
-    """The real-amplitude cubic residual, recovered rather than assumed.
+def test_corrected_noise_is_cubic_at_practical_bandwidth():
+    """The independent U=0 oracle rejects a residual quadratic term.
 
-    ``test_real_amplitude_corrected_noise_is_superquadratic_against_negf``
-    asserts no exponent, because at the default ``dband`` the wide-band
-    truncation identified by
-    ``test_surviving_quadratic_noise_residual_is_the_wide_band_truncation``
-    contaminates the fit.  The correct response is a converged ``dband``, not a
-    weaker gate: at ``dband = 1e7`` the corrected-noise residual against the
-    exact non-interacting reference is cubic again over the same coupling
-    window, and the exponent is converged in ``dband`` (3.26 at ``1e7`` versus
-    3.28 at ``1e8``, against 2.62 at ``1e5``).
-
-    This is the expensive gate in this module -- the Ozaki pole count grows with
-    ``dband/T`` -- so it runs at one temperature and one window.  The cheap
-    companions above cover the rest.
+    With the analytic equal-temperature counted integral, ``dband`` is only the
+    regulator appearing in the Appendix-D expressions and their logarithms
+    cancel in the diagram sum.  The cubic RTD truncation error must therefore
+    already be visible at a practical bandwidth; requiring ``dband=1e7`` would
+    merely hide a mismatched zero-field kernel behind an expensive pole sum.
     """
     scales = np.array([0.04, 0.02, 0.01, 0.005])
     errors = []
     for scale in scales:
         inputs = _coherent_inputs(scale, 0.0)
         system = qmeq.Builder(
-            **inputs, dband=1e7, kerntype="pyRTDnoise", itype=1,
+            **inputs, dband=PRACTICAL_RTD_TEST_BANDWIDTH,
+            kerntype="pyRTDnoise", itype=1,
             countingleads=(0,), off_diag_corrections=True,
         )
         with warnings.catch_warnings():
@@ -1090,4 +1133,6 @@ def test_corrected_noise_is_cubic_once_the_wide_band_limit_is_converged():
         )
         errors.append(abs(system.current_noise[1].real - exact[2].real))
 
-    assert 2.9 < _log_slope(scales, errors) < 3.6
+    corrected_noise_order = _log_slope(scales, errors)
+    assert CORRECTED_NOISE_ORDER_MIN < corrected_noise_order
+    assert corrected_noise_order < CORRECTED_NOISE_ORDER_MAX

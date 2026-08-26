@@ -58,7 +58,8 @@ is a property of this toy model, not of the Pauli approach in general.)
 
 `kerntype` selects the [approach](approaches.md): `'Pauli'` (default),
 `'Lindblad'`, `'Redfield'`, `'1vN'`, `'2vN'`, `'RTD'` (alias `'pyRTD'`), or
-`'RTDnoise'` (alias `'pyRTDnoise'`, pure Python only). A `'py'`-prefixed name
+`'RTDnoise'` (Python traversal with compiled scalar integrals when the Cython
+backend is active), or `'pyRTDnoise'` (all Python). A `'py'`-prefixed name
 forces the pure-Python implementation for that approach regardless of
 `QMEQ_BACKEND`; the bare name uses whatever the backend loader selected. An
 unrecognized string warns (`QmeqWarning`) and falls back to `'Pauli'` rather

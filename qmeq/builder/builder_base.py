@@ -40,6 +40,7 @@ from ..approach.base.neumann1 import Approach1vN as ApproachPy1vN
 from ..approach.base.neumann2 import Approach2vN as ApproachPy2vN
 from ..approach.base.RTD import ApproachPyRTD as ApproachPyRTD
 from ..approach.base.RTDnoise import ApproachPyRTDnoise as ApproachPyRTDnoise
+from ..approach.base.RTDnoise import ApproachRTDnoise as ApproachRTDnoise
 
 # Cython compiled modules
 
@@ -68,7 +69,6 @@ else:
     Approach1vN = _compiled['qmeq.approach.base.c_neumann1'].Approach1vN
     Approach2vN = _compiled['qmeq.approach.base.c_neumann2'].Approach2vN
     ApproachRTD = _compiled['qmeq.approach.base.c_RTD'].ApproachRTD
-ApproachRTDnoise = ApproachPyRTDnoise
 # -----------------------------------------------------------
 
 _UNSET = object()

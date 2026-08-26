@@ -152,11 +152,10 @@ def build_rtdnoise_scenario(scenario, *, use_selected_backend=False):
 
     ``kerntype`` follows the ``qmeq_11_reference_models.py`` convention:
     ``use_selected_backend=False`` (the default) always requests
-    ``pyRTDnoise`` explicitly, since ``RTDnoise``/``pyRTDnoise`` has no
-    compiled counterpart and both backends route to the same
-    pure-Python class regardless of ``QMEQ_BACKEND``; ``True`` requests the
-    generic ``RTDnoise`` alias instead, to exercise that alias resolution
-    itself under both forced backends.
+    ``pyRTDnoise`` explicitly, which keeps the traversal and scalar integrals
+    all-Python regardless of ``QMEQ_BACKEND``. ``True`` requests the generic
+    ``RTDnoise`` name: it uses the same traversal but selects compiled scalar
+    integrals when the Cython backend is active.
     """
     kerntype = "RTDnoise" if use_selected_backend else "pyRTDnoise"
     if scenario == "single_level_equal_temperature":

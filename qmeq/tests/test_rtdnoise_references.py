@@ -30,6 +30,8 @@ _SNAPSHOT_FIELDS = (
     "current_noise_o4trunc",
 )
 _DERIVATIVE_FIELDS = frozenset(("Lpm_first_dot", "Lpm_second_dot"))
+_COMPILED_DERIVATIVE_ROUNDOFF_ATOL = 3e-10
+"""Roundoff floor above the measured 2.37e-10 centered-difference residue."""
 
 # The pinned source differentiated the first-order blocks with respect to the
 # *scaled* Laplace energy z/T_lead rather than z, so its `Lpm_first_dot` is
@@ -41,14 +43,17 @@ _DERIVATIVE_FIELDS = frozenset(("Lpm_first_dot", "Lpm_second_dot"))
 # factor cannot match.
 _LEAD_SCALED_DERIVATIVE_FIELDS = frozenset(("Lpm_first_dot",))
 
-# Observables downstream of that derivative therefore differ from the pinned
-# ones at the 1e-3 level.  Those historical values are known-wrong and must not
-# become a compatibility contract, so they are not asserted as equalities.
-# They remain in the immutable bundle schema, but are no longer equality
-# references. Their corrected physics is gated independently at unequal
-# temperature and by energy-rescaling covariance.
-_SUPERSEDED_NONMARKOVIAN_FIELDS = frozenset((
-    "current_noise", "current_noise_first", "current_noise_o4trunc",
+# Two later corrections deliberately supersede parts of the pinned source:
+# the Laplace derivative was rescaled to physical energy, and the counted
+# fourth-order equal-temperature integrals now use the same analytic wide-band
+# real part as stationary RTD.  Every second-order field downstream of that
+# integral is historical provenance rather than a compatibility contract.
+# Keep the bundle byte-identical and gate current physics through analytic
+# identities, bandwidth invariance, and the independent U=0 oracle instead.
+_SUPERSEDED_FIELDS = frozenset((
+    "Lpm_second", "Lpm_second_dot", "phi0", "phi0_second",
+    "kern_second", "Wdd", "current", "current_noise",
+    "current_noise_first", "current_noise_o4trunc",
 ))
 
 
@@ -66,7 +71,7 @@ def _assert_characterization_field(
     are likewise part of the immutable historical bundle schema; live runtime
     arrays use ``*_dz``.
     """
-    if field in _SUPERSEDED_NONMARKOVIAN_FIELDS:
+    if field in _SUPERSEDED_FIELDS:
         assert np.all(np.isfinite(actual)), f"{message}: non-finite result"
         return
 
@@ -153,23 +158,45 @@ def test_current_scenario_reproduces_bundle(scenario):
 
 
 @pytest.mark.parametrize("scenario", RTDNOISE_CHARACTERIZATION_SCENARIOS)
-def test_selected_backend_alias_reproduces_bundle(scenario):
-    """The generic 'RTDnoise' kerntype alias must resolve identically.
+def test_selected_backend_alias_matches_explicit_rtdnoise(scenario):
+    """The generic and explicit Python approaches preserve the same physics.
 
-    RTDnoise has no compiled counterpart: ``ApproachRTDnoise`` is
-    ``ApproachPyRTDnoise`` regardless of ``QMEQ_BACKEND``
-    (``qmeq/builder/builder_base.py``), so this does not exercise a second
-    numerical implementation -- only that the alias resolves to the same
-    class under whichever backend this process was forced into.
+    RTDnoise's traversal remains Python. Under the Cython backend the generic
+    name selects compiled scalar integrals, while ``pyRTDnoise`` remains a
+    fully independent Python evaluation. Their centered derivatives can differ
+    in roundoff-amplified real crumbs; physical derivative channels and every
+    downstream observable retain the manifest tolerance.
     """
-    actual, system = rtdnoise_scenario_snapshot(
+    actual, _ = rtdnoise_scenario_snapshot(
         scenario, use_selected_backend=True
     )
-    expected = SCENARIOS[scenario]
+    expected, _ = rtdnoise_scenario_snapshot(
+        scenario, use_selected_backend=False
+    )
     tolerance = MANIFEST["rtdnoise_scenario_metadata"][scenario]["tolerance"]
     for field in expected:
-        _assert_characterization_field(
-            actual[field], expected[field], field, tolerance,
-            f"RTDnoise selected-backend alias drift in {scenario}/{field}",
-            temperatures=system.appr.leads.tlst,
+        if field in _DERIVATIVE_FIELDS:
+            np.testing.assert_allclose(
+                actual[field].imag, expected[field].imag,
+                rtol=tolerance["rtol"], atol=tolerance["atol"],
+                equal_nan=True,
+                err_msg=(
+                    "RTDnoise selected-backend physical derivative drift in "
+                    f"{scenario}/{field}"
+                ),
+            )
+            assert np.max(np.abs(actual[field].real)) <= (
+                _COMPILED_DERIVATIVE_ROUNDOFF_ATOL
+            )
+            assert np.max(np.abs(expected[field].real)) <= (
+                _COMPILED_DERIVATIVE_ROUNDOFF_ATOL
+            )
+            continue
+        np.testing.assert_allclose(
+            actual[field], expected[field],
+            rtol=tolerance["rtol"], atol=tolerance["atol"],
+            equal_nan=True,
+            err_msg=(
+                f"RTDnoise selected-backend alias drift in {scenario}/{field}"
+            ),
         )

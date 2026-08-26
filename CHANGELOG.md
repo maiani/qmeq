@@ -74,17 +74,17 @@
   independent five-point stencil. Live derivative arrays use the explicit
   `_dz` suffix; the old `*_dot` names remain only as immutable historical
   fixture keys.
-- Identify the surviving `O(Gamma**2)` term in the corrected RTDnoise noise
-  residual as RTD's own finite-`dband` wide-band truncation, not a missing
-  counting contribution. Its coefficient falls roughly as `1/dband` and is
-  unaffected by converging the Matsubara/Ozaki pole count or by the coherence
-  correction's Laplace derivative. `dband` convergence is therefore a
-  requirement for noise, not only for unequal temperatures. The former
-  `superquadratic` exponent assertion is not widened to accommodate it; it is
-  moved to a converged `dband`, where the residual is cubic again over the same
-  coupling window (exponent 2.62, 3.26, 3.28 at `dband` 1e5, 1e7, 1e8), and
-  joined by gates on the `1/dband` scaling and on how much of the Markovian
-  `O(Gamma**2)` error the non-Markovian term cancels.
+- Make RTDnoise's equal-temperature counted direct/exchange integrals use the
+  same analytic Appendix-D wide-band real component as stationary RTD. The
+  former finite-pole counted copy broke `W(chi=0,z=0) == W`, moved the
+  stationary state and pseudoinverse with `dband`, and left a spurious
+  `O(Gamma**2)` noise residual. Practical-bandwidth kernel-identity,
+  fourfold-bandwidth-invariance, and independent non-interacting cubic-order
+  gates now cover the repair; unequal-temperature Ozaki integrals retain their
+  existing cutoff-convergence requirement. Bare `RTDnoise` also dispatches its
+  profiled direct/exchange value and derivative calls to numerically equivalent
+  compiled wrappers when the Cython backend is active; explicit `pyRTDnoise`
+  stays all-Python.
 - Warn when legacy RTD's diagonal-density-matrix approximation is not
   spectrally resolved. The diagnostic estimates each same-charge coherence's
   broadening from `2*pi*sum(|T|**2)` over adjacent-charge transitions, uses a

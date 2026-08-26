@@ -167,7 +167,10 @@ The validity table above is from tutorial 6.
 ### RTDnoise
 
 The zero-frequency counting-statistics companion to RTD (`kerntype='RTDnoise'`
-/ `'pyRTDnoise'`, pure Python only — there is no compiled `RTDnoise`). After
+/ `'pyRTDnoise'`). Both use the same Python diagram traversal;
+`'RTDnoise'` selects compiled direct/exchange scalar functions when the Cython
+backend is active, while the explicit `'pyRTDnoise'` name stays all-Python.
+After
 `solve()`, `system.current_noise` is `[I, S]` from the full fourth-order (in
 $H_T$, i.e. second order in $\Gamma$) kernel; `current_noise_first` is the
 sequential (lowest-order) result; `current_noise_o4trunc` gives both current
@@ -200,16 +203,15 @@ and noise at both orders for comparison; `current_noise_matrix` /
   independent five-point stencil. The step is a pure fraction of the model's
   own energy scale with no absolute floor, so it is unit covariant: results do
   not change if the whole model is expressed in different energy units.
-- **The noise inherits RTD's wide-band error as an `O(Gamma**2)` term.**
-  Against the exact non-interacting reference, the corrected-noise residual is
-  cubic in the coupling over a normal operating window but settles onto
-  `Gamma**2` deep in the weak-coupling tail. That term is the finite-`dband`
-  truncation, not a missing counting contribution: its coefficient falls
-  roughly as `1/dband` (measured `4.7e-4`, `6.0e-5`, `7.9e-6` at `dband` `1e4`,
-  `1e5`, `1e6`) and it is unaffected by converging the Matsubara/Ozaki pole
-  count. Converging `dband` restores the cubic residual over the same window
-  (exponent 2.62, 3.26, 3.28 at `dband` `1e5`, `1e7`, `1e8`). Treat `dband`
-  convergence as a requirement for noise, not only for unequal temperatures.
+- **Equal- and unequal-temperature bandwidth roles differ.** At equal lead
+  temperatures the counted direct/exchange integrals use the same analytic
+  Appendix-D wide-band real component as stationary RTD. Their individual
+  `ln(dband)` terms cancel in the assembled zero-field kernel, so its
+  stationary state, current, and noise are invariant under an auxiliary
+  bandwidth sweep up to numerical roundoff; the independent non-interacting
+  residual is already cubic at practical `dband`. Unequal-temperature
+  integrals still use the Ozaki representation and must be checked for cutoff
+  convergence.
 - Inherits every RTD limitation above -- including RTD's own complex-amplitude
   limitation on the *energy* and *heat* currents, which is separate from the
   above: `WE1`/`WE2` keep only `gamma.real`, so with any significant

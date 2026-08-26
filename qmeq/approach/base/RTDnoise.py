@@ -1,18 +1,35 @@
-"""Pure-Python RTD zero-frequency current and noise approach."""
+"""RTD zero-frequency current and noise approaches."""
 
 from itertools import product
+import warnings
 
 import numpy as np
 
+from ..._warnings import QmeqRuntimeWarning
 from ...wrappers.mytypes import doublenp
 from ...wrappers.mytypes import complexnp
 
-from ...specfunc.specfunc import integralD_lpm
-from ...specfunc.specfunc import integralD_lpm_derivative
-from ...specfunc.specfunc import integralX_lpm
-from ...specfunc.specfunc import integralX_lpm_derivative
+# The selected aliases resolve to compiled scalar wrappers under the Cython
+# backend and to the canonical Python functions otherwise.  The explicit
+# Python imports keep the documented ``pyRTDnoise`` backend all-Python.
+from ...specfunc import c_integralD_lpm as selected_integralD_lpm
+from ...specfunc import (
+    c_integralD_lpm_derivative as selected_integralD_lpm_derivative,
+)
+from ...specfunc import c_integralX_lpm as selected_integralX_lpm
+from ...specfunc import (
+    c_integralX_lpm_derivative as selected_integralX_lpm_derivative,
+)
 from ...specfunc.specfunc import func_pauli
 from ...specfunc.specfunc import diff_phi
+from ...specfunc.specfunc import integralD_lpm as python_integralD_lpm
+from ...specfunc.specfunc import (
+    integralD_lpm_derivative as python_integralD_lpm_derivative,
+)
+from ...specfunc.specfunc import integralX_lpm as python_integralX_lpm
+from ...specfunc.specfunc import (
+    integralX_lpm_derivative as python_integralX_lpm_derivative,
+)
 from .RTD import ApproachPyRTD
 from .RTD import _warn_if_rtd_coherence_is_not_resolved
 from .RTD import _warn_if_unequal_temperature_cutoff_is_small
@@ -23,8 +40,54 @@ from ..kernel_handler import KernelHandlerRTDnoise
 from ..rtd_blocks import counting_resolved_coherence_correction
 from ..rtd_blocks import generate_population_coherence_blocks
 
+
+class RTDNoiseLaplaceProjectionWarning(QmeqRuntimeWarning):
+    """Warning that a discarded Laplace-derivative real part was not roundoff."""
+
+
+#: Largest ``max|Re| / max|Im|`` accepted as roundoff when projecting the
+#: Laplace derivative onto its analytically allowed imaginary channel.
+#: Calibrated against the test suite: with real tunnel amplitudes the observed
+#: ratio never exceeds 1.2e-5, while complex amplitudes -- a regime RTDnoise
+#: does not yet qualify -- produce 0.30 to 0.95.  Anything in between is
+#: neither, and is reported rather than silently discarded.
+_LAPLACE_REAL_PROJECTION_RTOL = 1e-3
+
+
+def _project_laplace_derivative_onto_imaginary(approach, name, array):
+    """Zero the analytically forbidden real channel, but never silently.
+
+    In QmeQ's RTD convention the zero-field kernel is real and its Laplace
+    derivative is purely imaginary, so a nonzero real part is numerical
+    residue from centered differences of individually complex diagrams.  That
+    holds only where the diagram sum is qualified: with complex tunnel
+    amplitudes the discarded part reaches the same order as the physical
+    imaginary channel, which means the counting construction -- not the
+    projection -- is the thing that is wrong.  Warn there instead of
+    presenting a projected result as if it were clean.
+    """
+    real_scale = float(np.abs(array.real).max()) if array.size else 0.0
+    imaginary_scale = float(np.abs(array.imag).max()) if array.size else 0.0
+    if real_scale > _LAPLACE_REAL_PROJECTION_RTOL*max(imaginary_scale, 1e-300):
+        warnings.warn(
+            f"RTDnoise discarded a real part of {name} that is not roundoff: "
+            f"max|Re| = {real_scale:.3e} against max|Im| = {imaginary_scale:.3e} "
+            f"(ratio {real_scale/max(imaginary_scale, 1e-300):.3e}, allowed "
+            f"{_LAPLACE_REAL_PROJECTION_RTOL:.0e}). The Laplace derivative is "
+            "analytically imaginary, so this indicates the counting kernel is "
+            "outside its qualified regime -- complex tunnel amplitudes are the "
+            "known case. The returned noise is not trustworthy here.",
+            RTDNoiseLaplaceProjectionWarning,
+        )
+    array[:] = 1j*array.imag
+
+
 class ApproachPyRTDnoise(ApproachPyRTD):
     """Counting-resolved RTD kernel and its non-Markovian noise.
+
+    The diagram traversal, kernel assembly, and scalar direct/exchange
+    special-function calls are all implemented in Python.  The unprefixed
+    :class:`ApproachRTDnoise` subclass may select compiled scalar functions.
 
     Laplace-derivative convention.  ``phi`` and the Fermi function take the
     *scaled* argument ``(E - mu)/T``, so a derivative with respect to the
@@ -40,6 +103,10 @@ class ApproachPyRTDnoise(ApproachPyRTD):
 
     kerntype = 'pyRTDnoise'
     coherence_laplace_derivatives = True
+    integralD_lpm = staticmethod(python_integralD_lpm)
+    integralD_lpm_derivative = staticmethod(python_integralD_lpm_derivative)
+    integralX_lpm = staticmethod(python_integralX_lpm)
+    integralX_lpm_derivative = staticmethod(python_integralX_lpm_derivative)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -281,6 +348,17 @@ class ApproachPyRTDnoise(ApproachPyRTD):
             self.Lpm_second += correction.kernel
             self.Lpm_second_dz += correction.laplace_derivative
             self.Wdd += np.sum(correction.kernel.real, axis=(1, 2, 3))
+
+        # Remove the analytically forbidden real channel of the Laplace
+        # derivative at the assembled-array boundary, after checking that what
+        # is discarded really is numerical residue. See
+        # :func:`_project_laplace_derivative_onto_imaginary`.
+        _project_laplace_derivative_onto_imaginary(
+            self, "Lpm_first_dz", self.Lpm_first_dz,
+        )
+        _project_laplace_derivative_onto_imaginary(
+            self, "Lpm_second_dz", self.Lpm_second_dz,
+        )
 
         kern_size = self.get_kern_size()
         self.kern[:kern_size, :kern_size] += np.sum(self.Lpm_first.real, axis=(0,1)) + np.sum(self.Lpm_second.real, axis=(0,1,2,3))
@@ -628,6 +706,11 @@ class ApproachPyRTDnoise(ApproachPyRTD):
         # - r : lead index
         # - p : Keldysh sign
         # - z : energy difference
+
+        integralD_lpm = self.integralD_lpm
+        integralD_lpm_derivative = self.integralD_lpm_derivative
+        integralX_lpm = self.integralX_lpm
+        integralX_lpm_derivative = self.integralX_lpm_derivative
 
         statesdm, Tba, E = self.si.statesdm, self.leads.Tba, self.qd.Ea
         tlst, mulst, dlst = self.leads.tlst, self.leads.mulst, self.leads.dlst
@@ -1037,3 +1120,19 @@ class ApproachPyRTDnoise(ApproachPyRTD):
         # for completeness
         L[0]=np.sum(Lpm_first,axis=(0,1))-np.sum(L[1:],axis=0)
         return L
+
+
+class ApproachRTDnoise(ApproachPyRTDnoise):
+    """RTDnoise with backend-selected compiled scalar integral acceleration.
+
+    Kernel traversal remains Python because profiling identified the four
+    direct/exchange value and derivative functions as the useful bounded
+    Cython target.  Under ``QMEQ_BACKEND=python`` the selected functions resolve
+    to their Python implementations, so this class remains portable.
+    """
+
+    kerntype = 'RTDnoise'
+    integralD_lpm = staticmethod(selected_integralD_lpm)
+    integralD_lpm_derivative = staticmethod(selected_integralD_lpm_derivative)
+    integralX_lpm = staticmethod(selected_integralX_lpm)
+    integralX_lpm_derivative = staticmethod(selected_integralX_lpm_derivative)
