@@ -362,6 +362,30 @@ def make_array(lst_old, lst, si, npar=None, use_symmetry=True):
         return lst_arr
 
 
+def _validate_temperatures(tlst):
+    """Reject lead temperatures that no approach can evaluate.
+
+    Every kernel divides by the lead temperature. At exactly zero the
+    approaches disagree about how to fail: Pauli and Lindblad return
+    ``success=False`` from a singular kernel, while Redfield, 1vN and RTD
+    report ``success=True`` alongside an all-``nan`` stationary solution. A
+    negative temperature is worse, because it is accepted silently and returns
+    a confidently wrong current. Neither limit is worth defining here, since a
+    small positive temperature is well behaved, so both are refused at the
+    input rather than deep inside a solve.
+    """
+    values = np.asarray(tlst, dtype=doublenp).ravel()
+    invalid = [(index, float(value))
+               for index, value in enumerate(values) if not value > 0.0]
+    if invalid:
+        listed = ", ".join(f"tlst[{index}]={value!r}" for index, value in invalid)
+        raise ValueError(
+            "lead temperatures must be positive, got " + listed + ". Use a "
+            "small positive temperature instead: the kernels divide by the "
+            "temperature, so zero gives nan populations and a negative value "
+            "gives an unphysical stationary solution with no warning."
+        )
+
 def make_array_dlst(dlst_old, dlst, si, npar=None, use_symmetry=True):
     if npar is None:
         npar = si.nleads_sym
@@ -432,6 +456,7 @@ class LeadsTunneling(object):
         self.tleads_array = make_tleads_array(self.tleads, si)
         self.mulst = make_array(None, mulst, si)
         self.tlst = make_array(None, tlst, si)
+        _validate_temperatures(self.tlst)
         self.dlst = make_array_dlst(None, dlst, si)
         self.mtype = mtype
         self._init_coupling()
@@ -460,7 +485,9 @@ class LeadsTunneling(object):
             if mulst is not None:
                 self.mulst += make_array(None, mulst, self.si)
             if tlst is not None:
-                self.tlst += make_array(None, tlst, self.si)
+                candidate = self.tlst + make_array(None, tlst, self.si)
+                _validate_temperatures(candidate)
+                self.tlst[:] = candidate
             if dlst is not None:
                 self.dlst += make_array_dlst(None, dlst, self.si)
         if tleads is not None:
@@ -488,7 +515,12 @@ class LeadsTunneling(object):
         if mulst is not None:
             self.mulst[:] = make_array(self.mulst, mulst, self.si)
         if tlst is not None:
-            self.tlst[:] = make_array(self.tlst, tlst, self.si)
+            # make_array writes a dict update straight into the array it is
+            # handed, so build the candidate from a copy: a rejected update
+            # must leave the stored temperatures untouched.
+            candidate = make_array(self.tlst.copy(), tlst, self.si)
+            _validate_temperatures(candidate)
+            self.tlst[:] = candidate
         if dlst is not None:
             self.dlst[:] = make_array_dlst(self.dlst, dlst, self.si)
         #

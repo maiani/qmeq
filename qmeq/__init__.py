@@ -65,4 +65,4 @@ from .leadstun import LeadsTunneling as LeadsTunneling
 from .baths import PhononBaths as PhononBaths
 from .qdot import QuantumDot as QuantumDot
 
-__version__ = '1.2.0.dev4'
+__version__ = '1.2.0.dev5'

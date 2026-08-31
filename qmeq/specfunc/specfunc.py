@@ -167,6 +167,21 @@ def func_1vN(Ecb, mu, T, Dm, Dp, itype, limit):
     """
     if itype == 0:
         alpha, Rm, Rp = (Ecb-mu)/T, (Dm-mu)/T, (Dp-mu)/T
+        if alpha == Rm or alpha == Rp:
+            # scipy's Cauchy weight refuses wvar on a limit, and the log below
+            # would be log(0) in the same breath. Both diverge, so report the
+            # input that caused it instead of letting the solver quote scipy.
+            raise ValueError(
+            f"itype=0 cannot integrate a transition energy sitting exactly on "
+            f"a band edge: Ecb={float(Ecb)!r} coincides with "
+            f"{'Dm' if alpha == Rm else 'Dp'}="
+            f"{float(Dm if alpha == Rm else Dp)!r}. "
+            "The Cauchy principal value then has its pole on the integration "
+            "boundary and the accompanying log|(Rm-alpha)/(Rp-alpha)| "
+            "diverges, so the integral does not exist rather than being hard "
+            "to evaluate. Move the band edge (dband or dlst) off the "
+            "transition energy, or use a wide-band itype."
+        )
         cur0, err = quad(fermi_func, Rm, Rp,
                          weight='cauchy', wvar=alpha, epsabs=1.0e-6,
                          epsrel=1.0e-6, limit=limit)

@@ -51,27 +51,11 @@ Ground rules for anything below:
     restriction, so it can supply the converged answer the sweep should approach,
     at least in the non-interacting limit.
 
-- [ ] Decide what `tlst = 0` means and make every approach agree.
-  - Pauli and Lindblad return `success=False` from a singular kernel. Redfield,
-    1vN, and RTD return `success=True` with an all-`nan` `phi0`, caught only by
-    the stationary diagnostics' "unphysical solution" warning. A user testing
-    `system.success` is told the all-`nan` solve worked.
-  - `func_pauli` raises a bare `ZeroDivisionError` at `T=0`, and NumPy's
-    untyped `RuntimeWarning: divide by zero` escapes to the caller in every
-    case. Either reject `T=0` in validation with a message naming `tlst`, or
-    define the limit; the present behaviour is neither.
-  - `T=1e-12` is fine and warns appropriately, so the gap is the exact zero.
-
-- [ ] Fix the `itype=0` band-edge coincidence.
-  - A many-body energy difference landing exactly on `+-dband` makes
-    `scipy.integrate.quad`'s Cauchy-weighted call raise
-    `ValueError: Parameter 'wvar' must not equal integration limits 'a' or 'b'`.
-    Reproducible with a level at `-1.0` and `dband=1.0`, and at `-50.0` with
-    `dband=50.0`, so it is the coincidence and not the band width. The message
-    names neither `dband` nor the level.
-  - Moving the edge by `1e-9` either way is the difference between
-    `current=1.66e-05` and a silent `current=0`. The zero deserves a warning:
-    it means the cutoff has cut through a resonance.
+- [ ] Warn when the band edge silences the current.
+  - With `itype=0`, moving the cutoff by `1e-9` across a transition energy is
+    the difference between `current=1.66e-05` and a silent `current=0`. Warn
+    once when the band excludes every transition energy: that is the whole
+    class, not just the case found by hand.
 
 - [ ] Say when `dband` is being ignored.
   - `itype=1` and `itype=3` are wide-band limits and drop the cutoff entirely:

@@ -10,6 +10,21 @@
 
 ### Fixed
 
+- Refuse non-positive lead temperatures instead of letting each approach fail
+  its own way. At `tlst = 0` Pauli and Lindblad returned `success=False` from a
+  singular kernel while Redfield, 1vN and RTD returned `success=True` beside an
+  all-`nan` stationary solution, and a negative temperature was accepted
+  outright and returned a confidently wrong current with no warning at all.
+  `LeadsTunneling` now validates on construction, `add`, and `change`, naming
+  the offending entry; a rejected update leaves the stored temperatures
+  untouched. A small positive temperature is well behaved and unaffected.
+- Report the input when `itype=0` meets a transition energy sitting exactly on
+  a band edge, rather than passing SciPy's `Parameter 'wvar' must not equal
+  integration limits` to the user. The Cauchy principal value has its pole on
+  the integration boundary and the accompanying logarithm diverges in the same
+  breath, so the integral does not exist; the error now names the energy and
+  the edge and points at `dband`. Guarded identically in the compiled twin.
+
 - Stop shipping the cythonize output in the source distribution. `setup.py`
   cythonizes into `build/cython/`, whose generated `.c` files became the
   extension modules' declared sources and were carried into the sdist
