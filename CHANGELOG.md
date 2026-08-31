@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Removed
+
+- Remove the superseded Sphinx documentation tree and its dependency, CI, and
+  packaging paths. MkDocs now owns the user guide, tutorials, theory notes,
+  generated API reference, and internal conventions.
+
 ### Fixed
 
 - Stop shipping the cythonize output in the source distribution. `setup.py`
@@ -157,10 +163,6 @@
   the `maptype=2` and `maptype=3` integer arguments, matching the accessor
   names the Cython handler already used. The integer `maptype` interface is
   unchanged.
-- Record `new_docs/` as the intentionally ignored working prototype for the
-  documentation system intended eventually to replace Sphinx. It is not yet a
-  shipped documentation source; Sphinx remains the user-facing manual and
-  warning-clean release gate until the replacement has equivalent coverage.
 - Add `QMEQ_STRICT_INDEX=1`, a pure-Python diagnostic that turns an insertion at
   a density-matrix element with no index into an `IndexError` naming the method
   and the offending endpoint, instead of silently skipping it. Off by default,
@@ -241,7 +243,7 @@
   Lindblad, Redfield, and 1vN on both Python and Cython backends. The
   pure-Python `pyRTDnoise` approach, also available as `RTDnoise`, exposes the
   full fourth-order-kernel result, its sequential result, and a consistently
-  fourth-order-truncated result. See `docs/source/theory/counting_statistics.rst`
+  fourth-order-truncated result. See `docs/docs/theory/counting-statistics.md`
   and Simon's [example notebook](https://github.com/si8881wo/qmeq-noise-example).
 - Add lead-resolved zero-frequency particle-current covariance matrices.
   `current_noise_matrix` is ordered as `countingleads` for every supported
@@ -263,7 +265,7 @@
   `qmeq.specfunc.specfunc.func_lambshift` (with a compiled twin) evaluates the
   principal-value factors in the wide-band digamma approximation. See
   `qmeq.approach.base.lindblad.generate_lamb_shift` and
-  `docs/source/theory/lambshift.rst` for the implemented expressions.
+  `docs/docs/theory/lambshift.md` for the implemented expressions.
 - Add a prioritized maintenance roadmap in `TODO.md`.
 - Add a seven-notebook tutorial path in `examples/tutorials/`, each notebook
   stating a prediction, building the smallest useful model, and asserting
@@ -279,8 +281,8 @@
   expose `qmeq.get_backend_status()` for diagnostics and test assertions.
 - Vendor the tutorials, example scripts, and appendix notebooks (previously in
   the separate `qmeq-examples` repository) under `examples/`.
-- Render the example notebooks in the Sphinx documentation via `nbsphinx` and
-  `nbsphinx-link`, keeping the notebooks in `examples/` as the single source.
+- Render the example notebooks in the documentation via `mkdocs-jupyter`,
+  keeping the notebooks in `examples/` as the single source.
 - Run the example scripts and notebooks as tests (`qmeq/tests/test_examples.py`):
   the quick examples run with the normal suite, while the long-running 2vN / RTD
   ones are marked `slow` and run only with `pytest --runslow`.
@@ -291,6 +293,14 @@
   unnoticed.
 
 ### Changed
+
+- Build the documentation with `mkdocs build --strict`, so any warning fails
+  the build rather than degrading a page quietly, and fix the docstrings that
+  blocked it. A bare index expression such as `szlst[charge][sz]` was read as a
+  Mkdocstrings shorthand cross-reference, `Phi[1](k)` was read as a Markdown
+  link whose target is `k`, and five parameter continuation lines were indented
+  three spaces instead of four. Both rules are recorded in the docstring
+  conventions page.
 
 - Replace warning-like standard-output prints with typed warnings across input
   validation, state indexing, solver fallback/failure paths, 2vN grid changes,
@@ -396,7 +406,7 @@
   language level and Cython 3 exception semantics explicit. Backend parity tests
   cover Pauli, Lindblad, Redfield, 1vN, 2vN, and RTD.
 - Use NumPy for `pi` and `exp` constants removed from the public SciPy API.
-- Allow the Sphinx documentation to build without optional Cython extensions.
+- Allow the documentation to build without optional Cython extensions.
 - Modernize packaging: move static project metadata to `pyproject.toml`,
   derive the version dynamically from `qmeq.__version__`, use automatic package
   discovery, declare a supported-Python range of `>=3.11`, and reduce `setup.py`
@@ -425,8 +435,7 @@
   build to the release in one place, matching the build/publish split
   already used for the Conda packages.
 - Bump `__version__` to `1.2.0.dev1` to mark ongoing modernization work past
-  the released `1.1`. `docs/source/conf.py` now derives `version`/`release`
-  from `qmeq.__version__` instead of a second, separately hardcoded string.
+  the released `1.1`.
 - Check the tag against the package version in `build_wheels.yml`, the guard
   `release.yml` already had. Without it a tag whose name disagrees with
   `qmeq.__version__` still built, and the publish job attached wheels carrying
@@ -460,8 +469,8 @@
   oldest-supported-Cython leg stays Linux-only.
 - Sweep the whole declared Python range in CI: the pure-Python job now runs on
   3.11, 3.12, 3.13, and 3.14, matching `pyproject.toml`'s classifiers.
-- Build the documentation in CI as a `docs` job in `test.yml`, with
-  `sphinx-build -W --keep-going`, so a documentation warning fails the build.
+- Build the documentation in CI as a `mkdocs-docs` job in `test.yml`, so a
+  broken internal link or a nav entry with no matching page fails the build.
 - Add `slow.yml`, running the `--runslow` example suite over both backends
   weekly and on demand, so the long-running notebooks stay a release gate
   without slowing down every push.
@@ -608,8 +617,8 @@
 - Define all compiled special-function names through pure-Python fallbacks when
   the Cython extensions are unavailable.
 - Fix string comparisons used when expanding spin-symmetric input data.
-- Fix Sphinx configuration, duplicate API metadata, malformed docstring
-  references, and wrapper-page headings so documentation builds cleanly.
+- Fix duplicate API metadata, malformed docstring references, and
+  wrapper-page headings so documentation builds cleanly.
 
 ### Removed
 

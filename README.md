@@ -8,7 +8,7 @@ iterable such as `countingleads=[0, 2]`; after `solve()`,
 leads, while `system.current_noise_matrix` contains their lead-resolved noise
 covariance matrix in the order given by `countingleads`. Omitting
 `countingleads` leaves counting disabled. See the
-[counting-statistics documentation](https://qmeq.readthedocs.io/en/latest/theory/counting_statistics.html)
+[counting-statistics documentation](docs/docs/theory/counting-statistics.md)
 for formulas, RTD outputs, conventions, and limitations.
 
 This implementation was developed by Simon Wozny and integrated from his
@@ -104,7 +104,7 @@ The preprint version of the paper can be found on the
 
 [tutorial]: examples/tutorials
 [examples]: examples
-[qmeqdocs]: https://github.com/gedaskir/qmeq/tree/master/docs
+[qmeqdocs]: docs/
 [license]: https://opensource.org/licenses/BSD-2-Clause
 [qmeqdoi]: https://dx.doi.org/10.1016/j.cpc.2017.07.024
 [qmeqarxiv]: https://arxiv.org/abs/1706.10104

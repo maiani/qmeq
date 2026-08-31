@@ -1,7 +1,7 @@
 # Model construction
 
 The modules used to build the physical model before handing it to a
-`Builder`. Ported from `legacy_docs/source/qmeq.*.rst`.
+`Builder`.
 
 ## `qmeq.indexing`
 
@@ -18,4 +18,3 @@ The modules used to build the physical model before handing it to a
 ## `qmeq.baths`
 
 ::: qmeq.baths
-

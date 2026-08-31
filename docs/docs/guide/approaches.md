@@ -71,7 +71,7 @@ measures Lindblad running **6-13% below** Redfield/1vN in a regime where all
 three are valid. That gap is the price of the approximation, not a bug in
 either. The Lamb shift itself is wide-band-digamma only (no `'quad'` option),
 does not include a phonon-induced shift for the electron-phonon variant, and
-stiffens the kernel — `legacy_docs/source/theory/lambshift.rst` recommends
+stiffens the kernel — the [Lamb-shift theory page](../theory/lambshift.md) recommends
 checking the solution (e.g. `symq=False`, or comparing lead currents) for
 weakly coupled models before trusting the last digits.
 
@@ -179,19 +179,12 @@ and noise at both orders for comparison; `current_noise_matrix` /
 
 **Known limitations:**
 
-- **Complex amplitudes are broken here, and silently.** With real tunnel
-  amplitudes, `off_diag_corrections=True` includes the same eliminated-coherence
-  block as ordinary RTD, resolved by lead and transferred charge for noise; the
-  legacy `False` mode remains available. But RTDnoise's *own* second-order
-  traversal conjugates one vertex factor instead of the whole amplitude
-  product, so at a generic flux its second-order kernel is wrong — and the
-  damage is not confined to the noise. Measured against the exact
-  non-interacting reference at flux `pi/2`, the **particle current** loses the
-  `O(Gamma**2)` accuracy it claims (residual exponent 2.0 instead of 3.0), with
-  no warning raised. Ordinary RTD is unaffected on that path: its exponent
-  stays 3.0 at the same operating point, so its second-order `.real`
-  projections are an identity there rather than a truncation. Treat any
-  RTDnoise number at complex amplitudes as unvalidated, including the current.
+- **Complex particle-counting amplitudes are supported.** Direct and exchange
+  diagrams use their separately derived Hermitian partner products, and the
+  packed real/imaginary coherence correction is resolved by lead and
+  transferred charge. Generic-flux non-interacting controls retain the
+  expected cubic residual after the second-order correction. Energy and heat
+  currents remain a separate limitation, described under RTD above.
 - **Requires a nonempty `countingleads`** and raises `ValueError` without one;
   matrix-free solving (`mfreeq=True`) raises `NotImplementedError`.
 - **Laplace derivatives use two controlled paths.** The first-order blocks and
@@ -223,7 +216,7 @@ and noise at both orders for comparison; `current_noise_matrix` /
   matrix-free solvers (any approach, not just RTDnoise).
 
 The output-array semantics above (`current_noise_o4trunc` etc.) are set out
-in `legacy_docs/source/theory/counting_statistics.rst`.
+on the [counting-statistics theory page](../theory/counting-statistics.md).
 
 ## Transport integration options, by approach
 
@@ -241,4 +234,4 @@ branch logic in `resolve_transport_options` (`qmeq/builder/validation.py`):
 | 2vN | neither option is used |
 
 Further reading on these options, including the legacy `itype` mapping and
-worked examples: `legacy_docs/source/theory/transport_options.rst`.
+worked examples: [Transport integration options](../theory/transport-options.md).

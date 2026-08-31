@@ -1,8 +1,7 @@
 site_name: QmeQ Documentation
 site_description: >-
-  QmeQ's documentation: an incomplete user guide and API reference, plus
-  internal conventions uncovered while working on the code. Successor to the
-  Sphinx documentation, now at legacy_docs/.
+  QmeQ's user guide, tutorials, theory, API reference, and internal
+  conventions.
 docs_dir: docs
 site_dir: site
 

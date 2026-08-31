@@ -14,14 +14,9 @@ changing QmeQ's internals instead; this one is for people using QmeQ.
   RTD, and RTDnoise: what each approximates, what it solves for, its validity
   domain, and its known failure modes.
 - **[Getting started](getting-started.md)** — constructing a system with
-  `Builder`, choosing `kerntype`, and reading off the result attributes after
-  `solve()`.
+  `Builder`, choosing `kerntype`, electron-phonon inputs, indexing and spin
+  symmetry, editing a model, and reading off results after `solve()`.
 
-## Status
-
-**Started, not comprehensive.** These three pages do not yet cover everything
-the legacy Sphinx manual under [`legacy_docs/`](../../../legacy_docs/) does —
-notably the full `BuilderElPh`/electron-phonon path, the indexing options
-(`Lin`/`sz`/`ssq`) in depth, and the counting-statistics API beyond a
-pointer. Where this guide is silent, `legacy_docs/` and the docstrings in
-`qmeq/` are the reference.
+The [API reference](../api/index.md) provides complete signatures and
+attribute documentation; the guide focuses on choices users must make and on
+safe workflows.

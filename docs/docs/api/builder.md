@@ -1,7 +1,6 @@
 # Builder
 
-The user-facing entry point. Ported from
-`legacy_docs/source/builder/`.
+The user-facing entry point.
 
 ## `qmeq.builder`
 
@@ -30,4 +29,3 @@ The user-facing entry point. Ported from
 ## `qmeq.builder.various`
 
 ::: qmeq.builder.various
-

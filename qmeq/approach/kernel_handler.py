@@ -421,9 +421,9 @@ class KernelHandlerRTD(KernelHandler):
         Parameters
         ----------
         fct : float
-           the value to be added
+            the value to be added
         l : int
-           lead index
+            lead index
         b : int
             first index for state 1
         bp : int

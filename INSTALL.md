@@ -58,8 +58,7 @@ they combine with any of the commands above (e.g. `pip install -e .[dev]`):
 ```bash
 $ pip install qmeq[test]         # pytest for running the test suite
 $ pip install qmeq[docs]         # mkdocs + material, for the docs/ site
-$ pip install qmeq[docs-sphinx]  # sphinx + theme, for the legacy legacy_docs/ manual
-$ pip install qmeq[dev]          # everything above plus cython, build, and twine
+$ pip install qmeq[dev]          # tests, docs, cython, build, and twine
 ```
 
 We note that the binaries **pip** and **python** have to be in the system path.
@@ -154,37 +153,17 @@ $ pytest --pyargs qmeq.tests
 Documentation
 -------------
 
-QmeQ ships two documentation trees while it migrates from one to the other:
+QmeQ's documentation lives in `docs/` and is built with [MkDocs][MkDocs] and
+the [Material][mkdocs-material] theme. Install its dependencies with the
+`docs` extra and build with
 
-* `docs/` — the current documentation, built with [MkDocs][MkDocs] and the
-  [Material][mkdocs-material] theme. It is **incomplete**: the user manual,
-  API reference, theory pages, and examples have not all been migrated here
-  yet. Install its dependencies with the `docs` extra and build with
+```bash
+$ pip install qmeq[docs]
+$ mkdocs build --strict -f 'path to qmeq source'/docs/mkdocs.yml
+```
 
-  ```bash
-  $ pip install qmeq[docs]
-  $ mkdocs build --strict -f 'path to qmeq source'/docs/mkdocs.yml
-  ```
-
-  The generated site lands in *'path to qmeq source'/docs/site/index.html*.
-
-* `legacy_docs/` — the legacy [Sphinx][Sphinx] manual (using the
-  [sphinx-rtd-theme][srtdt]), still the **complete** user manual, API
-  reference, theory notes, and worked examples until the migration above
-  finishes. Install its dependencies with the `docs-sphinx` extra and build
-  with
-
-  ```bash
-  $ pip install qmeq[docs-sphinx]
-  $ cd 'path to qmeq source'/legacy_docs
-  $ make html
-  ```
-
-  The generated documentation lands in
-  *'path to qmeq source'/legacy_docs/build/html/index.html*.
-
-If neither build is at hand, the docstrings in the source code are the ground
-truth either way.
+The generated site lands in *'path to qmeq source'/docs/site/index.html*.
+Public API details are generated from the source docstrings.
 
 [Python]: https://www.python.org
 [Cython]: https://cython.org
@@ -192,7 +171,6 @@ truth either way.
 [SciPy]: https://scipy.org
 [Matplotlib]: https://matplotlib.org
 [Jupyter]: https://jupyter.org
-[Sphinx]: https://www.sphinx-doc.org
 [MkDocs]: https://www.mkdocs.org
 [mkdocs-material]: https://squidfunk.github.io/mkdocs-material/
 [pytest]: https://docs.pytest.org
@@ -201,7 +179,6 @@ truth either way.
 [pip]: https://pip.pypa.io
 [gcc]: https://gcc.gnu.org
 [cext]: https://github.com/cython/cython/wiki/CythonExtensionsOnWindows
-[srtdt]: https://github.com/readthedocs/sphinx_rtd_theme
 [examples]: examples
 
 [qmeqsrc]: http://github.com/gedaskir/qmeq/archive/master.zip

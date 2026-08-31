@@ -9,12 +9,10 @@ include AUTHORS.md
 include CHANGELOG.md
 include REFERENCES.md
 
-# Both documentation trees: the legacy Sphinx manual and the MkDocs successor.
-# Neither build output is source, so prune it.
-recursive-include legacy_docs *
-prune legacy_docs/build
+# Documentation source and configuration. Build output is not source.
 recursive-include docs *
 prune docs/site
+recursive-exclude docs __pycache__ *.pyc
 
 # docs/docs/notebooks is a symlink to examples/. The notebooks are shipped
 # once, through examples/ below; following the symlink would duplicate them.

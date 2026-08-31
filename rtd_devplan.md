@@ -611,8 +611,8 @@ once established.
 
 Each priority is a sequence of small, reviewable changes. The next priority
 starts only when the previous exit gate passes. Documentation-platform migration
-is complete and out of scope; `legacy_docs/` is merely retained until separate
-housekeeping removes it. Physics documentation changed by this work is still
+is complete and out of scope; the former Sphinx documentation was removed in
+separate housekeeping. Physics documentation changed by this work is still
 part of the relevant P1-P4 change.
 
 ### P0 — Validate the current implementation

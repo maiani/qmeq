@@ -16,8 +16,7 @@ features, installation, examples, authorship, and citation information, use
   documentation must state durable conventions and provenance directly rather
   than link to a development plan or copy its phase labels.
 - [docs/README.md](docs/README.md) describes documentation ownership and build
-  status. The successor tree is [docs/](docs/); [legacy_docs/](legacy_docs/) is
-  retained temporarily and must not receive new material.
+  status. The complete documentation tree is [docs/](docs/).
 
 Read the relevant source and tests before editing. Treat line numbers and status
 claims in plans as snapshots: verify them against the working tree.
@@ -133,15 +132,10 @@ Documentation is part of a behavior change:
 Do not leave project-management notes in production source or user pages. A
 reader should learn what the code does, not which temporary pass discovered it.
 
-Do not add new content to `legacy_docs/`.
-
-After a docstring or documentation edit, run the builds used by CI:
+After a docstring or documentation edit, run the build used by CI:
 
 ```bash
-cd legacy_docs
-QMEQ_BACKEND=python sphinx-build -b html -W --keep-going source build/html
-cd ..
-mkdocs build -f docs/mkdocs.yml
+QMEQ_BACKEND=python mkdocs build --strict -f docs/mkdocs.yml
 ```
 
 ## Worktree and finish discipline

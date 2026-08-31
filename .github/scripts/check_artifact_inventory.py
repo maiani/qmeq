@@ -44,7 +44,6 @@ SDIST_REQUIRED = [
     ("example scripts", "examples/scripts/*.py"),
     ("MkDocs tree", "docs/docs/*.md"),
     ("MkDocs configuration", "docs/mkdocs.yml"),
-    ("legacy Sphinx tree", "legacy_docs/source/*.rst"),
 ]
 
 SDIST_FORBIDDEN = [
@@ -53,7 +52,7 @@ SDIST_FORBIDDEN = [
     ("issue tracker", "TODO.md"),
     ("development plans", "*_devplan.md"),
     ("MkDocs build output", "docs/site/*"),
-    ("Sphinx build output", "legacy_docs/build/*"),
+    ("removed legacy documentation", "legacy_docs/*"),
     ("notebook symlink duplicate", "docs/docs/notebooks/*"),
     ("generated example figures", "examples/*.png"),
     ("generated example data", "examples/*.dat"),
@@ -72,7 +71,7 @@ WHEEL_FORBIDDEN = [
     ("vendored examples", "examples/*"),
     ("notebooks", "*.ipynb"),
     ("documentation trees", "docs/*"),
-    ("legacy documentation", "legacy_docs/*"),
+    ("removed legacy documentation", "legacy_docs/*"),
     ("root documents", "*.md"),
 ]
 

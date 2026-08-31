@@ -44,7 +44,7 @@ def get_htransf_phi1k(phi1k, funcp):
     ----------
     phi1k : ndarray
         Numpy array with dimensions (len(Ek_grid), nleads, ndm1, ndm0)
-        containing energy resolved first order density matrix elements Phi[1](k).
+        containing energy resolved first order density matrix elements `Phi[1](k)`.
     funcp : FunctionProperties
         FunctionProperties object.
 
@@ -277,10 +277,10 @@ class Approach2vN(ApproachBase2vN):
         ----------
         phi1_phi0 : ndarray
             (Modifies) Numpy array with dimensions (nleads, ndm1, ndm0),
-            corresponding to energy integrated Phi[1](k).
+            corresponding to energy integrated `Phi[1](k)`.
         e_phi1_phi0 : ndarray
             (Modifies) Numpy array with dimensions (nleads, ndm1, ndm0),
-            corresponding to energy integrated Ek*Phi[1](k).
+            corresponding to energy integrated `Ek*Phi[1](k)`.
         """
         phi1k, Ek_grid = self.phi1k, self.Ek_grid
         # Get integrated Phi[1]_{cb} in terms of Phi[0]_{bb'}
@@ -301,7 +301,7 @@ class Approach2vN(ApproachBase2vN):
 
     def generate_kern(self):
         """
-        From Phi[1](k) generate equations containing just Phi[0].
+        From `Phi[1](k)` generate equations containing just `Phi[0]`.
 
         Parameters
         ----------
@@ -355,7 +355,7 @@ class Approach2vN(ApproachBase2vN):
         ----------
         phi1 : ndarray
             (Modifies) nleads by ndm1 numpy array, which gives energy integrated
-            Phi[1](k) after the values for Phi[0] were inserted.
+            `Phi[1](k)` after the values for `Phi[0]` were inserted.
         current : ndarray
             (Modifies) Values of the current having nleads entries.
         energy_current : ndarray
@@ -426,13 +426,13 @@ class TermsCalculator2vN(object):
         ----------
         phi1k_delta : ndarray
             (Modifies) Numpy array with dimensions (len(Ek_grid), nleads, ndm1, ndm0).
-            Correction to Phi[1](k) after an iteration.
+            Correction to `Phi[1](k)` after an iteration.
         hphi1k_delta : ndarray
             (Modifies) Numpy array with dimensions (len(Ek_grid_ext), nleads, ndm1, ndm0).
             Hilbert transform of phi1k_delta on extended grid Ek_grid_ext.
         kern1k_inv : ndarray
             (Modifies) Numpy array with dimensions (len(Ek_grid), nleads, ndm1, ndm1)
-            corresponding to inverse of energy resolved local kernel for Phi[1](k).
+            corresponding to inverse of energy resolved local kernel for `Phi[1](k)`.
         """
         self.retrieve_approach_variables()
 
@@ -456,9 +456,9 @@ class TermsCalculator2vN(object):
 
     def phi1k_local(self, k, l):
         """
-        Constructs Phi[1](k) corresponding to local approximation at Ek_grid[ind].
-        More precisely, generates local approximation kernels L1 and L0, Phi[1](k) = L0(k)Phi[0],
-        L1(k)Phi[1](k) = L0p(k)Phi[0], L0 = L1^{-1}L0p.
+        Constructs `Phi[1](k)` corresponding to local approximation at `Ek_grid[ind]`.
+        More precisely, generates local approximation kernels L1 and L0, `Phi[1](k) = L0(k)Phi[0]`,
+        `L1(k)Phi[1](k) = L0p(k)Phi[0]`, `L0 = L1^{-1}L0p`.
 
         Parameters
         ----------
@@ -470,7 +470,7 @@ class TermsCalculator2vN(object):
         kern0 : ndarray
             (Modifies) Numpy array with dimensions (nleads, ndm1, ndm0).
             Gives local approximation kernel L0(k) at Ek_grid[ind].
-            Shows how Phi[1](k) is expressed in terms of Phi[0].
+            Shows how `Phi[1](k)` is expressed in terms of `Phi[0]`.
         kern1_inv : ndarray
             (Modifies) Numpy array with dimensions (nleads, ndm1, ndm1).
             Gives inverse of local approximation kernel L1(k) at Ek_grid[ind].
@@ -566,8 +566,8 @@ class TermsCalculator2vN(object):
 
         kern0 : ndarray
             (Modifies) Numpy array with dimensions (nleads, ndm1, ndm0)
-            Gives a correction to Phi[1](k) after iteration of integral equation.
-            Shows how delta[Phi[1](k)] is expressed in terms of Phi[0].
+            Gives a correction to `Phi[1](k)` after iteration of integral equation.
+            Shows how `delta[Phi[1](k)]` is expressed in terms of `Phi[0]`.
         """
         E, Tba, si = self.Ea, self.Tba, self.si
         fk = self.fkp
@@ -693,7 +693,7 @@ class TermsCalculator2vN(object):
         l : int
             Lead label.
         cb : int
-            Index corresponding to Phi[1](k) matrix element.
+            Index corresponding to `Phi[1](k)` matrix element.
         conj : bool
             If conj=True the term in the integral equation is conjugated.
 

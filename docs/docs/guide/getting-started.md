@@ -84,7 +84,7 @@ ordered as `countingleads`. Passing a string, a duplicate index, an
 out-of-range index, or an empty iterable raises (`TypeError`/`ValueError`)
 rather than silently doing something else (`validate_countingleads`,
 `qmeq/builder/validation.py`). The counting-statistics formulas themselves
-are covered in `legacy_docs/source/theory/counting_statistics.rst`.
+are derived on the [counting-statistics theory page](../theory/counting-statistics.md).
 
 ## `off_diag_corrections`: RTD-specific
 
@@ -94,6 +94,90 @@ than RTD/RTDnoise. RTDnoise resolves the same correction by lead and transferred
 charge so that it contributes consistently to current and noise. Set it to
 `False` only to reproduce the historical population-only RTDnoise kernel; see
 [The approaches](approaches.md#rtdnoise) for the remaining validity limits.
+
+## Electron-phonon systems
+
+Use `BuilderElPh` (or `Builder.elph`) when bosonic baths drive transitions
+inside the dot. In addition to the electronic model, provide:
+
+| argument | meaning |
+|---|---|
+| `nbaths` | number of phonon baths (stored on `system.si.nbaths`) |
+| `velph[(bath, i, j)]` | single-particle coupling from orbital `j` to `i`; an array may instead have shape `(nbaths, nsingle, nsingle)` |
+| `tlst_ph` | bath temperatures |
+| `dband_ph` | bath bandwidths |
+| `bath_func` | optional density-of-states function for each bath |
+| `itype_ph` | phonon integral selector: `0` includes principal parts, `2` omits them |
+| `eps_elph` | small integration stabilizer near the Bose-function singularity |
+
+```python
+system = qmeq.Builder.elph(
+    nsingle=2,
+    hsingle={(0, 0): -0.5, (1, 1): 0.5},
+    coulomb={},
+    nleads=2,
+    tleads={(0, 0): 0.1, (1, 1): 0.1},
+    mulst={0: 1.0, 1: -1.0},
+    tlst={0: 0.2, 1: 0.2},
+    dband={0: 100.0, 1: 100.0},
+    nbaths=1,
+    velph={(0, 0, 1): 0.05, (0, 1, 0): 0.05},
+    tlst_ph={0: 0.2},
+    dband_ph={0: 100.0},
+    kerntype="Pauli",
+)
+```
+
+The builder constructs `Vbbp`, the many-body electron-phonon coupling, from
+`velph` and rotates it with the dot eigenstates during `solve()`. The
+electron-phonon variants support Pauli, Lindblad, Redfield, and 1vN. They do
+not implement particle counting. If the many-body energies and couplings are
+already known, use `BuilderManyBodyElPh`/`Builder.many_body_elph` and supply
+`Ea`, `Na`, `Tba`, and `Vbbp` directly. Complete signatures are in the
+[Builder API](../api/builder.md).
+
+## Indexing and spin symmetry
+
+`indexing` controls how Fock and many-body states are grouped; it is fixed
+when the builder is constructed and cannot be changed in place.
+
+| value | grouping and intended use |
+|---|---|
+| `'Lin'` | binary (linear) Fock-state order |
+| `'charge'` | charge sectors; the default without spin symmetry |
+| `'sz'` | charge and spin projection $S_z$; requires even `nsingle` |
+| `'ssq'` | charge, $S_z$, and total-spin information; requires even `nsingle` |
+
+`symmetry='spin'` duplicates the supplied spin-up orbitals and lead channels
+for spin down. When `indexing` is omitted it selects `'ssq'` for first-order
+approaches. RTD/RTDnoise require `indexing='charge'` and do not support the
+spin shortcut; 2vN supports only `'Lin'` and `'charge'`. Unsupported
+combinations emit `QmeqWarning` and select a supported indexing, so inspect
+`system.indexing` when adapting an existing model. The internal packed-layout
+contract is documented separately in [State indexing](../conventions/state-indexing.md).
+
+## Editing an existing model
+
+The builder keeps the single-particle input and derived many-body objects in
+sync when its editing methods are used:
+
+- `add(...)` increments Hamiltonian, interaction, tunnelling, or reservoir
+  entries. `BuilderElPh.add(...)` also accepts `velph`, `tlst_ph`, and
+  `dlst_ph`.
+- `change(...)` assigns new values to named entries and can also replace
+  `countingleads`. Use `dlst`/`dlst_ph` for bandwidth changes in these methods.
+- `remove_states(dE)` excludes many-body eigenstates more than `dE` above the
+  ground state; `use_all_states()` restores them.
+- `remove_coherences(dE)` excludes coherences whose energy splitting exceeds
+  `dE`.
+- `sort_eigenstates(srt)` changes the ordering used for inspection and output.
+- `remove_fock_states(indices)` removes selected linear-index Fock states and
+  rebuilds the dependent couplings.
+
+Call `solve()` after changing model inputs. Prefer these methods over mutating
+`qd`, `leads`, or `baths` arrays directly, because the methods rebuild the
+dependent many-body matrices. For a different `indexing`, construct a new
+builder.
 
 ## The main result attributes
 
@@ -126,13 +210,3 @@ master equation, compute the current). 2vN's `solve()` instead iterates to a
 self-consistent energy-resolved solution and additionally takes
 `niter`/`func_iter`; see [The approaches](approaches.md#2vn). (Signatures:
 `Approach.solve` and `ApproachBase2vN.solve` in `qmeq/approach/aprclass.py`.)
-
-## What this page does not cover
-
-`BuilderElPh`'s full parameter set (`velph`, `tlst_ph`, `dband_ph`,
-`bath_func`, `eps_elph`), the `indexing` options beyond the default
-(`'Lin'`, `'sz'`, `'ssq'`) and the `symmetry='spin'` shortcut, and the
-`add`/`change`/`remove_states`/`sort_eigenstates` model-editing methods are
-all real parts of the API that are not yet written up here — see
-`legacy_docs/source/builder/` and the docstrings in `qmeq/builder/` in the
-meantime.

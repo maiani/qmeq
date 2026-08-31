@@ -1,7 +1,6 @@
 # Wrappers
 
-Shared dtypes and the Cython LAPACK bindings. Ported from
-`legacy_docs/source/wrappers/`.
+Shared dtypes and the Cython LAPACK bindings.
 
 ## `qmeq.wrappers`
 

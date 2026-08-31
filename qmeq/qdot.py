@@ -359,7 +359,7 @@ def ssquare_eigenstates(charge, sz, si, prnt=False):
     -------
     ssq_eigvec : list of ndarrays
         List of numpy arrays containing the eigenstates of :math:`S^{2}`.
-        ssq_eigvec[ssqind] gives the eigenstate matrix for :math:`S^{2}` =ssq.
+        `ssq_eigvec[ssqind]` gives the eigenstate matrix for :math:`S^{2}` =ssq.
     """
     if charge % 2 != sz % 2:
         warnings.warn(
@@ -399,7 +399,7 @@ def ssquare_all_szlow(si, prnt=False):
     ssq_eigvec : list of ndarrays
         List of numpy arrays containing the eigenstates of :math:`S^{2}` for lowest abs(sz) value
         possible.
-        ssq_eigvec[charge][ssq] gives the eigenstate matrix for given charge and :math:`S^{2}` =ssq.
+        `ssq_eigvec[charge][ssq]` gives the eigenstate matrix for given charge and :math:`S^{2}` =ssq.
     """
     ssq_eigvec_all_szlow = [[] for _ in range(si.ncharge)]
     for charge in range(si.ncharge):
@@ -492,7 +492,7 @@ def construct_manybody_eigenstates_ssq_all(qd, charge, hsingle, coulomb, ham_=No
     -------
     valslst : list of ndarrays
         Eigenvalues of the Hamiltonian for given charge.
-        valslst[szind][ssqind] are the eigenvalues for given sz and :math:`S^{2}`.
+        `valslst[szind][ssqind]` are the eigenvalues for given sz and :math:`S^{2}`.
     vecslst : list of ndarrays
         Eigenvectors corresponding to valslst.
     """

@@ -10,8 +10,9 @@
 *.pyc
 
 # Specific files
-legacy_docs/index.html.lnk
-legacy_docs/run.bat
+# Editor workspace files; a multi-root .code-workspace also names paths
+# outside this repository, which belong to nobody else's checkout.
+*.code-workspace
 qmeq/pylintrc
 qmeq/approach/base/_complex_redfield.py
 qmeq/approach/base/_complex_neumann1.py
@@ -35,9 +36,6 @@ qmeq/approach/base/_complex_neumann1.py
 .cache/
 build/
 dist/
-legacy_docs/build
-# Media copied into the source tree by nbsphinx-link at build time
-legacy_docs/source/examples/images/
 qmeq.egg-info/
 qmeq/build
 qmeq/tests/__pycache__

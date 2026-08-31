@@ -32,7 +32,7 @@ Hamiltonian and tunneling matrix from exactly these dictionaries.)
 QmeQ works in natural units $\hbar=k_\mathrm{B}=|e|=1$, so energies,
 temperatures, and inverse times share units, and the reported particle
 current and its noise have units of inverse time (see
-`legacy_docs/source/theory/counting_statistics.rst`).
+[Counting statistics](../theory/counting-statistics.md)).
 
 ## What "approach" means
 

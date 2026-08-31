@@ -49,20 +49,13 @@ test = [
 docs = [
     "mkdocs>=1.6",
     "mkdocs-material>=9.5",
-    # API reference, generated from the same docstrings Sphinx autodoc used.
+    # API reference generated from the source docstrings.
     "mkdocstrings[python]>=0.26",
-    # Renders the tutorial notebooks, as nbsphinx did in the Sphinx build.
+    # Renders the tutorial notebooks.
     "mkdocs-jupyter>=0.25",
 ]
-docs-sphinx = [
-    "sphinx",
-    "sphinx-rtd-theme",
-    "nbsphinx",
-    "nbsphinx-link",
-    "ipython-pygments-lexers",
-]
 dev = [
-    "qmeq[test,docs,docs-sphinx]",
+    "qmeq[test,docs]",
     "ruff",
     "cython>=3.0,<4",
     "build",

@@ -158,10 +158,11 @@ Counting is not implemented for 2vN, electron-phonon approaches, or matrix-free
 solvers. RTD counting includes the same first-order coherence-elimination
 correction as ordinary RTD when `off_diag_corrections=True` (the default).
 The compatibility mode `False` remains available and reproduces the historical
-RTDnoise kernel. The counted correction has been validated against exact
-non-interacting transport for real tunnel amplitudes. Generic complex tunnel
-amplitudes remain outside the validated RTDnoise domain because the separate
-second-order population traversal still drops an imaginary channel.
+RTDnoise kernel. The counted correction and second-order population traversal
+have been validated against exact non-interacting transport for both real
+amplitudes and generic plaquette flux. Direct and exchange diagrams retain
+their distinct Hermitian partner products instead of dropping the imaginary
+channel.
 
 The published unequal-temperature RTD integrals retain `dband` as a finite
 wide-band regulator. Thermal-bias RTD counting calculations must therefore be

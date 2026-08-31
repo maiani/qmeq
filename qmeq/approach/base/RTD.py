@@ -543,9 +543,9 @@ class ApproachPyRTD(Approach):
          Parameters
          ----------
          b : int
-            the row (state)
+             the row (state)
          charge : int
-            the charge of state b
+             the charge of state b
          self.W2E_1 : ndarray
              (Modifies) The second order kernel used for evaluating the energy current. This Kernel
              has npauli * npauli entries.

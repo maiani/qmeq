@@ -29,11 +29,6 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install pandoc
-        # The notebook examples are executed through nbclient, which needs the
-        # kernel, and the docs-style notebooks need pandoc.
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends pandoc
-
       - name: Install test dependencies
         run: |
           # Constrained to match [build-system] requires; see test.yml.

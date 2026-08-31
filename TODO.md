@@ -78,37 +78,12 @@ Ground rules for anything below:
     Publishing, no token), then have `INSTALL.md` name both paths instead of
     mentioning Conda only as the OpenMP-enabled alternative for macOS.
 
-- [ ] Test the dependency floors, not just the current releases.
-  - NumPy, SciPy, Cython, and the build backend are unpinned and only ever
-    exercised at their newest versions. Add a lowest-supported job so the
-    declared range means something, and avoid speculative upper bounds unless a
-    demonstrated incompatibility justifies one.
-
-- [ ] Verify metadata consistency before publishing.
-  - Project URLs, supported versions, authorship, citation text, and the physics
-    disclaimer should agree across package metadata, `README.md`, `INSTALL.md`,
-    `AUTHORS.md`, and the documentation.
-
-## P2: performance
-
-- [ ] Establish a benchmark baseline.
-  - Nothing is measured: not whether OpenMP threading helps, not where RTD and
-    2vN time actually goes, not whether the 2vN Hilbert-transform chunking paid
-    off. Without a baseline every "optimisation" is unfalsifiable — and the
-    macOS wheels were just made serial without being able to quantify what that
-    costs a user.
-  - A handful of representative systems, timed reproducibly, is enough to start.
-
 ## P2: documentation
-- [ ] Replace the Sphinx documentation with the successor being developed in
-  `new_docs/`.
-  - `new_docs/` is intentionally an experimental, ignored working tree for the
-    eventual migration; it is not yet a shipped documentation source.
-  - Keep Sphinx warning-clean and release-capable until the successor covers
-    the user guide, pure-Python and Cython APIs, examples, and release build.
-  - Migrate incrementally rather than combining the documentation-system
-    replacement with the RTD rewrite. Notebook execution remains in the
-    example test jobs rather than either documentation build.
+- [ ] Publish the built documentation.
+  - Nothing deploys `docs/site/`, so reading the manual means building it
+    locally or reading the Markdown in the repository, and `README.md` can only
+    point at the `docs/` directory. Notebook execution stays in the example
+    test jobs rather than in the documentation build either way.
 
 - [ ] Document the supported development workflow.
   - Editable installs, backend and OpenMP selection, regenerating Cython

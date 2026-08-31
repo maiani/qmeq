@@ -521,7 +521,7 @@ class ApproachBase2vN(Approach):
         Iterations2vN object.
     phi1k : array
         Numpy array with dimensions (len(Ek_grid), nleads, ndm1, ndm0)
-        containing energy resolved first order density matrix elements Phi[1](k).
+        containing energy resolved first order density matrix elements `Phi[1](k)`.
     phi1k_delta : array
         Numpy array with dimensions (len(Ek_grid), nleads, ndm1, ndm0)
         Difference from phi1k after performing one iteration.
@@ -530,7 +530,7 @@ class ApproachBase2vN(Approach):
         Hilbert transform of phi1k_delta.
     kern1k_inv : array
         Numpy array with dimensions (len(Ek_grid), nleads, ndm1, ndm1)
-        corresponding to inverse of energy resolved local kernel for Phi[1](k).
+        corresponding to inverse of energy resolved local kernel for `Phi[1](k)`.
     fkp, fkm : array
         nleads by len(Ek_grid_ext) numpy array containing
         Fermi function (fkp) and 1-Fermi (fkm) values on the grid Ek_grid_ext.

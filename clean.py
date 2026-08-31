@@ -29,7 +29,6 @@ TOP_LEVEL_DIRS = [
     ROOT / '.pytest_cache',
     ROOT / 'build',
     ROOT / 'dist',
-    ROOT / 'legacy_docs' / 'build',
     ROOT / 'docs' / 'site',
     ROOT / 'qmeq.egg-info',
     ROOT / 'qmeq' / 'build',

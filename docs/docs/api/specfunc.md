@@ -1,6 +1,6 @@
 # Special functions
 
-Ported from `legacy_docs/source/specfunc/`.
+Special functions used by the transport approaches.
 
 ## `qmeq.specfunc`
 

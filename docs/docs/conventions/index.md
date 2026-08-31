@@ -14,8 +14,8 @@ than from any existing document.
   selectors exist on which indexing class, and how unsupported values fail.
 - **[Typing](typing.md)** — the opportunistic type-hint policy, and why some
   signatures carry a union rather than the obvious class.
-- **[Docstrings](docstrings.md)** — what the planned Sphinx removal will and
-  will not touch, and how to write docstrings that survive it.
+- **[Docstrings](docstrings.md)** — portable source-docstring conventions and
+  how they feed the generated API reference.
 - **[RTD kernel matrices](rtd-kernels.md)** — the `mi` selector, why `Lnn` is
   not a Liouvillian, and where the two backends diverge.
 - **[Where the time goes](where-the-time-goes.md)** — measured density and

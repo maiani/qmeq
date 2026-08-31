@@ -1,8 +1,7 @@
 # API reference
 
 Generated from QmeQ's docstrings with
-[mkdocstrings](https://mkdocstrings.github.io/), carrying over the Sphinx
-`autodoc` tree that used to live at `legacy_docs/source/`.
+[mkdocstrings](https://mkdocstrings.github.io/).
 
 - [Builder](builder.md) — `qmeq.builder`: the user-facing entry point.
 - [Approaches](approach.md) — `qmeq.approach`: the master-equation solvers.

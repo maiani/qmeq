@@ -66,7 +66,7 @@ def construct_chargelst(nsingle):
     -------
     chargelst : list of lists
         chargelst[charge] gives a list of state indices for given charge,
-        chargelst[charge][ind] gives state index.
+        `chargelst[charge][ind]` gives state index.
     """
     nmany = np.power(2, nsingle)
     chargelst = [[] for _ in range(nsingle+1)]
@@ -158,8 +158,8 @@ def construct_szlst(nsingle):
     -------
     szlst : list of lists of lists
         szlst[charge] gives a list of lists of state indices for given charge,
-        szlst[charge][sz] gives a list corresponding to charge and sz,
-        szlst[charge][sz][ind] gives state index.
+        `szlst[charge][sz]` gives a list corresponding to charge and sz,
+        `szlst[charge][sz][ind]` gives state index.
     """
     nmany = np.power(2, nsingle)
     szlst = empty_szlst(nsingle)
@@ -248,7 +248,7 @@ def construct_ssqlst(szlst, nsingle):
     ----------
     szlst : list of lists
         List containing the possible values of :math:`S_{z}` for given charge.
-        szlst[charge][szind] is an integer corresponding to :math:`S_{z}`.
+        `szlst[charge][szind]` is an integer corresponding to :math:`S_{z}`.
     nsingle : int
         Number of single particle states.
 
@@ -256,9 +256,9 @@ def construct_ssqlst(szlst, nsingle):
     -------
     sqqlst : list of lists of lists of lists
         ssqlst[charge] gives a list of lists of lists of state indices for given charge,
-        ssqlst[charge][sz] gives a list of lists corresponding to charge and :math:`S_{z}`,
-        ssqlst[charge][sz][ssq] gives a list corresponding to charge, :math:`S_{z}`, and :math:`S^{2}`.
-        ssqlst[charge][sz][ssq][ind] gives a state index.
+        `ssqlst[charge][sz]` gives a list of lists corresponding to charge and :math:`S_{z}`,
+        `ssqlst[charge][sz][ssq]` gives a list corresponding to charge, :math:`S_{z}`, and :math:`S^{2}`.
+        `ssqlst[charge][sz][ssq][ind]` gives a state index.
     """
     ncharge = nsingle+1
     ssqlst = empty_ssqlst(nsingle)
@@ -442,11 +442,11 @@ class StateIndexing(object):
         Number of leads. Set to zero by default.
     chargelst_lin : list of lists
         chargelst_lin[charge] gives a list of state Lin indices for given charge,
-        chargelst_lin[charge][ind] gives state Lin index
+        `chargelst_lin[charge][ind]` gives state Lin index
     szlst_lin : list of lists
         szlst_lin[charge] gives a list of lists of state indices for given charge,
-        szlst_lin[charge][sz] gives a list corresponding to charge and sz,
-        szlst_lin[charge][sz][ind] gives state Lin index
+        `szlst_lin[charge][sz]` gives a list corresponding to charge and sz,
+        `szlst_lin[charge][sz][ind]` gives state Lin index
     chargelst : list of lists
         Indices of states for different charges for chosen indexing.
     szlst : list of lists
@@ -565,7 +565,7 @@ class StateIndexing(object):
         Parameters
         ----------
         state : list
-           List containing digits of a binary number.
+            List containing digits of a binary number.
         linq : bool
             For linq=True uses Lin indexing, for linq=False uses specified indexing
 
@@ -596,8 +596,8 @@ class StateIndexing(object):
         -------
         list
             List of indices corresponding to given charge, chargelst[charge],
-            or given charge and sz, szlst[charge][szind],
-            or given charge, sz, and, ssq, szlst[charge][szind][ssqind].
+            or given charge and sz, `szlst[charge][szind]`,
+            or given charge, sz, and, ssq, `szlst[charge][szind][ssqind]`.
         """
         if charge is None and sz is None:
             return None
@@ -697,12 +697,12 @@ class StateIndexingPauli(StateIndexing):
         Array giving enumeration of considered many-body states in statesdm.
     mapdm0 : list
         List showing which states are mapped to each other due to symmetries.
-        For example mapdm0[1]=1, mapdm0[2]=1, shows that 1 and 2 are equivalent.
-        Also mapdm0[ind]=-1 shows that the state is excluded.
+        For example `mapdm0[1]=1`, `mapdm0[2]=1`, shows that 1 and 2 are equivalent.
+        Also `mapdm0[ind]=-1` shows that the state is excluded.
     booldm0 : list
         List giving states which will be used. Other states will be mapped to states,
-        which have booldm0[ind]=True.
-        From example for mapdm0 we have booldm0[1]=True, booldm0[2]=False.
+        which have `booldm0[ind]=True`.
+        From example for mapdm0 we have `booldm0[1]=True`, `booldm0[2]=False`.
     """
 
     def __init__(self, nsingle, indexing='Lin', symmetry=None, nleads=0):
@@ -913,12 +913,12 @@ class StateIndexingDM(StateIndexing):
         Dictionary between index of density matrix element and pair of many-body states (a,b).
     mapdm0 : list
         List showing which density matrix elements are mapped to each other due to symmetries.
-        For example mapdm0[1]=1, mapdm0[2]=1, shows that 1 and 2 are equivalent.
-        Also mapdm0[ind]=-1 shows that the state is excluded.
+        For example `mapdm0[1]=1`, `mapdm0[2]=1`, shows that 1 and 2 are equivalent.
+        Also `mapdm0[ind]=-1` shows that the state is excluded.
     booldm0 : list
         List giving density matrix elements which will be used.
-        Other elements will be mapped to elements, which have booldm0[ind]=True.
-        From example for mapdm0 we have booldm0[1]=True, booldm0[2]=False.
+        Other elements will be mapped to elements, which have `booldm0[ind]=True`.
+        From example for mapdm0 we have `booldm0[1]=True`, `booldm0[2]=False`.
     conjdm0 : list
         List showing, which density matrix elements are complex conjugate and are not unique.
     """

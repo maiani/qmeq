@@ -1,7 +1,6 @@
 # Approaches
 
-The master-equation solvers. Ported from
-`legacy_docs/source/approach/`.
+The master-equation solvers.
 
 ## `qmeq.approach`
 
@@ -21,13 +20,14 @@ The master-equation solvers. Ported from
 
 ## `qmeq.approach.dm_layout`
 
-Not in the Sphinx tree. States the packed-real density-matrix layout as nine numbered rules; see also [Density-matrix layout](../conventions/density-matrix-layout.md).
+States the packed-real density-matrix layout as nine numbered rules; see also
+[Density-matrix layout](../conventions/density-matrix-layout.md).
 
 ::: qmeq.approach.dm_layout
 
 ## `qmeq.approach.diagnostics`
 
-Not in the Sphinx tree.
+Stationary-solution diagnostics shared by the approaches.
 
 ::: qmeq.approach.diagnostics
 
