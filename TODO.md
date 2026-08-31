@@ -35,17 +35,6 @@ Ground rules for anything below:
     with an inline reason. Diagnose and fix that numerical divergence without
     weakening tolerances or normalizing it into the historical fixture.
 
-- [ ] Audit the real projections in the RTD population kernel.
-  - The second-order assembly discards the imaginary part of the four-amplitude
-    product at 16 sites (`tempD.real`/`tempX.real`, `RTD.py:716-846`, mirrored
-    in `c_RTD.pyx`), as does `xcb` at `RTD.py:458`. Either each discarded part
-    is cancelled by a conjugate partner diagram, or flux-dependent physics is
-    being dropped from the *charge* current. Nothing currently distinguishes
-    the two, and `test_RTD_ignores_roundoff_scale_tunnel_phase` only pins that
-    a 2e-18 phase is inert.
-  - Validate this independently against the U=0 reference solver before
-    changing the projection sites.
-
 - [ ] Support the RTD energy and heat currents for complex tunnel amplitudes.
   - Both are currently filled with `nan` and a warning while the charge current
     is computed. That is a sharp edge for any model with flux or interference.

@@ -84,6 +84,42 @@ the honest key `inverse_Lnn`.
 This is why `set_matrix_list` builds its list with `getattr(self, name, None)`:
 the arrays it refers to do not all exist in both backends.
 
+## The second-order `.real` is a partner sum, not a truncation
+
+`generate_col_diag_kern_2nd_order` stores `tempD.real` and `tempX.real` at
+sixteen sites, and `xcb` takes the real part of a two-amplitude product.
+Neither discards flux-dependent physics from the charge current.
+
+The traversal fixes `eta1 = 1`, `p1 = 1` and `p4 = 1` and recovers the omitted
+half from a symmetry. `add_element_2nd_order` opens with `fct = 2*fct`, so a
+stored `Re(t)` reaches the kernel as `t + conj(t)`. The omitted `eta0 = -1`
+partner is the complex conjugate of the *complete* four-vertex contribution,
+integral included -- not the vertex-by-vertex conjugate, which is a different
+quantity when the integral is complex. Taking the real part is how that pair
+is summed.
+
+Two gates hold this down, both at a generic plaquette flux where the
+four-amplitude product carries a physical phase:
+
+- `test_complex_flux_second_order_kernel_matches_stationary_rtd` builds
+  RTDnoise's explicitly resolved `eta0 = +-1` partners and reproduces the
+  ordinary-RTD kernel. It also requires each *transfer-resolved* block to be
+  real to `1e-14` before the sectors are summed, so the cancellation is
+  pairwise rather than an accident of the total.
+- `test_complex_flux_rtdnoise_observables_have_cubic_residuals` compares
+  ordinary RTD's current against the exact non-interacting solver in
+  `qmeq.tests.noninteracting_negf_solver`, over four coupling scales, and
+  requires a cubic error slope. A dropped `O(Gamma^2)` contribution would make
+  that slope quadratic.
+
+`xcb` needs no diagram argument at all: `Tba[l]` is Hermitian by construction,
+so `Tba[l, b, c]*Tba[l, c, b]` is `|Tba[l, b, c]|^2` and the projection removes
+roundoff. Measured on a flux-carrying double dot whose amplitudes have
+`max|Im Tba| = 2e-2`, the product's imaginary part is `4e-21`.
+
+This covers the charge current only. The RTD energy and heat currents are
+filled with `nan` for complex amplitudes, which is a separate, open gap.
+
 ## Coherence axis
 
 The coherence axis of `Wdn`, `Wnd` and `Lnn_inv` is **not** the packed `ndm0r`
