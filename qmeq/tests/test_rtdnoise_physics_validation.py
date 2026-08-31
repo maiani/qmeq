@@ -1151,7 +1151,13 @@ def test_bare_resolvent_uses_oriented_coherence_bohr_frequencies():
 
     # This is also the local analytic input used by the product rule.  The
     # negative sign comes from differentiating the derived +z denominator.
-    derivative = np.diag(-1.0/expected_splittings**2)
+    # Square the reciprocals rather than writing -1.0/splitting**2: the
+    # comparison is against a matrix product of the stored reciprocals, and
+    # (1/s)*(1/s) and 1/s**2 are different floating-point evaluations of the
+    # same real number, differing by an ulp on some platforms.  Squaring the
+    # reciprocal compares like with like, so the exactness gate survives.
+    expected_reciprocals = 1.0/expected_splittings
+    derivative = np.diag(-expected_reciprocals*expected_reciprocals)
     np.testing.assert_allclose(
         derivative, -(approach.Lnn_inv @ approach.Lnn_inv),
         rtol=0.0, atol=0.0,
