@@ -69,38 +69,14 @@ Ground rules for anything below:
 
 ## P1: distribution and support contract
 
-- [ ] Decide how users are meant to install this fork.
-  - Nothing publishes to PyPI, yet `INSTALL.md` tells users `pip install qmeq`,
-    which resolves to the upstream project rather than this one. Either publish
-    under a name you own (Trusted Publishing, no token) or point the
-    instructions at the release assets or a git URL.
-
-- [x] Make wheels and source distributions self-consistent and verified.
-  - `MANIFEST.in` ships both documentation trees, the vendored examples, and
-    the root distribution documents, and prunes build output, the notebook
-    symlink, and generated figures. Root markdown is an explicit allowlist
-    rather than `*.md`, so agent guidance and development plans stay out of a
-    distribution. Cython sources and test bundles come from `package-data`.
-  - `.github/scripts/check_artifact_inventory.py` asserts what each artifact
-    must and must not contain, and runs in `artifacts.yml` after `twine check`.
-    `twine check` validates metadata rendering, not contents, and an install
-    only proves that what is present imports; neither notices a missing
-    notebook or a leaked development document. Verified in both directions
-    against a deliberately doctored sdist.
-  - `.github/scripts/check_installed_metadata.py` asserts that the installed
-    distribution version matches `qmeq.__version__`, plus name and
-    `Requires-Python`. It runs against both installed artifacts in
-    `artifacts.yml`. A skew here would make `build_wheels.yml`'s tag check
-    compare against one version while users see the other.
-  - `.github/scripts/check_wheel_backend.py` runs in `build_wheels.yml` before
-    the suite. `CIBW_TEST_COMMAND` runs with `QMEQ_BACKEND` unset, so `auto`
-    would let a wheel whose extensions failed to build pass silently. The
-    script forces `cython` ahead of the first import and asserts the active
-    backend; checked in both directions.
-  - `clean.py` gained `--caches-only`, and reports when it removed compiled
-    artifacts. The default is unchanged, but the rebuild it forces is no longer
-    silent. Worth keeping: a stale `qmeq.egg-info/SOURCES.txt` silently
-    overrode the `MANIFEST.in` change above until `clean.py` cleared it.
+- [ ] Cover both the pip and the Conda installation paths.
+  - Conda already ships: `release.yml` builds, tests, and uploads the recipe to
+    the `andmai/science` prefix.dev channel on a tag. PyPI does not, yet
+    `INSTALL.md` tells users `pip install qmeq` and links its source download
+    at `gedaskir/qmeq`, both of which resolve to the upstream project rather
+    than this fork. Publish under a name you own (Trusted
+    Publishing, no token), then have `INSTALL.md` name both paths instead of
+    mentioning Conda only as the OpenMP-enabled alternative for macOS.
 
 - [ ] Test the dependency floors, not just the current releases.
   - NumPy, SciPy, Cython, and the build backend are unpinned and only ever

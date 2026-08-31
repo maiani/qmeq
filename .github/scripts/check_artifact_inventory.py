@@ -5,9 +5,15 @@ artifact only proves that what *is* there imports. Neither notices a missing
 notebook, a stale `qmeq.egg-info/SOURCES.txt` silently overriding `MANIFEST.in`,
 or a repository-workflow document leaking into a distribution.
 
+A green result means the rules written below fire, not that they are complete:
+the pattern list is the whole check. `build/*` is one of them because
+`qmeq/*/*.c` cannot match a `build/`-prefixed path, and the cythonize output
+under `build/cython/` shipped unnoticed at 90% of the uncompressed sdist.
+
 Usage:
 
     python .github/scripts/check_artifact_inventory.py dist/
+    python .github/scripts/check_artifact_inventory.py --expect wheel wheelhouse/
 """
 
 from __future__ import annotations
@@ -52,7 +58,8 @@ SDIST_FORBIDDEN = [
     ("generated example figures", "examples/*.png"),
     ("generated example data", "examples/*.dat"),
     ("compiled extensions", "*.so"),
-    ("generated C", "qmeq/*/*.c"),
+    ("generated C beside the sources", "qmeq/*/*.c"),
+    ("cythonize build tree", "build/*"),
 ]
 
 WHEEL_REQUIRED = [
@@ -104,22 +111,51 @@ def check(kind, names, required, forbidden):
     return failures
 
 
+def collect(paths):
+    """Sort the given artifacts, and the contents of any given directory."""
+    sdists, wheels = [], []
+    for path in paths:
+        for candidate in sorted(path.iterdir()) if path.is_dir() else [path]:
+            if candidate.name.endswith(".tar.gz"):
+                sdists.append(candidate)
+            elif candidate.suffix == ".whl":
+                wheels.append(candidate)
+    return sdists, wheels
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("dist", type=pathlib.Path,
-                        help="directory holding the built sdist and wheel")
+    parser.add_argument("paths", type=pathlib.Path, nargs="+",
+                        help="built artifacts, or directories holding them")
+    parser.add_argument("--expect", choices=("both", "sdist", "wheel"),
+                        default="both",
+                        help="'both' (default) requires exactly one sdist and "
+                             "one wheel, as `python -m build` produces; "
+                             "'sdist' or 'wheel' requires at least one of that "
+                             "kind and ignores the other, as a cibuildwheel "
+                             "wheelhouse holding several wheels needs")
     args = parser.parse_args()
 
-    sdists = sorted(args.dist.glob("*.tar.gz"))
-    wheels = sorted(args.dist.glob("*.whl"))
-    if len(sdists) != 1 or len(wheels) != 1:
+    sdists, wheels = collect(args.paths)
+    if args.expect == "both" and (len(sdists) != 1 or len(wheels) != 1):
         sys.exit(
-            f"expected exactly one sdist and one wheel in {args.dist}, "
+            f"expected exactly one sdist and one wheel in {args.paths}, "
             f"found {len(sdists)} and {len(wheels)}"
         )
+    if args.expect == "sdist":
+        wheels = []
+    if args.expect == "wheel":
+        sdists = []
+    if not sdists and not wheels:
+        sys.exit(f"found no {args.expect} artifact in {args.paths}")
 
-    failures = check("sdist", sdist_names(sdists[0]), SDIST_REQUIRED, SDIST_FORBIDDEN)
-    failures += check("wheel", wheel_names(wheels[0]), WHEEL_REQUIRED, WHEEL_FORBIDDEN)
+    failures = []
+    for sdist in sdists:
+        failures += check(f"sdist {sdist.name}", sdist_names(sdist),
+                          SDIST_REQUIRED, SDIST_FORBIDDEN)
+    for wheel in wheels:
+        failures += check(f"wheel {wheel.name}", wheel_names(wheel),
+                          WHEEL_REQUIRED, WHEEL_FORBIDDEN)
 
     if failures:
         print("\nartifact inventory failures:")

@@ -4,6 +4,15 @@
 
 ### Fixed
 
+- Stop shipping the cythonize output in the source distribution. `setup.py`
+  cythonizes into `build/cython/`, whose generated `.c` files became the
+  extension modules' declared sources and were carried into the sdist
+  regardless of `MANIFEST.in`, accounting for 90% of the uncompressed archive.
+  The sdist now prunes them and falls from 3.8 MB to under 1 MB; installs
+  regenerate them from the shipped `.pyx` sources. The artifact inventory check
+  gained the matching rule, and now also runs over the wheels published from
+  `build_wheels.yml` rather than only a locally built one.
+
 - Complete RTDnoise's second-order complex-amplitude diagrams from their
   inverted electron-hole and Keldysh partners. The old ``eta0 = -1`` traversal
   conjugated individual tunnel vertices instead of the complete four-vertex
@@ -66,6 +75,14 @@
   nonzero amplitude, and a three-level scenario covers it.
 
 ### Added
+
+- Attach the source distribution to the GitHub release alongside the wheels.
+  `build_wheels.yml` gained an `sdist` job that applies the same tag/version
+  guard as the wheel jobs, builds the sdist, runs `twine check` and the
+  artifact inventory over it, installs it into a clean environment outside the
+  checkout, and confirms the compiled backend and the installed metadata. The
+  publish job now uploads both the wheels and that sdist, so a release no
+  longer offers binaries only.
 
 - Support RTD's eliminated-coherence correction in `RTDnoise` when
   `off_diag_corrections=True`. First-order population-coherence blocks now have

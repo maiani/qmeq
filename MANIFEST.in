@@ -29,3 +29,10 @@ prune examples/.ipynb_checkpoints
 
 # Cython sources and test reference bundles are declared as package-data in
 # pyproject.toml; setuptools carries them into the sdist from there.
+
+# Generated C. setup.py cythonizes into build/cython/, which makes those .c
+# files the extension modules' declared sources, and setuptools carries
+# declared sources into an sdist whether or not MANIFEST.in mentions them --
+# 90% of the uncompressed archive. The .pyx sources shipped above plus the
+# cython build requirement regenerate them at install time.
+prune build
