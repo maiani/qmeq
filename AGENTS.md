@@ -104,15 +104,17 @@ logic, numerical types, build configuration, packaged contents, or shared
 reference infrastructure. Tests that switch backends must spawn fresh
 processes rather than mutate the environment after import.
 
-Examples and notebooks are explicit slow tests:
+Examples and notebooks are explicit slow tests, and a compiled-backend gate:
 
 ```bash
-QMEQ_BACKEND=python pytest qmeq/tests/test_examples.py --runslow -m "example and not notebook"
-QMEQ_BACKEND=python pytest qmeq/tests/test_examples.py --runslow -m notebook
+QMEQ_BACKEND=cython pytest qmeq/tests/test_examples.py --runslow -m "example and not notebook"
+QMEQ_BACKEND=cython pytest qmeq/tests/test_examples.py --runslow -m notebook
 ```
 
-Run examples through their tests so generated figures and data stay in a
-temporary directory. For packaging work, build wheel and sdist, inspect their
+They are second-order 2vN and RTD parameter sweeps, so running them uncompiled
+measures the uncompiled kernels rather than the examples. Backend parity
+belongs to the kernel-level suites, which run both. Run examples through their
+tests so generated figures and data stay in a temporary directory. For packaging work, build wheel and sdist, inspect their
 contents, install each outside the source tree, confirm backend status, and run
 the installed-copy tests. A working-tree pass is not an artifact qualification.
 

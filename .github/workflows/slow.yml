@@ -1,8 +1,14 @@
 name: Slow examples
 
-# The vendored example scripts and notebooks take minutes per backend, so they
-# are a release gate rather than a per-push check: run them on a schedule and on
+# The vendored example scripts and notebooks take tens of minutes, so they are
+# a release gate rather than a per-push check: run them on a schedule and on
 # demand, and before tagging a release.
+#
+# Compiled backend only. These are second-order 2vN and RTD parameter sweeps,
+# and running them uncompiled measured how slow uncompiled kernels are rather
+# than whether the examples still work: the pure-Python leg took 2h19m and
+# timed out on three scripts that the compiled leg ran without trouble. Backend
+# parity is covered by the kernel-level suites in `test.yml`, which run both.
 on:
   schedule:
     # Mondays, 04:17 UTC. Off the hour because scheduled runs bunch up (and get
@@ -15,12 +21,8 @@ permissions:
 
 jobs:
   examples:
-    name: --runslow examples (${{ matrix.backend }})
+    name: --runslow examples
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        backend: [python, cython]
 
     steps:
       - uses: actions/checkout@v7
@@ -36,12 +38,11 @@ jobs:
           QMEQ_BACKEND=python python -m pip install -e ".[test]" --no-build-isolation
 
       - name: Build the extensions
-        if: matrix.backend == 'cython'
         run: QMEQ_BACKEND=cython python setup.py build_ext --inplace
 
       - name: Confirm the backend
         run: |
-          QMEQ_BACKEND=${{ matrix.backend }} python -c "import qmeq; status = qmeq.get_backend_status(); print(status); assert status['active'] == '${{ matrix.backend }}'"
+          QMEQ_BACKEND=cython python -c "import qmeq; status = qmeq.get_backend_status(); print(status); assert status['active'] == 'cython'"
 
       - name: Run all example scripts and notebooks
-        run: QMEQ_BACKEND=${{ matrix.backend }} pytest qmeq/tests/test_examples.py --runslow -m example
+        run: QMEQ_BACKEND=cython pytest qmeq/tests/test_examples.py --runslow -rs -m example

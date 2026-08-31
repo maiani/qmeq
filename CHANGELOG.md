@@ -294,6 +294,21 @@
 
 ### Changed
 
+- Run the vendored examples as a compiled-backend gate. `slow.yml` dropped its
+  pure-Python leg: the examples are second-order 2vN and RTD parameter sweeps,
+  so an uncompiled run measured how slow uncompiled kernels are rather than
+  whether the examples still work, taking 2h19m and timing out on three scripts
+  that the compiled leg ran without trouble. Backend parity stays with the
+  kernel-level suites in `test.yml`, which still run both.
+- Stop executing `example1c_spinful_single_orbital.py` as a test, and report
+  the reason as a skip rather than dropping it. Its 201x201 stability diagram
+  runs about 81000 2vN solves, each iterating seven times over `kpnt=2**12`
+  energy points; it exceeded a 1800 s cap on the compiled backend without
+  finishing, so no timeout makes it pass. `example1b` covers the same 2vN code
+  path on a 101-point bias trace. The per-example timeout drops from 1800 s to
+  900 s, which is now a backstop against a hang rather than a budget for a
+  sweep.
+
 - Build the documentation with `mkdocs build --strict`, so any warning fails
   the build rather than degrading a page quietly, and fix the docstrings that
   blocked it. A bare index expression such as `szlst[charge][sz]` was read as a
