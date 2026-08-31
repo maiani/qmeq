@@ -1,9 +1,8 @@
 """RTDnoise structural invariants.
 
-These hold independently of the known real-part truncations in the current
-second-order kernel. They are computed from a **live
-solve** of the same scenario builders used to generate the pinned reference
-bundle (``qmeq/tests/rtdnoise_reference_models.py``); nothing here compares
+These are computed from a **live solve** of the same scenario builders used to
+generate the pinned reference bundle
+(``qmeq/tests/rtdnoise_reference_models.py``); nothing here compares
 against the pinned ``counting_reference`` arrays, so these tests retain
 their value even after that bundle's numbers move.
 
@@ -24,14 +23,15 @@ import pytest
 
 import qmeq
 from qmeq.tests.rtdnoise_reference_models import (
-    BASELINE_SCENARIOS,
-    INVARIANT_SCENARIOS,
+    LIVE_ARBITRARY_SYSTEM_SCENARIOS,
+    RTDNOISE_LIVE_INVARIANT_SCENARIOS,
     build_equilibrium_scenario,
+    build_rtdnoise_arbitrary_system_scenario,
     rtdnoise_scenario_snapshot,
 )
 
 
-@pytest.mark.parametrize("scenario", INVARIANT_SCENARIOS)
+@pytest.mark.parametrize("scenario", RTDNOISE_LIVE_INVARIANT_SCENARIOS)
 def test_per_lead_kernel_column_sum_is_zero(scenario):
     """Each lead's own contribution to the kernel conserves probability.
 
@@ -48,7 +48,7 @@ def test_per_lead_kernel_column_sum_is_zero(scenario):
     )
 
 
-@pytest.mark.parametrize("scenario", INVARIANT_SCENARIOS)
+@pytest.mark.parametrize("scenario", RTDNOISE_LIVE_INVARIANT_SCENARIOS)
 def test_counting_blocks_conserve_probability_per_lead_and_order(scenario):
     """Each retained order conserves probability before leads are combined."""
     snapshot, _ = rtdnoise_scenario_snapshot(scenario)
@@ -64,7 +64,7 @@ def test_counting_blocks_conserve_probability_per_lead_and_order(scenario):
     )
 
 
-@pytest.mark.parametrize("scenario", INVARIANT_SCENARIOS)
+@pytest.mark.parametrize("scenario", RTDNOISE_LIVE_INVARIANT_SCENARIOS)
 def test_current_is_conserved_across_leads(scenario):
     """Stationary particle current must sum to zero over all leads."""
     snapshot, _ = rtdnoise_scenario_snapshot(scenario)
@@ -74,7 +74,7 @@ def test_current_is_conserved_across_leads(scenario):
     )
 
 
-@pytest.mark.parametrize("scenario", BASELINE_SCENARIOS)
+@pytest.mark.parametrize("scenario", RTDNOISE_LIVE_INVARIANT_SCENARIOS)
 def test_counted_current_matches_ordinary_current(scenario):
     """Counting and ordinary-current paths use the same physical convention."""
     snapshot, system = rtdnoise_scenario_snapshot(scenario)
@@ -108,7 +108,7 @@ def test_equilibrium_gives_zero_current_and_zero_counting_current():
     )
 
 
-@pytest.mark.parametrize("scenario", INVARIANT_SCENARIOS)
+@pytest.mark.parametrize("scenario", RTDNOISE_LIVE_INVARIANT_SCENARIOS)
 def test_covariance_matrices_are_symmetric(scenario):
     """The counting covariance matrix must be symmetric by construction.
 
@@ -125,7 +125,7 @@ def test_covariance_matrices_are_symmetric(scenario):
         )
 
 
-@pytest.mark.parametrize("scenario", INVARIANT_SCENARIOS)
+@pytest.mark.parametrize("scenario", RTDNOISE_LIVE_INVARIANT_SCENARIOS)
 def test_aggregate_counting_equals_sum_of_lead_resolved_entries(scenario):
     """The reported aggregate cumulants equal the sum of their own detail matrix.
 
@@ -161,3 +161,66 @@ def test_multi_lead_covariance_contains_cross_correlations():
     matrix = snapshot["current_noise_matrix"]
     assert matrix.shape == (2, 2)
     assert abs(matrix[0, 1]) > 1e-12
+
+
+@pytest.mark.parametrize("scenario", LIVE_ARBITRARY_SYSTEM_SCENARIOS)
+def test_arbitrary_system_matrix_preserves_structural_identities(scenario):
+    """Stress the repaired traversal beyond two-orbital/two-lead models.
+
+    One solve per model gates all inexpensive structural identities.  Keeping
+    these live-only avoids blessing current-tree numbers as reference data.
+    ``use_selected_backend=True`` also exercises the compiled scalar integrals
+    when this test runs in a forced-Cython process.
+    """
+    system = build_rtdnoise_arbitrary_system_scenario(
+        scenario, use_selected_backend=True,
+    )
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", message=r".*energy_current and heat_current.*",
+            category=qmeq.QmeqRuntimeWarning,
+        )
+        system.solve()
+
+    appr = system.appr
+    scale = max(1.0, np.max(np.abs(appr.Lpm_second)))
+    derivative_scale = max(1.0, np.max(np.abs(appr.Lpm_second_dz)))
+
+    # Probability conservation holds before lead pairs and perturbative orders
+    # are combined; a final summed-kernel check could hide compensating errors.
+    np.testing.assert_allclose(np.sum(appr.Wdd, axis=1), 0.0, atol=1e-10)
+    np.testing.assert_allclose(
+        np.sum(np.sum(appr.Lpm_first.real, axis=1), axis=1),
+        0.0, atol=1e-10,
+    )
+    np.testing.assert_allclose(
+        np.sum(np.sum(appr.Lpm_second.real, axis=(2, 3)), axis=2),
+        0.0, atol=1e-10,
+    )
+
+    # The whole-diagram partner identities must hold in every transfer sector,
+    # not only after those sectors happen to cancel in the physical kernel.
+    assert np.max(np.abs(appr.Lpm_second.imag)) < 1e-13*scale
+    assert np.max(np.abs(appr.Lpm_second_dz.real)) < 1e-13*derivative_scale
+
+    np.testing.assert_allclose(np.sum(system.current), 0.0, atol=1e-10)
+    counted_current = np.sum(
+        system.current[np.asarray(system.countingleads, dtype=int)]
+    )
+    np.testing.assert_allclose(
+        system.current_noise[0].real, counted_current,
+        rtol=1e-9, atol=1e-11,
+    )
+    np.testing.assert_allclose(
+        system.current_noise_matrix,
+        system.current_noise_matrix.T,
+        atol=1e-10,
+    )
+    np.testing.assert_allclose(
+        system.current_noise[1],
+        np.sum(system.current_noise_matrix),
+        atol=1e-10,
+    )
+
+    if scenario == "three_orbital_rank_deficient":
+        assert np.linalg.matrix_rank(system.tleads_array) == 1

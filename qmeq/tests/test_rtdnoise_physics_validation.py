@@ -169,7 +169,9 @@ def test_noninteracting_residuals_have_the_expected_coupling_orders():
     correction an order-``Gamma**2`` contribution.  Its omission therefore
     leaves order-``Gamma**2`` errors in both current and noise.  Once included
     in the ordinary-current calculation, its remaining error starts at
-    order ``Gamma**3``.
+    order ``Gamma**3``.  This gate uses a real-amplitude gauge so it isolates
+    the omitted coherence block from complex-amplitude partner assembly, which
+    is covered independently below.
     """
     scales = np.array([0.02, 0.01, 0.005, 0.0025])
     corrected_current_errors = []
@@ -177,12 +179,12 @@ def test_noninteracting_residuals_have_the_expected_coupling_orders():
     noise_errors = []
     for scale in scales:
         exact = cumulants(
-            model_from_qmeq(**_coherent_inputs(scale, 0.45)),
+            model_from_qmeq(**_coherent_inputs(scale, np.pi)),
             np.array([1.0, 0.0]),
             order=2,
         )
-        corrected = _solve_rtd(scale, 0.45, True)
-        population = _solve_rtdnoise(scale, 0.45)
+        corrected = _solve_rtd(scale, np.pi, True)
+        population = _solve_rtdnoise(scale, np.pi)
         corrected_current_errors.append(abs(corrected.current[0] - exact[1].real))
         population_current_errors.append(abs(population.current[0] - exact[1].real))
         noise_errors.append(abs(population.current_noise[1].real - exact[2].real))
@@ -495,8 +497,8 @@ def _standard_rtd_second_order_kernel(scale, flux):
     return np.sum(full.appr.Wdd - sequential.appr.Wdd, axis=0)
 
 
-def test_complex_flux_second_order_kernel_defect_is_reproduced_directly():
-    """The counting traversal currently drops a physical imaginary channel."""
+def test_complex_flux_second_order_kernel_matches_stationary_rtd():
+    """Conjugate partners recover the stationary kernel at generic flux."""
     scale = 0.02
     real_standard = _standard_rtd_second_order_kernel(scale, 0.0)
     real_counting = np.sum(
@@ -506,15 +508,21 @@ def test_complex_flux_second_order_kernel_defect_is_reproduced_directly():
     assert _relative_maximum(real_counting, real_standard) < 1e-6
 
     flux_standard = _standard_rtd_second_order_kernel(scale, np.pi / 2.0)
-    flux_blocks = np.sum(
-        _solve_rtdnoise(scale, np.pi / 2.0).appr.Lpm_second,
-        axis=(0, 1, 2, 3),
-    )
+    counted = _solve_rtdnoise(scale, np.pi / 2.0)
+    resolved_blocks = counted.appr.Lpm_second
+    resolved_derivatives = counted.appr.Lpm_second_dz
+    flux_blocks = np.sum(resolved_blocks, axis=(0, 1, 2, 3))
     scale_standard = np.max(np.abs(flux_standard))
     mismatch = np.max(np.abs(flux_blocks.real - flux_standard)) / scale_standard
-    omitted_imaginary = np.max(np.abs(flux_blocks.imag)) / scale_standard
-    assert mismatch > 0.5
-    assert omitted_imaginary > 0.4
+    residual_imaginary = np.max(np.abs(flux_blocks.imag)) / scale_standard
+    assert mismatch < 1e-6
+    assert residual_imaginary < 1e-14
+    # The identity holds before summing transfer sectors: cancellation between
+    # incorrectly labelled conjugate partners must not make this test pass.
+    assert np.max(np.abs(resolved_blocks.imag)) < 1e-14*scale_standard
+    assert np.max(np.abs(resolved_derivatives.real)) < (
+        1e-14*np.max(np.abs(resolved_derivatives))
+    )
 
 
 def test_interacting_deep_blockade_matches_elastic_cotunnelling_current():
@@ -770,22 +778,21 @@ def test_corrections_support_charge_sectors_two_electrons_apart() -> None:
     )
 
 
-def test_complex_flux_costs_rtdnoise_the_current_but_not_rtd():
-    """The complex-amplitude defect is RTDnoise's, and it is not noise-only.
+def test_complex_flux_rtdnoise_observables_have_cubic_residuals():
+    """RTDnoise retains the full second-order current and noise at generic flux.
 
     Ordinary RTD keeps its full ``O(Gamma**2)`` accuracy at a generic flux, so
     the ``.real`` projections in its second-order assembly are an identity
-    there rather than a truncation.  RTDnoise's own second-order traversal is
-    not: its exponent collapses to ``2`` for the *particle current*, which is
-    the observable consequence of the kernel mismatch pinned by
-    ``test_complex_flux_second_order_kernel_defect_is_reproduced_directly``.
-    Recorded as a live reproducer so the defect cannot vanish unnoticed, and so
-    that RTD is not tarred with it.
+    there rather than a truncation.  Completing RTDnoise's transfer-resolved
+    conjugate partners must give the same cubic residual against the exact
+    non-interacting current instead of dropping a physical ``O(Gamma**2)``
+    contribution.
     """
     scales = np.array([0.04, 0.02, 0.01, 0.005])
     flux = np.pi/2.0
     rtd_errors = []
     counting_errors = []
+    noise_errors = []
     for scale in scales:
         exact = cumulants(
             model_from_qmeq(**_coherent_inputs(scale, flux)),
@@ -794,23 +801,64 @@ def test_complex_flux_costs_rtdnoise_the_current_but_not_rtd():
         rtd_errors.append(
             abs(_solve_rtd(scale, flux, True).current[0] - exact[1].real)
         )
-        counting_errors.append(
-            abs(_solve_rtdnoise(scale, flux, True).current[0] - exact[1].real)
-        )
+        counted = _solve_rtdnoise(scale, flux, True)
+        counting_errors.append(abs(counted.current[0] - exact[1].real))
+        noise_errors.append(abs(counted.current_noise[1].real - exact[2].real))
 
     assert 2.8 < _log_slope(scales, rtd_errors) < 3.2
-    assert _log_slope(scales, counting_errors) < 2.3
+    assert 2.8 < _log_slope(scales, counting_errors) < 3.2
+    assert 2.7 < _log_slope(scales, noise_errors) < 3.4
+
+
+def test_complex_flux_observables_are_invariant_under_orbital_rephasing():
+    """Gauge redistribution and a full flux period change no observable."""
+    inputs = _coherent_inputs(0.02, np.pi/2.0)
+    reference = _solve_rtdnoise(0.02, np.pi/2.0, True)
+    periodic = _solve_rtdnoise(0.02, np.pi/2.0 + 2.0*np.pi, True)
+
+    phases = np.array([0.37, -0.22])
+    rephased = dict(inputs)
+    # For d'_i = exp(i*phase_i) d_i, covariance requires
+    # h'_ij = exp(i*(phase_i-phase_j))*h_ij and
+    # t'_{ri} = exp(-i*phase_i)*t_{ri}.
+    rephased["hsingle"] = {
+        (0, 0): -1.0,
+        (1, 1): 0.7,
+        (0, 1): 0.4*np.exp(1j*(phases[0] - phases[1])),
+    }
+    rephased["tleads"] = {
+        (lead, orbital): amplitude*np.exp(-1j*phases[orbital])
+        for (lead, orbital), amplitude in inputs["tleads"].items()
+    }
+    transformed = qmeq.Builder(
+        **rephased, dband=1e5, kerntype="pyRTDnoise", itype=1,
+        countingleads=(0,), off_diag_corrections=True,
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        transformed.solve()
+
+    np.testing.assert_allclose(
+        transformed.current, reference.current, rtol=0.0, atol=1e-15,
+    )
+    np.testing.assert_allclose(
+        transformed.current_noise, reference.current_noise,
+        rtol=0.0, atol=1e-14,
+    )
+    np.testing.assert_allclose(
+        periodic.current_noise, reference.current_noise,
+        rtol=0.0, atol=1e-14,
+    )
 
 
 def test_transfer_resolved_correction_survives_complex_amplitudes():
     """Re-bucketing the correction by lead and transfer is exact at any flux.
 
     The correction itself is built from RTD's own ``nd``/``dn`` blocks, so this
-    isolates the counting-resolved *composition* from the second-order defect
-    above.  Note the companion diagonal-limit test cannot reach here: setting
-    the two coherence indices equal makes the tunnel product ``|T|**2``, real by
-    construction, so the coherence-block Laplace derivative stays ungated for
-    complex amplitudes.
+    independently gates the counting-resolved *composition* after the
+    population traversal's conjugate-partner repair. Note the companion
+    diagonal-limit test cannot reach here: setting the two coherence indices
+    equal makes the tunnel product ``|T|**2``, real by construction.
     """
     def population_kernel(flux, off_diag_corrections):
         system = qmeq.Builder(
@@ -1064,6 +1112,52 @@ def test_correction_projection_keeps_the_only_nonzero_channel():
     assert np.max(np.abs(approach.coherence_correction_dz)) > 0.0
 
 
+def test_bare_resolvent_uses_oriented_coherence_bohr_frequencies():
+    """Map every RTD coherence slot to its derived free resolvent.
+
+    The free molecular line is ``Pi0(z_LW) = 1j*(z_LW - L)^-1``
+    [LeijnseWegewijs2008, Eq. (49)].  For ``|a><b|``, ``L`` contributes the
+    oriented Bohr frequency ``E[a] - E[b]``.  QmeQ stores the reversed
+    coherence in a separate RTD slot (layout rule L9), so its splitting changes
+    sign while the common continuation ``z_LW = -z`` does not.  Extracting the
+    line's ``-1j`` leaves ``G_ab(z) = 1/(E[a] - E[b] + z)``.
+    """
+    approach = _corrected_system().appr
+    si = approach.si
+    npauli = approach.get_kern_size()
+    imag_offset = si.ndm0 - si.npauli
+    expected_splittings = np.full(approach.Lnn_inv.shape[0], np.nan)
+
+    for charge in range(si.ncharge):
+        for a in si.statesdm[charge]:
+            for b in si.statesdm[charge]:
+                if a == b:
+                    continue
+                slot = si.get_ind_dm0(a, b, charge) - npauli
+                if a > b:
+                    slot += imag_offset
+                splitting = approach.qd.Ea[a] - approach.qd.Ea[b]
+                if 0.0 <= splitting < 1e-10:
+                    splitting = 1e-10
+                elif -1e-10 < splitting <= 0.0:
+                    splitting = -1e-10
+                expected_splittings[slot] = splitting
+
+    assert np.all(np.isfinite(expected_splittings))
+    stored = np.diag(approach.Lnn_inv)
+    np.testing.assert_allclose(
+        stored, 1.0/expected_splittings, rtol=0.0, atol=0.0,
+    )
+
+    # This is also the local analytic input used by the product rule.  The
+    # negative sign comes from differentiating the derived +z denominator.
+    derivative = np.diag(-1.0/expected_splittings**2)
+    np.testing.assert_allclose(
+        derivative, -(approach.Lnn_inv @ approach.Lnn_inv),
+        rtol=0.0, atol=0.0,
+    )
+
+
 def test_finite_laplace_correction_derivative_is_directly_gated():
     """Gate ``coherence_correction_dz`` against a finite-``z`` reference.
 
@@ -1074,14 +1168,11 @@ def test_finite_laplace_correction_derivative_is_directly_gated():
     order constrains this quantity: it enters the noise only at
     ``O(Gamma**3)``.
 
-    The reference must state the bare-resolvent orientation, and it is
-    ``G(z) = 1/(dE + z)``.  The negative control shows the choice is not
-    cosmetic -- the opposite orientation differs by more than a factor of two,
-    so it cannot drift unnoticed.  Which orientation the Leijnse-Wegewijs
-    branch rules actually require in this packed real/imaginary coherence
-    layout is a separate question, deferred with the conjugate-partner
-    derivation; this test pins the convention the implementation uses, not its
-    provenance.
+    The bare-resolvent orientation is ``G(z) = 1/(dE + z)``. It follows from
+    ``Pi0(z_LW) = 1j/(z_LW - dE)`` with QmeQ's ``z_LW = -z`` and the line's
+    ``-1j`` extracted into the Schur product
+    [LeijnseWegewijs2008, Eq. (49)]. The negative control shows that the
+    opposite orientation differs by more than a factor of two.
     """
     system = _corrected_system()
     records = _record_first_order_blocks(system)

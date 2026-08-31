@@ -179,13 +179,16 @@ def counting_resolved_coherence_correction(
     Transfer axes use the historical RTDnoise convention in which the Python
     indices ``-1``, ``0`` and ``1`` denote the corresponding signed charge.
 
-    The Laplace derivative follows the product rule.  For the bare coherence
-    resolvent ``G(z) = (Lnn + z)^-1``, ``G'(0) = -G(0)^2``.  That orientation is
-    the convention the implementation assumes; it is gated by
-    ``test_finite_laplace_correction_derivative_is_directly_gated`` but not
-    derived from the branch and orientation rules of
-    [LeijnseWegewijs2008, Sec. IV] -- see the note in
-    ``docs/docs/conventions/rtd-kernels.md``.
+    The Laplace derivative follows the product rule.  The free molecular line
+    is ``Pi0(z_LW) = 1j*(z_LW - L)^-1``
+    [LeijnseWegewijs2008, Eq. (49)].  On the ordered coherence
+    ``|a><b|``, ``L`` has eigenvalue ``dE = E[a] - E[b]``.  QmeQ's energy-like
+    continuation is ``z_LW = -z``; after extracting the line's ``-1j`` into
+    ``W_corr = -1j*Wdn*G*Wnd``, the stored resolvent is therefore
+    ``G(z) = (dE + z)^-1`` and ``G'(0) = -G(0)^2``.  The RTD coherence axis
+    stores the two ordered partners separately, so conjugation changes ``dE``
+    to ``-dE`` without changing the common ``+z`` orientation.  See
+    ``docs/docs/conventions/rtd-kernels.md`` for the packed-coordinate mapping.
 
     The projection is not a choice.  ``product`` is purely imaginary and
     ``product_dz`` purely real, so ``W_corr(z) = -1j*Wdn(z) G(z) Wnd(z)`` keeps

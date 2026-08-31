@@ -17,19 +17,23 @@ pinned source predates the counting-resolved coherence correction.  That
 compatibility mode remains supported; the immutable fixtures must not be
 regenerated with the newer default mode.
 
-Two scenario families are provided, and they are used differently:
+Three scenario families are provided, and they are used differently:
 
-* ``BASELINE_SCENARIOS`` -- real tunnel amplitudes. These are the block-level
-  fixtures stored in the pinned counting reference bundle.
-* ``COMPLEX_AMPLITUDE_SCENARIOS`` -- a double dot at a generic plaquette flux
+* ``PINNED_REAL_AMPLITUDE_SCENARIOS`` -- real tunnel amplitudes. These are the
+  block-level fixtures stored in the pinned counting reference bundle.
+* ``LIVE_COMPLEX_AMPLITUDE_SCENARIOS`` -- a double dot at a generic plaquette flux
   (not a multiple of pi, not roundoff-scale). **No values are stored for
-  these.** RTDnoise's second-order kernel is known to be wrong for complex
-  tunnel amplitudes, so a stored value would be a recorded defect rather than
-  a baseline. They exist to feed the live structural invariants, which hold
-  regardless of that defect and would catch a regression there.
+  these.** The pinned source predates the complex-amplitude conjugate-partner
+  repair, so it cannot provide trusted expected values for that feature. These
+  models instead feed live structural, stationary-RTD, gauge-covariance, and
+  independent non-interacting checks.
+* ``LIVE_ARBITRARY_SYSTEM_SCENARIOS`` -- larger live-only stress models for
+  multi-orbital, multi-lead, rank-deficient, and non-collinear cases.
 
-``STORED_SCENARIOS`` is what the bundle covers; ``INVARIANT_SCENARIOS`` is what
-the structural-invariant suite runs over.
+``STORED_SCENARIOS`` is what the bundle covers;
+``RTDNOISE_LIVE_INVARIANT_SCENARIOS`` is the compact live matrix used by the
+repeated structural-invariant tests. The larger
+``LIVE_ARBITRARY_SYSTEM_SCENARIOS`` matrix is solved once per model.
 """
 
 from __future__ import annotations
@@ -110,7 +114,7 @@ def _complex_flux_double_dot(*, tlst, mulst, countingleads, kerntype):
     )
 
 
-BASELINE_SCENARIOS = (
+PINNED_REAL_AMPLITUDE_SCENARIOS = (
     "single_level_equal_temperature",
     "single_level_unequal_temperature",
     "double_dot_equal_temperature",
@@ -118,17 +122,28 @@ BASELINE_SCENARIOS = (
     "multi_counted_leads",
 )
 
-COMPLEX_AMPLITUDE_SCENARIOS = (
+LIVE_COMPLEX_AMPLITUDE_SCENARIOS = (
     "complex_generic_flux_equal_temperature",
     "complex_generic_flux_unequal_temperature",
     "complex_generic_flux_multi_counted_leads",
 )
 
+# Live-only stress cases.  They deliberately combine features instead of
+# multiplying the test matrix into one model per feature.  The structural test
+# solves each case once and checks every invariant on that solve.
+LIVE_ARBITRARY_SYSTEM_SCENARIOS = (
+    "three_orbital_dense_complex",
+    "three_orbital_rank_deficient",
+    "two_site_noncollinear",
+)
+
 # Values are stored only for the real-amplitude family.
-STORED_SCENARIOS = BASELINE_SCENARIOS
+STORED_SCENARIOS = PINNED_REAL_AMPLITUDE_SCENARIOS
 
 # The live invariants run over everything, complex amplitudes included.
-INVARIANT_SCENARIOS = BASELINE_SCENARIOS + COMPLEX_AMPLITUDE_SCENARIOS
+RTDNOISE_LIVE_INVARIANT_SCENARIOS = (
+    PINNED_REAL_AMPLITUDE_SCENARIOS + LIVE_COMPLEX_AMPLITUDE_SCENARIOS
+)
 
 # Back-compatible alias for the set the bundle covers.
 RTDNOISE_CHARACTERIZATION_SCENARIOS = STORED_SCENARIOS
@@ -200,6 +215,124 @@ def build_rtdnoise_scenario(scenario, *, use_selected_backend=False):
             countingleads=[0, 1], kerntype=kerntype,
         )
     raise ValueError(f"Unknown RTDnoise reference scenario: {scenario!r}")
+
+
+def build_rtdnoise_arbitrary_system_scenario(
+        scenario, *, use_selected_backend=False):
+    """Build a live-only RTDnoise stress scenario.
+
+    These systems are not historical fixtures and must never be added to the
+    pinned reference bundle.  They exercise structural identities beyond the
+    two-orbital, two-terminal models: dense complex coupling matrices, a
+    rank-deficient lead coupling matrix, three unequal lead temperatures,
+    interactions, and non-collinear local spin fields.
+    """
+    kerntype = "RTDnoise" if use_selected_backend else "pyRTDnoise"
+
+    if scenario in {
+            "three_orbital_dense_complex",
+            "three_orbital_rank_deficient",
+    }:
+        hsingle = {
+            (0, 0): -0.55,
+            (1, 1): 0.05,
+            (2, 2): 0.65,
+            (0, 1): 0.16*np.exp(0.30j),
+            (1, 2): 0.11*np.exp(-0.45j),
+            (0, 2): 0.07*np.exp(0.80j),
+        }
+        coulomb = {
+            (0, 1, 1, 0): 1.4,
+            (0, 2, 2, 0): 1.1,
+            (1, 2, 2, 1): 1.3,
+        }
+        if scenario == "three_orbital_dense_complex":
+            amplitudes = np.array([
+                [0.080, 0.045*np.exp(0.25j), 0.035*np.exp(-0.40j)],
+                [0.050*np.exp(-0.30j), 0.070, 0.040*np.exp(0.55j)],
+                [0.030*np.exp(0.60j), 0.055*np.exp(-0.20j), 0.065],
+            ])
+        else:
+            # Every lead couples to the same orbital combination.  The matrix
+            # has rank one, while hsingle mixes that combination with the two
+            # orthogonal dot modes so the stationary problem remains connected.
+            lead_vector = np.array([0.080, 0.055, 0.040])
+            orbital_vector = np.array([
+                1.0, 0.75*np.exp(0.35j), 0.60*np.exp(-0.20j),
+            ])
+            amplitudes = np.outer(lead_vector, orbital_vector)
+
+        return qmeq.Builder(
+            nsingle=3,
+            hsingle=hsingle,
+            coulomb=coulomb,
+            nleads=3,
+            tleads={
+                (lead, orbital): amplitudes[lead, orbital]
+                for lead in range(3) for orbital in range(3)
+            },
+            mulst={0: 0.25, 1: -0.05, 2: -0.22},
+            tlst={0: 0.18, 1: 0.23, 2: 0.31},
+            dband=3000.0,
+            kerntype=kerntype,
+            itype=1,
+            indexing="charge",
+            countingleads=[0, 2],
+            off_diag_corrections=False,
+        )
+
+    if scenario == "two_site_noncollinear":
+        # Modes (0, 1) and (2, 3) are the two spin states on the left and
+        # right sites.  Complex on-site spin flips point the local transverse
+        # fields in different directions; the diagonal splittings add distinct
+        # longitudinal components.
+        return qmeq.Builder(
+            nsingle=4,
+            hsingle={
+                (0, 0): -0.48,
+                (1, 1): -0.32,
+                (2, 2): 0.28,
+                (3, 3): 0.43,
+                (0, 1): 0.09*np.exp(0.20j),
+                (2, 3): 0.08*np.exp(-0.65j),
+                (0, 2): 0.12,
+                (1, 3): 0.10,
+                (0, 3): 0.025j,
+            },
+            coulomb={
+                (0, 1, 1, 0): 1.8,
+                (2, 3, 3, 2): 1.7,
+                (0, 2, 2, 0): 0.9,
+                (0, 3, 3, 0): 0.9,
+                (1, 2, 2, 1): 0.9,
+                (1, 3, 3, 1): 0.9,
+            },
+            nleads=3,
+            tleads={
+                (0, 0): 0.070,
+                (0, 1): 0.055*np.exp(0.15j),
+                (0, 2): 0.018*np.exp(-0.35j),
+                (0, 3): 0.014,
+                (1, 0): 0.016,
+                (1, 1): 0.020*np.exp(0.40j),
+                (1, 2): 0.065,
+                (1, 3): 0.060*np.exp(-0.25j),
+                (2, 0): 0.028*np.exp(0.50j),
+                (2, 1): 0.024,
+                (2, 2): 0.030*np.exp(-0.45j),
+                (2, 3): 0.026*np.exp(0.30j),
+            },
+            mulst={0: 0.20, 1: -0.18, 2: -0.02},
+            tlst={0: 0.17, 1: 0.24, 2: 0.29},
+            dband=3000.0,
+            kerntype=kerntype,
+            itype=1,
+            indexing="charge",
+            countingleads=[0, 2],
+            off_diag_corrections=False,
+        )
+
+    raise ValueError(f"Unknown arbitrary-system RTDnoise scenario: {scenario!r}")
 
 
 _SNAPSHOT_FIELDS = (

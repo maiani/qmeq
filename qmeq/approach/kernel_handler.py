@@ -592,10 +592,13 @@ class KernelHandlerRTDnoise(KernelHandlerNoise, KernelHandlerRTD):
     def add_element_2nd_order(self, r0, r1, eta0, eta1, p1, p2, fct,
                               fct_dz, indx0, indx1, a3, charge3, a4,
                               charge4, dx):
-        """
-        Adds a value to the counting index resolved noise kernel for the diagonal density matrix. Uses symmetries
-        between second order diagrams in the RTD approach to add the value to four places in the matrices.
+        """Add one independent second-order population contribution.
 
+        Only the ``eta0 = +1`` half of the traversal is independent.  The
+        approach completes its ``eta0 = -1`` conjugate partners after all
+        columns have been generated.  Keeping that completion at the assembled
+        array boundary makes the complex-conjugation and Laplace-derivative
+        signs explicit instead of reconstructing them vertex by vertex.
 
         Parameters
         ----------

@@ -48,9 +48,10 @@ class RTDNoiseLaplaceProjectionWarning(QmeqRuntimeWarning):
 #: Largest ``max|Re| / max|Im|`` accepted as roundoff when projecting the
 #: Laplace derivative onto its analytically allowed imaginary channel.
 #: Calibrated against the test suite: with real tunnel amplitudes the observed
-#: ratio never exceeds 1.2e-5, while complex amplitudes -- a regime RTDnoise
-#: does not yet qualify -- produce 0.30 to 0.95.  Anything in between is
-#: neither, and is reported rather than silently discarded.
+#: ratio never exceeds 1.2e-5.  Before conjugate-partner completion was fixed,
+#: complex amplitudes produced ratios of 0.30 to 0.95; the completed traversal
+#: is analytically imaginary for them too.  A ratio above this bound now flags
+#: a partner or derivative regression rather than a supported physical channel.
 _LAPLACE_REAL_PROJECTION_RTOL = 1e-3
 
 
@@ -74,9 +75,9 @@ def _project_laplace_derivative_onto_imaginary(approach, name, array):
             f"max|Re| = {real_scale:.3e} against max|Im| = {imaginary_scale:.3e} "
             f"(ratio {real_scale/max(imaginary_scale, 1e-300):.3e}, allowed "
             f"{_LAPLACE_REAL_PROJECTION_RTOL:.0e}). The Laplace derivative is "
-            "analytically imaginary, so this indicates the counting kernel is "
-            "outside its qualified regime -- complex tunnel amplitudes are the "
-            "known case. The returned noise is not trustworthy here.",
+            "analytically imaginary, so this indicates a conjugate-partner or "
+            "Laplace-derivative inconsistency. The returned noise is not "
+            "trustworthy here.",
             RTDNoiseLaplaceProjectionWarning,
         )
     array[:] = 1j*array.imag
@@ -325,12 +326,24 @@ class ApproachPyRTDnoise(ApproachPyRTD):
         """
         si, kh = self.si, self.kernel_handler
         ncharge, statesdm = si.ncharge, si.statesdm
+
+        # Stage 1: validate the two approximations that are external to the
+        # diagram traversal.  The integral formulas need a sufficiently large
+        # bandwidth, while eliminating same-charge coherences needs their Bohr
+        # frequencies to remain resolved on the dissipative scale.
         _warn_if_unequal_temperature_cutoff_is_small(self.qd, self.leads)
         _warn_if_rtd_coherence_is_not_resolved(self)
 
-        if True:#(not np.all(np.isclose(self.leads.tlst, self.leads.tlst[0]))) or np.any(abs(self.leads.Tba.imag)>0):
-            self.set_Ozaki_params()
+        # Stage 2: prepare the pole representation used by the scalar direct
+        # and exchange integrals.  Equal-temperature wide-band calls take an
+        # analytic shortcut, but keeping the pole data ready gives both paths
+        # one traversal and supports unequal temperatures.
+        self.set_Ozaki_params()
 
+        # Stage 3: assemble the independent population-space diagrams.  Each
+        # unique population supplies a first-order row and a second-order
+        # column.  Energy-current blocks share these state traversals, but are
+        # separate observables and retain their own complex-amplitude warning.
         for bcharge in range(ncharge):
             for b in statesdm[bcharge]:
                 if not kh.is_unique(b, b, bcharge):
@@ -340,6 +353,16 @@ class ApproachPyRTDnoise(ApproachPyRTD):
                 self.generate_row_1st_energy_kernel(b, bcharge)
                 self.generate_row_2nd_energy_kernel(b, bcharge)
 
+        # Stage 4: the traversal inserts only one member of each eta0 pair.
+        # Complete its value and Laplace-derivative partners before adding any
+        # other physical block, so the partner identity is independently
+        # testable and cannot accidentally duplicate the Schur correction.
+        self._complete_second_order_conjugate_partners()
+
+        # Stage 5: optionally eliminate the same-charge coherence sector.  Its
+        # Schur product is already resolved by lead and transferred charge, so
+        # it can be added directly to both counted arrays and the stationary
+        # lead-resolved kernel.
         if self.funcp.off_diag_corrections:
             generate_population_coherence_blocks(self)
             correction = counting_resolved_coherence_correction(self)
@@ -349,9 +372,9 @@ class ApproachPyRTDnoise(ApproachPyRTD):
             self.Lpm_second_dz += correction.laplace_derivative
             self.Wdd += np.sum(correction.kernel.real, axis=(1, 2, 3))
 
-        # Remove the analytically forbidden real channel of the Laplace
-        # derivative at the assembled-array boundary, after checking that what
-        # is discarded really is numerical residue. See
+        # Stage 6: enforce the analytic z-derivative channel only after every
+        # population contribution has been assembled.  The helper warns before
+        # removing a real part that is too large to be roundoff. See
         # :func:`_project_laplace_derivative_onto_imaginary`.
         _project_laplace_derivative_onto_imaginary(
             self, "Lpm_first_dz", self.Lpm_first_dz,
@@ -360,12 +383,42 @@ class ApproachPyRTDnoise(ApproachPyRTD):
             self, "Lpm_second_dz", self.Lpm_second_dz,
         )
 
+        # Stage 7: collapse lead and transfer axes into the physical stationary
+        # kernel.  Keep first- and second-order matrices separately as well;
+        # current/noise routines use them to expose order-resolved results.
         kern_size = self.get_kern_size()
-        self.kern[:kern_size, :kern_size] += np.sum(self.Lpm_first.real, axis=(0,1)) + np.sum(self.Lpm_second.real, axis=(0,1,2,3))
-        self.kern_first[:kern_size, :kern_size] += np.sum(self.Lpm_first.real, axis=(0,1))
-        self.kern_second[:kern_size, :kern_size] += np.sum(self.Lpm_second.real, axis=(0,1,2,3))
+        first_order = np.sum(self.Lpm_first.real, axis=(0, 1))
+        second_order = np.sum(self.Lpm_second.real, axis=(0, 1, 2, 3))
+        self.kern[:kern_size, :kern_size] += first_order + second_order
+        self.kern_first[:kern_size, :kern_size] += first_order
+        self.kern_second[:kern_size, :kern_size] += second_order
 
-        self.Wdd += np.sum(self.Lpm_first,axis=1).real
+        self.Wdd += np.sum(self.Lpm_first, axis=1).real
+
+    def _complete_second_order_conjugate_partners(self):
+        r"""Complete the inverted-Keldysh partners of fourth-order diagrams.
+
+        The traversal evaluates the independent ``eta0 = +1`` direct and
+        exchange diagrams.  Inverting every electron-hole and Keldysh index
+        gives the complex-conjugate population-kernel contribution
+        [LeijnseWegewijs2008, Eqs. (B1)-(B3), (D1)-(D3)].  Complex tunnel
+        vertices obey :math:`t_- = t_+^*` [Emary2009, Eqs. (6), (21)].
+
+        Emary's contraction factor
+        :math:`\exp[i s_\alpha\xi(p_1-p_2)\chi_\alpha/2]` is invariant when
+        ``xi`` and both Keldysh indices are inverted, so a partner remains in
+        the same transfer-resolved array entry [Emary2009, Eq. (31)].  At zero
+        Laplace energy its value is therefore the complex conjugate.  From
+        :math:`W(z)=W(-z^*)^*`, its Laplace derivative is instead the *negative*
+        complex conjugate.  Consequently completed value arrays are real and
+        completed derivative arrays are purely imaginary.
+
+        ``KernelHandlerRTDnoise`` also records the independent contribution in
+        the lead-resolved stationary kernel, whose real part is doubled here.
+        """
+        self.Lpm_second[:] = 2.0*self.Lpm_second.real
+        self.Lpm_second_dz[:] = 2.0j*self.Lpm_second_dz.imag
+        self.Wdd *= 2.0
 
     def generate_currents(self):
         self.generate_current_noise_first()
@@ -692,8 +745,13 @@ class ApproachPyRTDnoise(ApproachPyRTD):
         # fully looped over yet.) Calculating the full matrix elements requires calling this function
         # for every column in the kernel.
         #
-        # Symmetries between diagram contributions are used to avoid looping over some Keldysh- and
-        # electron-hole indices. Specifically p1 = 1, p4 = 1 and eta1 = 1 are fixed.
+        # Symmetries between diagram contributions avoid a full traversal of
+        # every Keldysh and electron-hole index. In the paper's vertex numbering
+        # p1 = p4 = eta1 = +1 are fixed. In QmeQ's local numbering these are the
+        # outer vertices p0 = p3 = +1 and the independent eta0 = +1 sector.
+        # The eta0 = -1 sector is not evaluated: after every independent column
+        # exists, :meth:`_complete_second_order_conjugate_partners` constructs
+        # it from the exact whole-diagram symmetry.
         #
         # For the tunnel matrix elements the following rules apply:
         # 1) t = Tba(i->f) if charge_i < charge_f else t = Tba(f->i).conj()
@@ -905,192 +963,32 @@ class ApproachPyRTDnoise(ApproachPyRTD):
                             tempX = -t2X * integralX_lpm(lpm_imaginary_2nd, -1, 1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
                             tempX_dz = -t2X * integralX_lpm_derivative(lpm_imaginary_2nd, -1, 1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
                             kh.add_element_2nd_order(r0, r1, 1, -1, -1, -1, tempX, tempX_dz, indx0, indx1, a1p, charge + 1, a3m, charge + 2, 'x')
-        #flip eta index!
-        #p0=p3=1,eta0=-1 (other cases for p0,p3 still added through symmetry (eta screws it))
-            #N1 = (N0, N0 - 1), a1- = a0
-            for a1p in statesdm[charge-1]:
-                t = Tba[r0, a0, a1p]
-                if abs(t) == t_cutoff1:
-                    continue
-                indx1 = self.si.get_ind_dm0(a1p, a1p, charge - 1)
-                E1 = E[a1p] - E[a0]
-                #eta1 = 1
-                #p1 = 1
-                #N2 = (N0, N0), a2m = a0
-                for a2p in statesdm[charge]:
-                    #p2 = 1
-                    t1 = t * Tba[r1, a2p, a1p]
-                    if abs(t1) < t_cutoff2:
-                        continue
-                    E2 = E[a2p] - E[a0]
-                    #N3 = (N0, N0 - 1 ), a3- = a2-
-                    for a3p in statesdm[charge-1]:
-                        #charge4 = charge + 0, a4 = a0
-                        t2D = t1 * Tba[r1, a2p, a3p].conj() * Tba[r0, a0, a3p].conj()
-                        E3 = E[a3p] - E[a0]
-                        if abs(t2D) > t_cutoff3:
-                            tempD = t2D * integralD_lpm(lpm_imaginary_2nd, 1, -1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            tempD_dz = t2D * integralD_lpm_derivative(lpm_imaginary_2nd, 1, -1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            kh.add_element_2nd_order(r0, r1, -1, 1, 1, 1, tempD, tempD_dz, indx0, indx1, a3p, charge - 1, a0, charge, 'd')
-                    #N3 = (N0, N0 + 1 ), a3- = a2-
-                    for a3p in statesdm[charge+1]:
-                        #charge4 = charge + 0, a4 = a0
-                        t2X = t1 * Tba[r0, a3p, a2p].conj() * Tba[r1, a3p, a0].conj()
-                        E3 = E[a3p] - E[a0]
-                        if abs(t2X) > t_cutoff3:
-                            tempX = -t2X * integralX_lpm(lpm_imaginary_2nd, 1, -1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            tempX_dz = -t2X * integralX_lpm_derivative(lpm_imaginary_2nd, 1, -1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            kh.add_element_2nd_order(r0, r1, -1, 1, 1, 1, tempX, tempX_dz, indx0, indx1, a3p, charge + 1, a0, charge, 'x')
-                    #p2 = -1
-                    #N3 = ( N0 + 1 , N0)
-                    for a3m in statesdm[charge+1]:
-                        #charge4 = charge + 1, a4 = a3m
-                        t2D = t1 * Tba[r1, a3m, a0].conj() * Tba[r0, a3m, a2p].conj()
-                        E3 = E[a2p] - E[a3m]
-                        if abs(t2D) > t_cutoff3:
-                            tempD = t2D * integralD_lpm(lpm_imaginary_2nd, 1, -1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            tempD_dz = t2D * integralD_lpm_derivative(lpm_imaginary_2nd, 1, -1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            kh.add_element_2nd_order(r0, r1, -1, 1, 1, -1, tempD, tempD_dz, indx0, indx1, a2p, charge, a3m, charge + 1, 'd')
-                    #N3 = ( N0 - 1, N0)
-                    for a3m in statesdm[charge-1]:
-                        #charge4 = charge - 1, a4 = a3m
-                        t2X = t1 * Tba[r0, a3m, a0].conj() * Tba[r1, a2p, a3m].conj()
-                        E3 = E[a2p] - E[a3m]
-                        if abs(t2X) > t_cutoff3:
-                            tempX = -t2X * integralX_lpm(lpm_imaginary_2nd, 1, -1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            tempX_dz = -t2X * integralX_lpm_derivative(lpm_imaginary_2nd, 1, -1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            kh.add_element_2nd_order(r0, r1, -1, 1, 1, -1, tempX, tempX_dz, indx0, indx1, a2p, charge, a3m, charge - 1, 'x')
-                #p1 = -1
-                #N2 = ( N0 - 1, N0 - 1 ), a2+ = a1+
-                for a2m in statesdm[charge-1]:
-                    t1 = t * Tba[r1, a0, a2m]
-                    if abs(t1) < t_cutoff2:
-                        continue
-                    E2 = E[a1p] - E[a2m]
-                    #p2 = 1
-                    #N3 = ( N0 - 1 , N0 - 2), a3- = a2-
-                    for a3p in statesdm[charge-2]:
-                        #charge4 = charge - 1, a4 = a2m
-                        t2D = t1 * Tba[r1, a1p, a3p].conj() * Tba[r0, a2m, a3p].conj()
-                        E3 = E[a3p] - E[a2m]
-                        if abs(t2D) > t_cutoff3:
-                            tempD = t2D * integralD_lpm(lpm_imaginary_2nd, -1, -1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            tempD_dz = t2D * integralD_lpm_derivative(lpm_imaginary_2nd, -1, -1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            kh.add_element_2nd_order(r0, r1, -1, 1, -1, 1, tempD, tempD_dz, indx0, indx1, a3p, charge - 2, a2m, charge - 1, 'd')
-                    #N3 = ( N0 - 1 , N0 ), a3- = a2-
-                    for a3p in statesdm[charge]:
-                        #charge4 = charge - 1, a4 = a2m
-                        t2X = t1 * Tba[r0, a3p, a1p].conj() * Tba[r1, a3p, a2m].conj()
-                        E3 = E[a3p] - E[a2m]
-                        if abs(t2X) > t_cutoff3:
-                            tempX = -t2X * integralX_lpm(lpm_imaginary_2nd, -1, -1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            tempX_dz = -t2X * integralX_lpm_derivative(lpm_imaginary_2nd, -1, -1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            kh.add_element_2nd_order(r0, r1, -1, 1, -1, 1, tempX, tempX_dz, indx0, indx1, a3p, charge, a2m, charge - 1, 'x')
-                    #p2 = -1
-                    #N3 = ( N0 , N0 - 1), a3+ = a2+
-                    for a3m in statesdm[charge]:
-                        #charge4 = charge + 0, a4 = a3m
-                        t2D = t1 * Tba[r1, a3m, a2m].conj() * Tba[r0, a3m, a1p].conj()
-                        E3 = E[a1p] - E[a3m]
-                        if abs(t2D) > t_cutoff3:
-                            tempD = t2D * integralD_lpm(lpm_imaginary_2nd, -1, -1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            tempD_dz = t2D * integralD_lpm_derivative(lpm_imaginary_2nd, -1, -1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            kh.add_element_2nd_order(r0, r1, -1, 1, -1, -1, tempD, tempD_dz, indx0, indx1, a1p, charge - 1, a3m, charge, 'd')
-                    #N3 = ( N0 - 2 , N0 - 1), a3+ = a2+
-                    for a3m in statesdm[charge-2]:
-                        #charge4 = charge + 0, a4 = a3m
-                        t2X = t1 * Tba[r0, a2m, a3m].conj() * Tba[r1, a1p, a3m].conj()
-                        E3 = E[a1p] - E[a3m]
-                        if abs(t2X) > t_cutoff3:
-                            tempX = -t2X * integralX_lpm(lpm_imaginary_2nd, -1, -1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            tempX_dz = -t2X * integralX_lpm_derivative(lpm_imaginary_2nd, -1, -1, 1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            kh.add_element_2nd_order(r0, r1, -1, 1, -1, -1, tempX, tempX_dz, indx0, indx1, a1p, charge - 1, a3m, charge - 2, 'x')
-                #eta1 = -1
-                #p1 = 1
-                #N2 = (N0, N0 - 2), a2- = a0
-                for a2p in statesdm[charge-2]:
-                    E2 = E[a2p] - E[a0]
-                    t1 = t * Tba[r1, a1p, a2p]
-                    if abs(t1) < t_cutoff2:
-                        continue
-                    #p2 = 1
-                    #N3 = ( N0, N0 -1), a3- = a0
-                    for a3p in statesdm[charge-1]:
-                        #charge4 = charge, a4 = a0
-                        t2D = t1 * Tba[r1, a3p, a2p].conj() * Tba[r0, a0, a3p].conj()
-                        t2X = t1 * Tba[r0, a3p, a2p].conj() * Tba[r1, a0, a3p].conj()
-                        E3 = E[a3p] - E[a0]
-                        if abs(t2D) > t_cutoff3:
-                            tempD = t2D * integralD_lpm(lpm_imaginary_2nd, 1, -1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            tempD_dz = t2D * integralD_lpm_derivative(lpm_imaginary_2nd, 1, -1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            kh.add_element_2nd_order(r0, r1, -1, -1, 1, 1, tempD, tempD_dz, indx0, indx1, a3p, charge - 1, a0, charge, 'd')
-                        if abs(t2X) > t_cutoff3:
-                            tempX = -t2X * integralX_lpm(lpm_imaginary_2nd, 1, -1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            tempX_dz = -t2X * integralX_lpm_derivative(lpm_imaginary_2nd, 1, -1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            kh.add_element_2nd_order(r0, r1, -1, -1, 1, 1, tempX, tempX_dz, indx0, indx1, a3p, charge - 1, a0, charge, 'x')
-                    #p2 = -1
-                    #N3 = ( N0-1, N0 - 2 ), a3+ = a2+
-                    for a3m in statesdm[charge-1]:
-                        #charge4 = charge - 1, a4 = a3m
-                        t2D = t1 * Tba[r1, a0, a3m].conj() * Tba[r0, a3m, a2p].conj()
-                        t2X = t1 * Tba[r0, a0, a3m].conj() * Tba[r1, a3m, a2p].conj()
-                        E3 = E[a2p] - E[a3m]
-                        if abs(t2D) > t_cutoff3:
-                            tempD = t2D * integralD_lpm(lpm_imaginary_2nd, 1, -1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            tempD_dz = t2D * integralD_lpm_derivative(lpm_imaginary_2nd, 1, -1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            kh.add_element_2nd_order(r0, r1, -1, -1, 1, -1, tempD, tempD_dz, indx0, indx1, a2p, charge - 2, a3m, charge - 1, 'd')
-                        if abs(t2X) > t_cutoff3:
-                            tempX = -t2X * integralX_lpm(lpm_imaginary_2nd, 1, -1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            tempX_dz = -t2X * integralX_lpm_derivative(lpm_imaginary_2nd, 1, -1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            kh.add_element_2nd_order(r0, r1, -1, -1, 1, -1, tempX, tempX_dz, indx0, indx1, a2p, charge - 2, a3m, charge - 1, 'x')
-                #p1 = -1
-                #N2 = ( N0 + 1  , N0 - 1), a2+ = a1+
-                for a2m in statesdm[charge+1]:
-                    E2 = E[a1p] - E[a2m]
-                    t1 = t * Tba[r1, a2m, a0]
-                    #p2 = 1
-                    # N3 = (N0 + 1, N0), a3- = a2-
-                    for a3p in statesdm[charge]:
-                        #charge4 = charge + 1, a4 = a2m
-                        t2D = t1 * Tba[r1, a3p, a1p].conj() * Tba[r0, a2m, a3p].conj()
-                        t2X = t1 * Tba[r0, a3p, a1p].conj() * Tba[r1, a2m, a3p].conj()
-                        E3 = E[a3p] - E[a2m]
-                        if abs(t2D) > t_cutoff3:
-                            tempD = t2D * integralD_lpm(lpm_imaginary_2nd, -1, -1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            tempD_dz = t2D * integralD_lpm_derivative(lpm_imaginary_2nd, -1, -1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            kh.add_element_2nd_order(r0, r1, -1, -1, -1, 1, tempD, tempD_dz, indx0, indx1, a3p, charge, a2m, charge + 1, 'd')
-                        if abs(t2X) > t_cutoff3:
-                            tempX = -t2X * integralX_lpm(lpm_imaginary_2nd, -1, -1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            tempX_dz = -t2X * integralX_lpm_derivative(lpm_imaginary_2nd, -1, -1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            kh.add_element_2nd_order(r0, r1, -1, -1, -1, 1, tempX, tempX_dz, indx0, indx1, a3p, charge, a2m, charge + 1, 'x')
-                    #p2 = -1
-                    #N3 = ( N0, N0-1), a3+ = a2+
-                    for a3m in statesdm[charge]:
-                        #charge4 = charge, a4 = a3m
-                        t2D = t1 * Tba[r1, a2m, a3m].conj() * Tba[r0, a3m, a1p].conj()
-                        t2X = t1 * Tba[r0, a2m, a3m].conj() * Tba[r1, a3m, a1p].conj()
-                        E3 = E[a1p] - E[a3m]
-                        if abs(t2D) > t_cutoff3:
-                            tempD = t2D * integralD_lpm(lpm_imaginary_2nd, -1, -1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            tempD_dz = t2D * integralD_lpm_derivative(lpm_imaginary_2nd, -1, -1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            kh.add_element_2nd_order(r0, r1, -1, -1, -1, -1, tempD, tempD_dz, indx0, indx1, a1p, charge - 1, a3m, charge, 'd')
-                        if abs(t2X) > t_cutoff3:
-                            tempX = -t2X * integralX_lpm(lpm_imaginary_2nd, -1, -1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            tempX_dz = -t2X * integralX_lpm_derivative(lpm_imaginary_2nd, -1, -1, -1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, True)
-                            kh.add_element_2nd_order(r0, r1, -1, -1, -1, -1, tempX, tempX_dz, indx0, indx1, a1p, charge - 1, a3m, charge, 'x')
 
-    def build_counting_kernels(self,Lpm_first,Lpm_second,countingleads):
-        """Builds the counting kernels for the given counting leads.
+    def build_counting_kernels(self, Lpm_first, Lpm_second, countingleads):
+        """Aggregate lead-resolved blocks by net counted charge.
+
+        ``Lpm_second[r0, r1, q0, q1]`` records the transfers attached to its
+        two reservoir contractions.  This routine maps them to ``L[q]`` for
+        the selected lead set.  If only one contraction belongs to that set,
+        its transfer is the total; if both do, their transfers are added.
+
+        The zero-transfer block is filled last from the zero-field kernel. This
+        guarantees that summing every ``L[q]`` exactly recovers the physical
+        kernel, including diagrams whose individual transfer is zero.
         """
         nleads = self.si.nleads
         kern_size = self.get_kern_size()
-        L = np.zeros((5,kern_size,kern_size),dtype=complex)
-        # first order
+        L = np.zeros((5, kern_size, kern_size), dtype=complex)
+
+        # A first-order diagram has one reservoir contraction, so its stored
+        # transfer index is already the net transfer through the counted set.
         for r0 in countingleads:
-            L[-1] += Lpm_first[r0,-1,:,:]
-            L[1] += Lpm_first[r0,1,:,:]
-        # second order
-        for r0,r1 in product(range(nleads),range(nleads)):
+            L[-1] += Lpm_first[r0, -1, :, :]
+            L[1] += Lpm_first[r0, 1, :, :]
+
+        # A second-order diagram has two contractions. Separate the three
+        # membership cases to avoid assigning a transfer from an uncounted lead.
+        for r0, r1 in product(range(nleads), range(nleads)):
             if (r0 in countingleads) and (r1 not in countingleads):
                 L[-1] += np.sum(Lpm_second[r0,r1,-1,:,:,:],axis=0)
                 L[1] += np.sum(Lpm_second[r0,r1,1,:,:,:],axis=0)
@@ -1098,14 +996,22 @@ class ApproachPyRTDnoise(ApproachPyRTD):
                 L[-1] += np.sum(Lpm_second[r0,r1,:,-1,:,:],axis=0)
                 L[1] += np.sum(Lpm_second[r0,r1,:,1,:,:],axis=0)
             if (r0 in countingleads) and (r1 in countingleads):
+                # q0 + q1 = +/-1 can arise as (+/-1, 0) or (0, +/-1).
                 L[-1] += Lpm_second[r0,r1,-1,0,:,:]
                 L[-1] += Lpm_second[r0,r1,0,-1,:,:]
                 L[1] += Lpm_second[r0,r1,1,0,:,:]
                 L[1] += Lpm_second[r0,r1,0,1,:,:]
                 L[-2] += Lpm_second[r0,r1,-1,-1,:,:]
                 L[2] += Lpm_second[r0,r1,1,1,:,:]
-        # for completeness
-        L[0]=np.sum(Lpm_first,axis=(0,1))+np.sum(Lpm_second,axis=(0,1,2,3))-np.sum(L[1:],axis=0)
+
+        # Define q=0 by exact zero-field closure rather than by another case
+        # split. This includes both genuinely zero-transfer diagrams and the
+        # diagonal escape terms required by probability conservation.
+        zero_field = (
+            np.sum(Lpm_first, axis=(0, 1))
+            + np.sum(Lpm_second, axis=(0, 1, 2, 3))
+        )
+        L[0] = zero_field - np.sum(L[1:], axis=0)
         return L
 
     def build_counting_kernels_first(self,Lpm_first,countingleads):

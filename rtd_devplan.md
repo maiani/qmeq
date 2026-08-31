@@ -778,8 +778,8 @@ the \(T=1\) sweep toward weaker coupling gives successive local residual slopes
 2.33, 2.17, and 2.08, approaching an \(O(\Gamma^2)\) term. The three reopened
 conditions are now closed as follows.
 
-**Finite-\(z\) projection — closed, with one convention recorded rather than
-derived.** The stored projection was wrong, not merely unpinned. The zero-field
+**Finite-\(z\) projection and bare-resolvent orientation — closed.** The stored
+projection was wrong, not merely unpinned. The zero-field
 Schur product is purely imaginary and its Laplace derivative purely real, so
 `1j*product_dz.imag` selected the identically zero channel and
 `coherence_correction_dz` was zero to machine precision. The correction and its
@@ -790,11 +790,11 @@ composition is now gated against an independent finite-\(z\),
 transfer-resolved reference built from the term decomposition, itself anchored
 element by element against the untouched historical value expressions. The
 correction's derivative enters the noise only at \(O(\Gamma^3)\), which is
-why no pre-existing gate could see any of this. **Still a convention:** the
-bare-resolvent orientation \(G_{nn}(z)=1/(\Delta E+z)\). The gate's negative
-control separates it from the alternative by more than a factor of two, so it
-cannot drift silently, but deriving it in the packed real/imaginary coherence
-layout is tracked as its own P2 item.
+why no pre-existing gate could see any of this. The bare-resolvent orientation
+\(G_{nn}(z)=1/(\Delta E+z)\) now follows from
+[LeijnseWegewijs2008, Eqs. (19), (49)] after mapping QmeQ's energy-like
+continuation and ordered RTD coherence slots. The finite-\(z\) gate retains the
+opposite orientation as a strict negative control.
 
 **Derivative step — closed.** The absolute `max(1, ...)` floor is replaced by a
 pure fraction of the model's own energy scale. The energy-rescaling covariance
@@ -831,35 +831,40 @@ scaling and the Markovian cancellation fraction as the cheap companions.
 `dband` convergence is now a documented requirement for noise, not only for
 unequal temperatures.
 
-This work is tagged `1.2.0.dev2`. The three reopened conditions are closed and
-the fourth finding is expected rather than a defect; the resolvent orientation
-above ships gated rather than derived, and its derivation is P2 item 7.
+This work is tagged `1.2.0.dev2`. The reopened conditions are closed and the
+fourth finding is expected rather than a defect.
 
-The generic-complex-amplitude defect remains a P2 failure and has not been
-weakened. Its RTDnoise consequences are now pinned by live reproducers: at flux
-\(\pi/2\) the counting **particle current** exponent collapses to 2 while
-ordinary RTD's stays at 3, and the transfer-resolved correction is exact for
-complex amplitudes, which localizes the defect to the second-order traversal.
+The localized generic-complex-amplitude defect was repaired on 2026-08-31.
+RTDnoise now completes the `eta0=-1` value and Laplace-derivative diagrams from
+the conjugate and negative-conjugate partners of the independent `eta0=+1`
+sector, retaining each partner's counting coordinates. Generic-flux
+transfer-sector reality, RTD/RTDnoise kernel agreement, cubic current/noise
+residuals against the independent \(U=0\) solver, orbital rephasing, and
+\(2\pi\)-periodicity pass on both selected backends. P2 remains open for the
+arbitrary-system matrix and traversal unification below; this repair does not
+qualify complex-amplitude energy/heat currents.
 
 ### P2 — Complex amplitudes and arbitrary population-space systems
 
 P2 removes assumptions that are harmless only for real amplitudes or special
 topologies.
 
-1. Derive the conjugate partner of every second-order diagram directly from the
-   Leijnse-Wegewijs branch/orientation rules and derive its counting transfer
-   from Emary's vertex factor. Do not infer the transfer label from the summed
-   real kernel.
-2. Repair RTDnoise's `eta0=-1` construction so the whole amplitude product is
-   conjugated with the derived partner endpoints and labels. The existing
+1. **Completed 2026-08-31:** derive the conjugate partner of every second-order
+   diagram directly from the Leijnse-Wegewijs branch/orientation rules and
+   derive its counting transfer from Emary's vertex factor. Do not infer the
+   transfer label from the summed real kernel.
+2. **Completed 2026-08-31:** repair RTDnoise's `eta0=-1` construction so the
+   whole amplitude product is conjugated with the derived partner endpoints and
+   labels. The existing
    observation \(2\operatorname{Re}S(+)\simeq W_{dd,\rm RTD}^{(2)}\) is a value
    check, not sufficient evidence for the transfer-resolved mapping.
-3. Gate the repair with:
+3. **Completed 2026-08-31:** gate the repair with
    per-transfer conjugation identities, reality of the summed population
    kernel, RTD/RTDnoise second-order agreement, counted/ordinary current
    agreement, NEGF current/noise residuals at generic flux, gauge invariance,
    and independent \(2\pi\) periodicity.
-4. Generalize the scenario matrix: more than two orbitals, more than two leads,
+4. **Completed 2026-08-31:** generalize the scenario matrix: more than two
+   orbitals, more than two leads,
    rank-deficient and dense lead couplings, complex hopping, non-collinear
    fields, unequal lead temperatures, and interacting cases for structural
    invariants. “Arbitrary” means no hard-coded DQD, two-terminal, spin, or
@@ -872,12 +877,10 @@ topologies.
 6. Derive the missing complex energy/heat-current terms or retain the current
    `nan` plus warning. Energy/heat support has a separate gate and must not
    block correct particle current/noise.
-7. Derive the bare-resolvent orientation \(G_{nn}(z)=1/(\Delta E+z)\) in the
-   packed real/imaginary coherence layout, rather than inheriting it from P1's
-   negative-control gate. P1 closed with this as a recorded convention: the gate
-   separates it from the opposite orientation by more than a factor of two, so
-   it cannot drift silently, but it is not derived. Deriving it also fixes the
-   sign convention the finite-\(z\) reference is built against.
+7. **Completed 2026-08-31:** derive the bare-resolvent orientation
+   \(G_{nn}(z)=1/(\Delta E+z)\) from [LeijnseWegewijs2008, Eqs. (19), (49)] and
+   QmeQ's ordered RTD coherence packing. The finite-\(z\) reference retains the
+   opposite orientation as a negative control.
 8. Profile before adding a compiled counting evaluator.
 
 P2 exit gate: all complex-amplitude defect reproducers pass on both backends;

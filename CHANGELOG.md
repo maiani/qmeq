@@ -4,6 +4,16 @@
 
 ### Fixed
 
+- Complete RTDnoise's second-order complex-amplitude diagrams from their
+  inverted electron-hole and Keldysh partners. The old ``eta0 = -1`` traversal
+  conjugated individual tunnel vertices instead of the complete four-vertex
+  contribution, so the counted population kernel disagreed with ordinary RTD
+  at generic plaquette flux and particle-current errors reverted from cubic to
+  quadratic in the coupling. The value and Laplace-derivative partners now use
+  the conjugate and negative-conjugate relations, respectively, while retaining
+  their transfer labels. The redundant explicit partner traversal is skipped,
+  reducing second-order assembly work. Generic-flux kernel agreement and
+  independent non-interacting current/noise scaling gates cover the repair.
 - Base the RTD eliminated-coherence warning on the Fermi-weighted sequential
   escape rates that actually damp the closest same-charge pair. The previous
   `2*pi*sum(|T|**2)` estimate omitted reservoir occupations and could warn deep
@@ -66,7 +76,7 @@
   reference confirms the corrected real-amplitude *current* at the retained
   order. The corresponding noise claim is **not** settled: see the open item
   below. `off_diag_corrections=False` remains the immutable historical-fixture
-  mode; the known generic-complex-amplitude defect is unchanged.
+  mode.
 - Replace RTDnoise's fixed `1e-8` Laplace-energy shifts with analytic
   derivatives for first-order coherence blocks and the bare propagator, plus a
   scale-aware centered derivative for every explicit second-order

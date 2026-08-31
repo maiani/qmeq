@@ -22,7 +22,8 @@ Single-Molecule Transistors,” *Physical Review B* **78**, 235424 (2008).
 
 Used for the real-time diagrammatic notation and rules, the leading-order
 kernel, and the fourth-order direct and exchange diagrams; see especially
-Eqs. (48), (53), (56)-(59), and (61)-(65).
+Eqs. (19), (49), (53), (56)-(59), and (61)-(65). Equation (49) fixes the free
+molecular resolvent used when eliminating non-diagonal density-matrix elements.
 
 ### `Emary2009`
 

@@ -167,20 +167,34 @@ constrains this quantity: it enters the noise only at $O(\Gamma^3)$, so neither
 the zero-field reduction to ordinary RTD, nor the diagonal limit, nor the
 non-interacting residual order can see it.
 
-**One input to that gate is a convention and not yet a derivation.** The
-reference must say how the bare coherence resolvent depends on $z$, and it uses
+The bare-resolvent orientation follows from the free molecular line, not from
+the numerical gate. Leijnse and Wegewijs define
+
+$$\Pi^0(z_{\rm LW})=i\left(z_{\rm LW}-L\right)^{-1}$$
+
+in Eq. (49), while their stationary kinetic equation is
+$0=(-iL+W)P$ [LeijnseWegewijs2008, Eqs. (19), (49)]. Acting on the ordered
+coherence $|a\rangle\langle b|$, the molecular Liouvillian has eigenvalue
+$\Delta E_{ab}=E_a-E_b$. QmeQ's finite-energy continuation shifts every
+intermediate denominator as $\Delta E\mapsto\Delta E+z$; equivalently,
+$z_{\rm LW}=-z$. Thus
+
+$$\Pi^0_{ab}(-z)=-\frac{i}{\Delta E_{ab}+z}.$$
+
+The factor $-i$ is the explicit prefactor in
+$W_{\rm corr}=-iW_{dn}G_{nn}W_{nd}$, leaving
 
 $$G_{nn}(z)=\frac{1}{\Delta E+z},\qquad
 \partial_z G_{nn}^{(0)}=-\left(G_{nn}^{(0)}\right)^2,$$
 
-which is what the implementation assumes. The test's negative control shows the
-opposite orientation differs by more than a factor of two, so the choice cannot
-drift unnoticed -- but a gate that pins a convention is not a proof of it.
-`Lnn_inv` is a *real* diagonal stand-in for a complex resolvent in a packed
-real/imaginary coherence layout, and in that layout the orientation does not
-follow from inspection. Deriving it from the Leijnse-Wegewijs branch and
-orientation rules belongs with the conjugate-partner derivation, and until then
-this orientation should be read as recorded, not established.
+as used by the product rule. The historical RTD coherence axis does not rotate
+an unordered pair into a two-component real vector. It stores the ordered
+$|a\rangle\langle b|$ and $|b\rangle\langle a|$ contributions in separate
+slots (rule L9). Their splittings are $\Delta E_{ab}$ and $-\Delta E_{ab}$;
+both receive the same $+z$ shift. This is why packing does not introduce an
+extra sign or a $2\times2$ resolvent. The direct oriented-splitting test checks
+this mapping, and the finite-$z$ negative control still distinguishes the
+opposite orientation by more than a factor of two.
 
 Runtime arrays name this derivative explicitly with the suffix `_dz`, for
 example `Lpm_second_dz`; `dot` is reserved for quantum-dot terminology. The
