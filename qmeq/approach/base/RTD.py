@@ -2,6 +2,7 @@
 
 from itertools import product
 from dataclasses import dataclass
+from numbers import Integral
 from typing import Literal
 
 import numpy as np
@@ -225,14 +226,54 @@ class ApproachPyRTD(Approach):
 
     kerntype = 'pyRTD'
     coherence_laplace_derivatives = False
+    #: Highest tunnel-rate order this class assembles. Subclasses that carry
+    #: fewer blocks narrow the accepted ``rtd_order`` by lowering it.
+    rtd_max_order = 2
 
     def __init__(self, *args, **kwargs):
+        self._rtd_order = self.rtd_max_order
         super().__init__(*args, **kwargs)
         self.BW_Ozaki_expansion = 0
         self.Ozaki_poles_and_residues = None
         self.ImGamma = False
         self.printed_warning_ImGamma = False
         self.nsingle_warning_printed = False
+
+    @property
+    def rtd_order(self):
+        r"""Highest irreducible tunnel-rate kernel order retained in results.
+
+        Order 1 keeps the two-vertex block :math:`W_{dd}^{(1)}` alone; order 2
+        adds :math:`W_{dd}^{(2)}` and the two energy-current blocks. The kernel
+        is truncated at this order, while the stationary null vector of the
+        truncated kernel is still solved exactly, so the reported observables
+        resum higher powers of the coupling through the solve. Setting it is not
+        an order-by-order expansion of the density matrix.
+
+        ``off_diag_corrections`` is a separate switch: it is an
+        :math:`O(\Gamma^2)` term, so enabling it at order 1 is a diagnostic
+        control rather than a consistent truncation.
+        """
+        return self._rtd_order
+
+    @rtd_order.setter
+    def rtd_order(self, value):
+        if isinstance(value, bool) or not isinstance(value, Integral):
+            raise TypeError(
+                f"rtd_order must be an integer, got {value!r}."
+            )
+        value = int(value)
+        if value not in range(1, self.rtd_max_order + 1):
+            supported = ", ".join(
+                str(order) for order in range(1, self.rtd_max_order + 1)
+            )
+            raise ValueError(
+                f"{self.kerntype} implements rtd_order {supported}, not {value}."
+            )
+        if value != self._rtd_order:
+            self._rtd_order = value
+            # The retained blocks change, so every cached kernel is stale.
+            self.restart()
 
     def get_kern_size(self):
         return self.si.npauli
@@ -348,11 +389,19 @@ class ApproachPyRTD(Approach):
         si, kh = self.si, self.kernel_handler
         ncharge, statesdm = si.ncharge, si.statesdm
         off_diag_corrections = self.funcp.off_diag_corrections
+        rtd_order = self.rtd_order
 
-        _warn_if_unequal_temperature_cutoff_is_small(self.qd, self.leads)
+        # The unequal-temperature cutoff and the Ozaki pole expansion are both
+        # prerequisites of the four-vertex integrals alone. The two-vertex rate
+        # reads its own lead's Fermi function, so order 1 needs neither and
+        # accepts a thermal bias.
+        if rtd_order >= 2:
+            _warn_if_unequal_temperature_cutoff_is_small(self.qd, self.leads)
         _warn_if_rtd_coherence_is_not_resolved(self)
 
-        if (not np.all(np.isclose(self.leads.tlst, self.leads.tlst[0]))) or np.any(abs(self.leads.Tba.imag)>0):
+        if rtd_order >= 2 and (
+                (not np.all(np.isclose(self.leads.tlst, self.leads.tlst[0])))
+                or np.any(abs(self.leads.Tba.imag) > 0)):
             self.set_Ozaki_params()
 
         for bcharge in range(ncharge):
@@ -360,9 +409,13 @@ class ApproachPyRTD(Approach):
                 if not kh.is_unique(b, b, bcharge):
                     continue
                 self.generate_row_1st_order_kernel(b, bcharge)
-                self.generate_col_diag_kern_2nd_order(b, bcharge)
-                self.generate_row_1st_energy_kernel(b, bcharge)
-                self.generate_row_2nd_energy_kernel(b, bcharge)
+                if rtd_order >= 2:
+                    self.generate_col_diag_kern_2nd_order(b, bcharge)
+                    # WE1 and WE2 are two contractions of one O(Gamma^2)
+                    # correction, not first and second order: the leading
+                    # energy current is the LE contraction of Wdd.
+                    self.generate_row_1st_energy_kernel(b, bcharge)
+                    self.generate_row_2nd_energy_kernel(b, bcharge)
 
         kern_size = self.get_kern_size()
         self.kern[:kern_size, :kern_size] += np.sum(self.Wdd, 0)

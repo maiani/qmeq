@@ -97,6 +97,24 @@
 
 ### Added
 
+- Select the RTD truncation order with `approach.rtd_order`, available on
+  `RTD`, `pyRTD`, `RTDnoise` and `pyRTDnoise` and defaulting to the previous
+  behaviour, 2. Order 1 retains the two-vertex block alone and reproduces the
+  golden-rule kernel exactly: on a single level its `phi0`, particle, energy
+  and heat currents agree with `Pauli` at `itype=1` to `0.0`, on both
+  backends. Order 1 therefore turns the truncation-order control the residual
+  scaling gate asks for into a real kernel rather than a Pauli stand-in, and
+  it accepts a thermal bias, because only the four-vertex integrals require
+  equal lead temperatures; the unequal-temperature bandwidth warning and the
+  Ozaki pole expansion are both skipped there. The two energy-current blocks
+  are contractions of one `O(Gamma^2)` correction rather than first and second
+  order, so both are omitted at order 1 while the leading energy current still
+  comes from the `Wdd` contraction. `off_diag_corrections` stays an
+  independent switch: it is an `O(Gamma^2)` term, so enabling it at order 1 is
+  a diagnostic control and not a consistent truncation. Assigning an
+  unimplemented or non-integer order raises, and changing the order restarts
+  the approach so no stale kernel survives.
+
 - Attach the source distribution to the GitHub release alongside the wheels.
   `build_wheels.yml` gained an `sdist` job that applies the same tag/version
   guard as the wheel jobs, builds the sdist, runs `twine check` and the

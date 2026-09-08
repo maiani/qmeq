@@ -84,6 +84,18 @@ the honest key `inverse_Lnn`.
 This is why `set_matrix_list` builds its list with `getattr(self, name, None)`:
 the arrays it refers to do not all exist in both backends.
 
+## `WE1` and `WE2` are contractions, not orders
+
+`generate_row_1st_energy_kernel` and `generate_row_2nd_energy_kernel` name two
+contractions of one `O(Gamma^2)` energy-current correction. Neither is a
+first-order block, and the leading energy current is not in either: it is the
+`LE` contraction of `Wdd`, added separately in `generate_current`.
+
+That is why `rtd_order = 1` leaves both arrays zero and still reproduces the
+sequential energy and heat currents exactly. Reading `WE1` as "the first-order
+energy kernel" would predict the opposite, and would make the order-1 gate look
+like a missing term.
+
 ## The second-order `.real` is a partner sum, not a truncation
 
 `generate_col_diag_kern_2nd_order` stores `tempD.real` and `tempX.real` at

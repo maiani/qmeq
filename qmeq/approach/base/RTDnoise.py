@@ -326,19 +326,24 @@ class ApproachPyRTDnoise(ApproachPyRTD):
         """
         si, kh = self.si, self.kernel_handler
         ncharge, statesdm = si.ncharge, si.statesdm
+        rtd_order = self.rtd_order
 
         # Stage 1: validate the two approximations that are external to the
         # diagram traversal.  The integral formulas need a sufficiently large
         # bandwidth, while eliminating same-charge coherences needs their Bohr
-        # frequencies to remain resolved on the dissipative scale.
-        _warn_if_unequal_temperature_cutoff_is_small(self.qd, self.leads)
+        # frequencies to remain resolved on the dissipative scale.  The
+        # bandwidth requirement belongs to the four-vertex integrals alone.
+        if rtd_order >= 2:
+            _warn_if_unequal_temperature_cutoff_is_small(self.qd, self.leads)
         _warn_if_rtd_coherence_is_not_resolved(self)
 
         # Stage 2: prepare the pole representation used by the scalar direct
         # and exchange integrals.  Equal-temperature wide-band calls take an
         # analytic shortcut, but keeping the pole data ready gives both paths
-        # one traversal and supports unequal temperatures.
-        self.set_Ozaki_params()
+        # one traversal and supports unequal temperatures.  Only the
+        # four-vertex integrals consume it.
+        if rtd_order >= 2:
+            self.set_Ozaki_params()
 
         # Stage 3: assemble the independent population-space diagrams.  Each
         # unique population supplies a first-order row and a second-order
@@ -349,15 +354,22 @@ class ApproachPyRTDnoise(ApproachPyRTD):
                 if not kh.is_unique(b, b, bcharge):
                     continue
                 self.generate_row_1st_order_kernel_lpm(b, bcharge)
-                self.generate_col_diag_kern_2nd_order_lpm(b, bcharge)
-                self.generate_row_1st_energy_kernel(b, bcharge)
-                self.generate_row_2nd_energy_kernel(b, bcharge)
+                if rtd_order >= 2:
+                    self.generate_col_diag_kern_2nd_order_lpm(b, bcharge)
+                    # WE1 and WE2 are two contractions of one O(Gamma^2)
+                    # correction, not first and second order: the leading
+                    # energy current is the LE contraction of Wdd.
+                    self.generate_row_1st_energy_kernel(b, bcharge)
+                    self.generate_row_2nd_energy_kernel(b, bcharge)
 
         # Stage 4: the traversal inserts only one member of each eta0 pair.
         # Complete its value and Laplace-derivative partners before adding any
         # other physical block, so the partner identity is independently
         # testable and cannot accidentally duplicate the Schur correction.
-        self._complete_second_order_conjugate_partners()
+        # It doubles ``Wdd``, which holds only second-order content at this
+        # point, so it must not run when no second-order block was assembled.
+        if rtd_order >= 2:
+            self._complete_second_order_conjugate_partners()
 
         # Stage 5: optionally eliminate the same-charge coherence sector.  Its
         # Schur product is already resolved by lead and transferred charge, so

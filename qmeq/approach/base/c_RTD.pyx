@@ -83,7 +83,27 @@ cdef class ApproachRTD(Approach):
     kerntype = 'RTD'
     no_coherences = True
 
+
+
+
+
+
+    rtd_max_order = 2
+
+    # One validator for both backends: the compiled class re-declares the
+    # descriptor because a cdef class does not inherit Python properties, but
+    # delegates to the Python setter so the accepted values, the error messages
+    # and the restart-on-change cannot drift apart.
+    @property
+    def rtd_order(self):
+        return self._rtd_order
+
+    @rtd_order.setter
+    def rtd_order(self, value):
+        ApproachPyRTD.rtd_order.fset(self, value)
+
     def __init__(self, *args):
+        self._rtd_order = self.rtd_max_order
         Approach.__init__(self, *args)
         self.BW_Ozaki_expansion = 0
         self.Ozaki_poles_and_residues = np.zeros((2,2), doublenp)
@@ -207,26 +227,34 @@ cdef class ApproachRTD(Approach):
         cdef long_t[:,:] statesdm = kh.statesdm
         cdef double_t[:] tlst = self._tlst
         cdef bool_t off_diag_corrections = self.funcp.off_diag_corrections
+        cdef long_t rtd_order = self.rtd_order
 
-        _warn_if_unequal_temperature_cutoff_is_small(self.qd, self.leads)
+        # The unequal-temperature cutoff and the Ozaki pole expansion are both
+        # prerequisites of the four-vertex integrals alone. The two-vertex rate
+        # reads its own lead's Fermi function, so order 1 needs neither and
+        # accepts a thermal bias.
+        if rtd_order >= 2:
+            _warn_if_unequal_temperature_cutoff_is_small(self.qd, self.leads)
         _warn_if_rtd_coherence_is_not_resolved(self)
 
-        if np.any(abs(self.leads.Tba.imag)>0):
-            self.set_Ozaki_params()
-        else:
-            for i in range(1, kh.nleads):
-                if tlst[i] != tlst[0]:
-                    self.set_Ozaki_params()
-                    break
+        if rtd_order >= 2:
+            if np.any(abs(self.leads.Tba.imag)>0):
+                self.set_Ozaki_params()
+            else:
+                for i in range(1, kh.nleads):
+                    if tlst[i] != tlst[0]:
+                        self.set_Ozaki_params()
+                        break
 
         # Calcualte Wdd^2 first to be able to resuse memory (Wdd1 & Wdd1 write to the same memory).
-        for i in prange(kern_size, nogil=True):
-            b = kh.all_bbp[i, 0]
-            bcharge = kh.all_bbp[i, 2]
-            self.generate_matrix_element_2nd_order(b, bcharge, kh)
+        if rtd_order >= 2:
+            for i in prange(kern_size, nogil=True):
+                b = kh.all_bbp[i, 0]
+                bcharge = kh.all_bbp[i, 2]
+                self.generate_matrix_element_2nd_order(b, bcharge, kh)
 
-        for i in range(1, self.nbr_Wdd2_copies):
-            self._Wdd2[0,...] += self._Wdd2[i,...]
+            for i in range(1, self.nbr_Wdd2_copies):
+                self._Wdd2[0,...] += self._Wdd2[i,...]
 
 
         # Loop over diagonal states and build kernels
@@ -234,8 +262,12 @@ cdef class ApproachRTD(Approach):
             b = kh.all_bbp[i, 0]
             bcharge = kh.all_bbp[i, 2]
             self.generate_row_1st_order_kernel(b, bcharge, kh)
-            self.generate_row_1st_energy_kernel(b, bcharge, kh)
-            self.generate_row_2nd_energy_kernel(b, bcharge, kh)
+            if rtd_order >= 2:
+                # WE1 and WE2 are two contractions of one O(Gamma^2)
+                # correction, not first and second order: the leading energy
+                # current is the LE contraction of Wdd.
+                self.generate_row_1st_energy_kernel(b, bcharge, kh)
+                self.generate_row_2nd_energy_kernel(b, bcharge, kh)
 
             if off_diag_corrections:
                 self.generate_col_nondiag_kern_1st_order_nd(b, bcharge, kh)

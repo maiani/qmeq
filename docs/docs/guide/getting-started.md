@@ -95,6 +95,38 @@ charge so that it contributes consistently to current and noise. Set it to
 `False` only to reproduce the historical population-only RTDnoise kernel; see
 [The approaches](approaches.md#rtdnoise) for the remaining validity limits.
 
+## `rtd_order`: RTD-specific
+
+`approach.rtd_order` (default `2`) selects how far the RTD kernel is truncated
+in the coupling. It lives on the approach rather than the builder, because
+every other approach has one fixed order:
+
+```python
+system = qmeq.Builder(kerntype='RTD', ...)
+system.appr.rtd_order = 1
+```
+
+Order `1` retains the two-vertex block alone and is the golden-rule kernel:
+its stationary state and its particle, energy and heat currents agree with
+`kerntype='Pauli'` at `itype=1`. Order `2` adds the four-vertex population
+blocks and the energy-current corrections. In both cases the kernel is
+truncated at the stated order while its stationary null vector is solved
+exactly, so the reported observables resum higher powers of the coupling
+through the solve; this is not an order-by-order expansion of the density
+matrix.
+
+Two consequences are easy to misread:
+
+- Order `1` accepts a thermal bias. Only the four-vertex integrals need equal
+  lead temperatures, so the unequal-temperature bandwidth warning and the
+  Ozaki pole expansion are skipped there.
+- `off_diag_corrections` is an independent switch, not part of the order. The
+  coherence elimination is itself `O(\Gamma^2)`, so enabling it at order `1`
+  is a diagnostic control rather than a consistent truncation.
+
+Changing `rtd_order` restarts the approach, so a solved kernel is never reused
+across orders.
+
 ## Electron-phonon systems
 
 Use `BuilderElPh` (or `Builder.elph`) when bosonic baths drive transitions
