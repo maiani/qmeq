@@ -1067,18 +1067,21 @@ def _D_integral(p1, p2, z1, z2, z3, T1, T2, mu1, mu2, Dp, Dm, b_and_R):
     E_MIN = 1e-10
     D = (np.abs(Dp) + np.abs(Dm)) * 0.5
 
-    temp_f1 = 0 + 0j
-    for i, n in enumerate(b_and_R[:, 0]):
-        if 1 / n > D / T2:
-            continue
+    # The retained poles are evaluated in one array call. digamma dominates
+    # this sum and is called once per pole otherwise, which is the whole cost
+    # of the pure-Python RTD traversal.
+    reciprocal, residues = b_and_R[:, 0], b_and_R[:, 1]
+    retained = 1 / reciprocal <= D / T2
+    if retained.any():
+        x = T1 / reciprocal[retained]
 
-        x = T1 / n
-
-        A = np.log(D / (2 * PI * T1)) + 0j - digamma(0.5 + x / (2 * np.pi * T2) - (z2 + mu1 + mu2) / (2 * PI * T2) * 1j)
+        A = np.log(D / (2 * PI * T1)) + 0j - psi(0.5 + x / (2 * np.pi * T2) - (z2 + mu1 + mu2) / (2 * PI * T2) * 1j)
         B = x - (z3 + mu1) * 1j
         C = x - (z1 + mu1) * 1j
 
-        temp_f1 += A * 1.0 / B * 1.0 / C * b_and_R[i, 1]
+        temp_f1 = complex((A * 1.0 / B * 1.0 / C * residues[retained]).sum())
+    else:
+        temp_f1 = 0 + 0j
     temp_f1 *= - 8 * PI * T1 * 1j
 
     if (abs(z3/T1 - z1/T1) > E_MIN):
@@ -1134,19 +1137,21 @@ def _X_integral(p1, p2, z1, z2, z3, T1, T2, mu1, mu2, Dp, Dm, b_and_R):
     PI = np.pi
     D = (np.abs(Dp) + np.abs(Dm)) * 0.5
 
-    ret = 0 + 0j
-    for i, n in enumerate(b_and_R[:, 0]):
-        if 1 / n > D / T2:
-            continue
+    # As in _D_integral: one array digamma call over the retained poles. B does
+    # not depend on the pole, so it is evaluated once rather than once per pole.
+    reciprocal, residues = b_and_R[:, 0], b_and_R[:, 1]
+    retained = 1 / reciprocal <= D / T2
+    if retained.any():
+        x = T1 / reciprocal[retained]
 
-        x = T1 / n
-
-        A = digamma((0.5 + x / (2 * np.pi * T2)) - (z2 + mu1 + mu2) / (2 * PI * T2) * 1j)
+        A = psi((0.5 + x / (2 * np.pi * T2)) - (z2 + mu1 + mu2) / (2 * PI * T2) * 1j)
         B = digamma(0.5 - (z3 + mu2) / (2 * PI * T2) * 1j)
         C = x + (-z2 + z3 - mu1) * 1j
         E = x - (z1 + mu1) * 1j
 
-        ret += (A - B) / C * 1.0 / E * (b_and_R[i, 1] + 0.0j)
+        ret = complex((((A - B) / C * 1.0 / E) * (residues[retained] + 0.0j)).sum())
+    else:
+        ret = 0 + 0j
 
     ret *= (0 - 8 * PI * T1 * 1j)
     ret *= (p1 * p2 * 0.25 + 0j)
