@@ -223,26 +223,27 @@ $$\Pi^0(z_{\rm LW})=i\left(z_{\rm LW}-L\right)^{-1}$$
 in Eq. (49), while their stationary kinetic equation is
 $0=(-iL+W)P$ [LeijnseWegewijs2008, Eqs. (19), (49)]. Acting on the ordered
 coherence $|a\rangle\langle b|$, the molecular Liouvillian has eigenvalue
-$\Delta E_{ab}=E_a-E_b$. QmeQ's finite-energy continuation shifts every
-intermediate denominator as $\Delta E\mapsto\Delta E+z$; equivalently,
-$z_{\rm LW}=-z$. Thus
+$\Delta E_{ab}=E_a-E_b$. Write $s$ for the physical Laplace variable and $x$ for the energy-like
+variable used by QmeQ's stored `_dz` derivatives. The retarded vertex blocks
+have digamma argument $1/2+s/(2\pi T)-i\eta u/(2\pi)$.
+Their coded continuation $u\mapsto u+\eta x/T$ therefore requires $x=is$,
+so $\partial_x=-i\partial_s$. The free coherence line must use the same
+continuation:
 
-$$\Pi^0_{ab}(-z)=-\frac{i}{\Delta E_{ab}+z}.$$
+$$\frac{1}{s+i\Delta E}=\frac{-i}{\Delta E-x}.$$
 
-The factor $-i$ is the explicit prefactor in
-$W_{\rm corr}=-iW_{dn}G_{nn}W_{nd}$, leaving
+Extracting the factor $-i$ into $W_{\rm corr}=-iW_{dn}G_{nn}W_{nd}$ leaves
 
-$$G_{nn}(z)=\frac{1}{\Delta E+z},\qquad
-\partial_z G_{nn}^{(0)}=-\left(G_{nn}^{(0)}\right)^2,$$
+$$G_{nn}(x)=\frac{1}{\Delta E-x},\qquad
+\partial_xG_{nn}^{(0)}=+\left(G_{nn}^{(0)}\right)^2.$$
 
-as used by the product rule. The historical RTD coherence axis does not rotate
-an unordered pair into a two-component real vector. It stores the ordered
-$|a\rangle\langle b|$ and $|b\rangle\langle a|$ contributions in separate
-slots (rule L9). Their splittings are $\Delta E_{ab}$ and $-\Delta E_{ab}$;
-both receive the same $+z$ shift. This is why packing does not introduce an
-extra sign or a $2\times2$ resolvent. The direct oriented-splitting test checks
-this mapping, and the finite-$z$ negative control still distinguishes the
-opposite orientation by more than a factor of two.
+The two ordered coherence partners have splittings $\Delta E$ and $-\Delta E$,
+but the same $-x$ shift. Using a $+x$ shift for this line while keeping the
+vertex continuation above reverses only the resolvent contribution to the
+noise. The finite physical-Laplace test evaluates the retarded digamma blocks
+and $1/(s+i\Delta E)$ directly to check this relative orientation. A separate
+energy-variable test checks the stored product rule and its opposite-sign
+negative control.
 
 Runtime arrays name this derivative explicitly with the suffix `_dz`, for
 example `Lpm_second_dz`; `dot` is reserved for quantum-dot terminology. The

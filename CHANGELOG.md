@@ -10,6 +10,12 @@
 
 ### Fixed
 
+- Correct the free-coherence resolvent derivative in RTDnoise to use the same
+  Laplace orientation as its vertex blocks. With coherence corrections enabled,
+  the previous sign gave incorrect charge and spin noise while leaving currents
+  and occupations unchanged. The contribution enters resummed noise at
+  `O(Gamma**3)`; a physical retarded-Laplace check now gates its sign.
+
 - Refuse non-positive lead temperatures instead of letting each approach fail
   its own way. At `tlst = 0` Pauli and Lindblad returned `success=False` from a
   singular kernel while Redfield, 1vN and RTD returned `success=True` beside an

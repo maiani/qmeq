@@ -6,6 +6,7 @@ import warnings
 import numpy as np
 import pytest
 from pytest import MonkeyPatch
+from scipy.special import digamma
 
 import qmeq
 import qmeq.approach.base.RTDnoise as rtdnoise_module
@@ -939,7 +940,7 @@ def _record_first_order_blocks(
 
 def _blocks_at_laplace_energy(
         system: qmeq.Builder, records: list[tuple[object, ...]],
-        laplace: float) -> tuple[np.ndarray, np.ndarray]:
+        laplace: float, *, physical: bool = False) -> tuple[np.ndarray, np.ndarray]:
     """Assemble ``Wdn(z)`` and ``Wnd(z)`` in the packed coherence layout."""
     approach = system.appr
     handler = approach.kernel_handler
@@ -954,8 +955,17 @@ def _blocks_at_laplace_energy(
         value = first_order_block_value(
             tunnel_product, temperature,
             bands[lead, 0]/temperature, bands[lead, 1]/temperature,
-            tuple(FirstOrderTerm(*term) for term in terms), laplace,
+            tuple(FirstOrderTerm(*term) for term in terms), 0.0 if physical else laplace,
         )
+        if physical:
+            # Retarded first-order reservoir integral: its argument has +s/(2*pi*T).
+            # Evaluate the analytic continuation itself, never the stored derivative.
+            for coefficient, eta, u in terms:
+                argument = 0.5 - eta*1j*u/(2*np.pi)
+                value += tunnel_product*coefficient*(-eta*1j)*(
+                    digamma(argument + laplace/(2*np.pi*temperature))
+                    - digamma(argument)
+                )
         handler.add_matrix_element_to(
             dn if direction == "dn" else nd, value,
             lead, b, bp, bcharge, a, ap, acharge,
@@ -965,12 +975,13 @@ def _blocks_at_laplace_energy(
 
 def _finite_laplace_correction(
         system: qmeq.Builder, records: list[tuple[object, ...]],
-        laplace: float, resolvent_sign: float) -> np.ndarray:
+        laplace: float, resolvent_sign: float, *, physical: bool = False) -> np.ndarray:
     """Transfer-resolved ``W_corr(z)``, built independently of the production
     product rule.
 
     ``resolvent_sign = +1`` means the bare coherence resolvent is
-    ``1/(dE + z)``, i.e. ``dG/dz = -G**2``, which is what
+    ``1/(dE + z)``, i.e. ``dG/dz = -G**2``; ``-1`` is ``1/(dE - z)`` with
+    ``dG/dz = +G**2``, which is the orientation
     ``counting_resolved_coherence_correction`` assumes.
     """
     approach = system.appr
@@ -978,7 +989,7 @@ def _finite_laplace_correction(
     npauli = approach.get_kern_size()
     ncoherences = approach.Lnn_inv.shape[0]
     population_charge, coherence_charge = _coordinate_charges(si)
-    dn, nd = _blocks_at_laplace_energy(system, records, laplace)
+    dn, nd = _blocks_at_laplace_energy(system, records, laplace, physical=physical)
 
     resolved_dn = np.zeros(
         (si.nleads, 3, npauli, ncoherences), dtype=complex
@@ -1001,7 +1012,7 @@ def _finite_laplace_correction(
             )
 
     splitting = 1.0/np.diag(approach.Lnn_inv)
-    resolvent = np.diag(1.0/(splitting + resolvent_sign*laplace))
+    resolvent = np.diag(1.0/(splitting + resolvent_sign*(1j*laplace if physical else laplace)))
     correction = np.zeros(
         (si.nleads, si.nleads, 3, 3, npauli, npauli), dtype=complex
     )
@@ -1092,7 +1103,7 @@ def test_correction_projection_keeps_the_only_nonzero_channel():
     product = dn @ resolvent @ nd
     product_dz = (
         dn_dz @ resolvent @ nd
-        - dn @ (resolvent @ resolvent) @ nd
+        + dn @ (resolvent @ resolvent) @ nd
         + dn @ resolvent @ nd_dz
     )
     assert np.max(np.abs(product.real)) < 1e-15*np.max(np.abs(product))
@@ -1115,12 +1126,9 @@ def test_correction_projection_keeps_the_only_nonzero_channel():
 def test_bare_resolvent_uses_oriented_coherence_bohr_frequencies():
     """Map every RTD coherence slot to its derived free resolvent.
 
-    The free molecular line is ``Pi0(z_LW) = 1j*(z_LW - L)^-1``
-    [LeijnseWegewijs2008, Eq. (49)].  For ``|a><b|``, ``L`` contributes the
-    oriented Bohr frequency ``E[a] - E[b]``.  QmeQ stores the reversed
-    coherence in a separate RTD slot (layout rule L9), so its splitting changes
-    sign while the common continuation ``z_LW = -z`` does not.  Extracting the
-    line's ``-1j`` leaves ``G_ab(z) = 1/(E[a] - E[b] + z)``.
+    At zero Laplace variable the stored line is ``1/dE`` for the ordered
+    pair. Its energy-variable continuation is ``1/(dE-x)`` as checked
+    separately against the physical retarded line ``1/(s+1j*dE)``.
     """
     approach = _corrected_system().appr
     si = approach.si
@@ -1149,19 +1157,6 @@ def test_bare_resolvent_uses_oriented_coherence_bohr_frequencies():
         stored, 1.0/expected_splittings, rtol=0.0, atol=0.0,
     )
 
-    # This is also the local analytic input used by the product rule.  The
-    # negative sign comes from differentiating the derived +z denominator.
-    # Square the reciprocals rather than writing -1.0/splitting**2: the
-    # comparison is against a matrix product of the stored reciprocals, and
-    # (1/s)*(1/s) and 1/s**2 are different floating-point evaluations of the
-    # same real number, differing by an ulp on some platforms.  Squaring the
-    # reciprocal compares like with like, so the exactness gate survives.
-    expected_reciprocals = 1.0/expected_splittings
-    derivative = np.diag(-expected_reciprocals*expected_reciprocals)
-    np.testing.assert_allclose(
-        derivative, -(approach.Lnn_inv @ approach.Lnn_inv),
-        rtol=0.0, atol=0.0,
-    )
 
 
 def test_finite_laplace_correction_derivative_is_directly_gated():
@@ -1174,11 +1169,9 @@ def test_finite_laplace_correction_derivative_is_directly_gated():
     order constrains this quantity: it enters the noise only at
     ``O(Gamma**3)``.
 
-    The bare-resolvent orientation is ``G(z) = 1/(dE + z)``. It follows from
-    ``Pi0(z_LW) = 1j/(z_LW - dE)`` with QmeQ's ``z_LW = -z`` and the line's
-    ``-1j`` extracted into the Schur product
-    [LeijnseWegewijs2008, Eq. (49)]. The negative control shows that the
-    opposite orientation differs by more than a factor of two.
+    This checks the product rule in the stored energy variable, including an
+    opposite-orientation negative control. The physical retarded-Laplace test
+    below independently fixes the relative orientation of blocks and free line.
     """
     system = _corrected_system()
     records = _record_first_order_blocks(system)
@@ -1195,12 +1188,12 @@ def test_finite_laplace_correction_derivative_is_directly_gated():
         return (upper - lower)/(2.0*step)
 
     stored = system.appr.coherence_correction_dz
-    matching = numerical(+1.0)
+    matching = numerical(-1.0)
     scale = np.max(np.abs(matching))
     assert scale > 0.0
     np.testing.assert_allclose(matching, stored, rtol=0.0, atol=1e-7*scale)
 
-    opposite = numerical(-1.0)
+    opposite = numerical(+1.0)
     assert np.max(np.abs(opposite - stored)) > scale
 
 
@@ -1233,3 +1226,23 @@ def test_corrected_noise_is_cubic_at_practical_bandwidth():
     corrected_noise_order = _log_slope(scales, errors)
     assert CORRECTED_NOISE_ORDER_MIN < corrected_noise_order
     assert corrected_noise_order < CORRECTED_NOISE_ORDER_MAX
+
+
+def test_coherence_derivative_matches_physical_retarded_laplace():
+    """Check the energy-variable convention against physical s, not its assumed sign.
+
+    The blocks are continued via their retarded digamma arguments and the free
+    line is (s+i*dE)^-1. Thus d/ds of the complete correction must equal i times
+    the stored derivative. [LeijnseWegewijs2008, Eq. (49)] fixes the free line;
+    the analytic first-order reservoir integral fixes the block continuation.
+    """
+    system = _corrected_system()
+    records = _record_first_order_blocks(system)
+    step = 1e-5*min(system.leads.tlst)
+    upper = _finite_laplace_correction(system, records, step, -1, physical=True)
+    lower = _finite_laplace_correction(system, records, -step, -1, physical=True)
+    numerical = (upper-lower)/(2*step)
+    expected = 1j*system.appr.coherence_correction_dz
+    scale = np.max(np.abs(expected))
+    assert scale > 0
+    np.testing.assert_allclose(numerical, expected, rtol=0, atol=1e-7*scale)

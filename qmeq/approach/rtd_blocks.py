@@ -179,16 +179,16 @@ def counting_resolved_coherence_correction(
     Transfer axes use the historical RTDnoise convention in which the Python
     indices ``-1``, ``0`` and ``1`` denote the corresponding signed charge.
 
-    The Laplace derivative follows the product rule.  The free molecular line
-    is ``Pi0(z_LW) = 1j*(z_LW - L)^-1``
-    [LeijnseWegewijs2008, Eq. (49)].  On the ordered coherence
-    ``|a><b|``, ``L`` has eigenvalue ``dE = E[a] - E[b]``.  QmeQ's energy-like
-    continuation is ``z_LW = -z``; after extracting the line's ``-1j`` into
-    ``W_corr = -1j*Wdn*G*Wnd``, the stored resolvent is therefore
-    ``G(z) = (dE + z)^-1`` and ``G'(0) = -G(0)^2``.  The RTD coherence axis
-    stores the two ordered partners separately, so conjugation changes ``dE``
-    to ``-dE`` without changing the common ``+z`` orientation.  See
-    ``docs/docs/conventions/rtd-kernels.md`` for the packed-coordinate mapping.
+    Use ``s`` for the physical Laplace variable in ``(s - L0)^-1`` and
+    ``x`` for the energy-like variable used by the stored block derivatives.
+    A vertex block continues as ``u -> u + eta*x/T``; its retarded digamma
+    argument shows that ``x = 1j*s``, hence ``d/dx = -1j*d/ds``.
+    On ``|a><b|``, ``L0 = -1j*dE``, so the physical free line is
+    ``1/(s + 1j*dE) = -1j/(dE - x)`` [LeijnseWegewijs2008, Eq. (49)].
+    Extracting ``-1j`` into ``W_corr = -1j*Wdn*G*Wnd`` therefore leaves
+    ``G(x) = (dE - x)^-1`` and ``dG/dx = +G^2``. Both ordered coherence
+    partners use this same continuation; reversing the pair changes only
+    ``dE``. See ``docs/docs/conventions/rtd-kernels.md`` for the mapping.
 
     The projection is not a choice.  ``product`` is purely imaginary and
     ``product_dz`` purely real, so ``W_corr(z) = -1j*Wdn(z) G(z) Wnd(z)`` keeps
@@ -211,7 +211,7 @@ def counting_resolved_coherence_correction(
     dn_dz = approach.ReWdn_dz + 1j * approach.ImWdn_dz
     nd_dz = approach.ReWnd_dz + 1j * approach.ImWnd_dz
     propagator = approach.Lnn_inv
-    propagator_dz = -(propagator @ propagator)
+    propagator_dz = propagator @ propagator
 
     dn_resolved = np.zeros((nleads, 3, npauli, ncoherences), dtype=complexnp)
     nd_resolved = np.zeros((nleads, 3, ncoherences, npauli), dtype=complexnp)
