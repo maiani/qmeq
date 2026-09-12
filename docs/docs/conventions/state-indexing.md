@@ -139,29 +139,27 @@ methods that need a conjugation map are not exercised on that path.
 
 ## Sentinel and offset conventions
 
-Two small conventions that used to be open-coded at 19 sites across the
-pure-Python and Cython kernel handlers, and are now named:
+Two small conventions, named rather than open-coded, shared by the pure-Python
+and Cython kernel handlers:
 
 - **`EXCLUDED = -1`** (`qmeq.approach.dm_layout`, mirrored as a `cdef enum` in
   `c_kernel_handler.pxd`) — the "element is not carried" sentinel returned by
   `maptype=1`.
 - **`imag_offset = ndm0 - npauli`** — the distance from a reduced index to its
-  imaginary partner. The existence test is now `i >= npauli`, which is
-  equivalent to the older `i + ndm0 - npauli >= ndm0` but says what it means.
+  imaginary partner. The existence test is `i >= npauli`.
 
 !!! note "The reconstruction is implemented twice"
     `KernelHandler.get_phi0_element` and `Builder.get_phi0` both expand a packed
     entry back to a complex number, independently. They agree, but the second
     copy in `qmeq/builder/various.py` open-codes rule L5 with its own offset
-    arithmetic. It now cites the rule; it has not been merged, because the two
-    have different exclusion behaviour (`get_phi0` returns `0.0` for an element
+    arithmetic and cites the rule. The two are not merged, because they have
+    different exclusion behaviour (`get_phi0` returns `0.0` for an element
     outside the carried set *and* for a mismatched charge).
 
-Inserting at an excluded endpoint is now a no-op rather than a write through
-the `-1` sentinel into the last row or column. Every shipped caller already
-guards with `is_included`; a probe run of the full suite with a hard assertion
-never fired, so the guard changes no tested behaviour and only closes a
-silent-corruption path for future callers.
+Inserting at an excluded endpoint is a no-op, rather than a write through the
+`-1` sentinel into the last row or column. Every shipped caller already guards
+with `is_included`, so the guard only closes a silent-corruption path for
+future callers.
 
 ## Open questions
 

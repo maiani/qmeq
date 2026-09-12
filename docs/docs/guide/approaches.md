@@ -2,10 +2,8 @@
 
 QmeQ implements seven master-equation approaches, selected through the
 `kerntype` argument to `Builder` (see [Getting started](getting-started.md)).
-This page consolidates what each one approximates, what it solves for, its
-validity domain, and its known failure modes — material that was previously
-scattered across tutorial 6's validity table, the `qmeq/__init__.py`
-disclaimer, and the RTD warning implementations.
+This page collects what each one approximates, what it solves for, its
+validity domain, and its known failure modes.
 
 ## Overview table
 
