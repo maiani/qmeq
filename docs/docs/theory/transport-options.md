@@ -23,7 +23,7 @@ combinations depend on the approximation:
 | Pauli | `(finite, omit)`, `(infinite, omit)` |
 | 1vN | `(finite, quad)`, `(infinite, digamma)`, `(finite, omit)`, `(infinite, omit)` |
 | Redfield | `(finite, quad)`, `(infinite, digamma)`, `(finite, omit)`, `(infinite, omit)` |
-| Lindblad | `(finite, digamma)`, `(infinite, digamma)`, `(finite, omit)`, `(infinite, omit)` |
+| Lindblad | every `(bandwidth, principal_part)` pair |
 | RTD | `(infinite, digamma)` |
 | 2vN | neither option is used |
 
@@ -32,9 +32,13 @@ principal-value contribution; it does not change the Pauli kernel.
 
 For RTD, `dband` must be much larger than every transition energy, chemical
 potential, and temperature even though `bandwidth='infinite'` is selected.
-This follows the finite-cutoff derivation of the unequal-temperature
-second-order integrals in the supplemental material of
-[Gergs et al., Phys. Rev. Lett. 120, 017701 (2018)](https://arxiv.org/abs/1707.03373).
+With unequal lead temperatures the wide-band Appendix-D form of the
+second-order integrals does not apply, so they are evaluated in the
+Ozaki representation instead, and `dband` acts as a numerical regulator rather
+than a physical band edge. The supplemental material of
+[Gergs et al., Phys. Rev. Lett. 120, 017701 (2018)](https://arxiv.org/abs/1707.03373),
+Sec. I.B, gives a similar finite-cutoff contour treatment of these integrals
+without the Ozaki acceleration.
 QmeQ emits `RTDBandwidthWarning` when unequal temperatures are used and the
 smallest cutoff is less than 1000 times the largest transport scale. The
 threshold is a conservative diagnostic, not a substitute for repeating the
@@ -42,9 +46,10 @@ calculation with increasing `dband` and checking convergence of every
 reported observable.
 
 For Lindblad, the principal-value contribution is the
-[Lamb shift](lambshift.md). Numerical quadrature is not implemented for
-this approach, so `principal_part='quad'` raises `ValueError` instead of
-silently selecting a different calculation.
+[Lamb shift](lambshift.md), and it is on by default: the defaults are
+`bandwidth='infinite'` and `principal_part='digamma'`. `'quad'` evaluates the
+same principal values over the actual band instead of in the wide-band digamma
+form, and converges to `'digamma'` as `dband` grows.
 
 For example, an infinite-band Lindblad calculation including the Lamb shift
 uses:
@@ -71,9 +76,8 @@ The integer `itype` remains available for backwards compatibility. In the
 | 3 | `infinite` | `omit` |
 
 For Lindblad, legacy `itype` controls only the bandwidth: values 0 and 2
-select `'finite'`, while 1 and 3 select `'infinite'`. It always preserves
-the historical omission of the Lamb shift. Use `principal_part='digamma'`
-explicitly to include it.
+select `'finite'`, while 1 and 3 select `'infinite'`. It does not select the
+principal part; use `principal_part` for that.
 
 New code should prefer the descriptive options. Supplying `itype` together
 with a conflicting descriptive value raises `ValueError`.

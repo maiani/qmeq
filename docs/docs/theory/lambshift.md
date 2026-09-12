@@ -11,8 +11,8 @@ where $\mathcal{D}$ is the dissipator built from the jump operators
 $T^{l}_{ba}$ of Appendix F of the
 [QmeQ paper](https://doi.org/10.1088/1361-648X/aa9c15), and $H_{LS}$ is the
 Lamb shift, i.e. the renormalisation of the many-body energies of the dot caused by
-the coupling to the leads. Up to and including QmeQ 1.1 the Lamb shift was omitted.
-It is now available explicitly through `principal_part='digamma'`.
+the coupling to the leads. It is included by default and dropped with
+`principal_part='omit'`.
 
 The many-body eigenstates of the dot are labelled following the QmeQ convention: the
 states $b$, $b'$, $b''$ carry $N$ electrons, the states
@@ -29,15 +29,17 @@ $\omega_{bb'}=E_b-E_{b'}$ of the spectrum and not only those of neighbouring
 levels, the Lamb shift of lead $l$ is
 
 $$
-(H_{LS}^{l})_{bb'} = \frac{1}{2}\sum_{a}T^{l}_{ba}T^{l}_{ab'}
-                     \left[\Lambda_{l}(E_b-E_a)+\Lambda_{l}(E_{b'}-E_a)\right]
-                   + \frac{1}{2}\sum_{c}T^{l}_{bc}T^{l}_{cb'}
-                     \left[\tilde{\Lambda}_{l}(E_b-E_c)
-                           +\tilde{\Lambda}_{l}(E_{b'}-E_c)\right],
+(H_{LS}^{l})_{bb'} = \sum_{a}T^{l}_{ba}T^{l}_{ab'}\,
+                     w\!\left(x^{a}_{b},x^{a}_{b'}\right)
+                   + \sum_{c}T^{l}_{bc}T^{l}_{cb'}\,
+                     w^{h}\!\left(\tilde{x}^{c}_{b},\tilde{x}^{c}_{b'}\right),
 $$
 
-with $H_{LS}=\sum_{l}H_{LS}^{l}$. The two sums are the particle and the hole
+with $H_{LS}=\sum_{l}H_{LS}^{l}$ and the scaled transition energies
+$x^{a}_{b}=(E_b-E_a-\mu_l)/T_l$, $\tilde{x}^{c}_{b}=(E_c-E_b-\mu_l)/T_l$.
+The two sums are the particle and the hole
 contribution, i.e. the two terms of the anticommutator of the tunneling operators.
+
 The principal value factors are the odd Fourier transforms of the lead correlation
 functions,
 
@@ -53,6 +55,50 @@ and $\tilde{\Lambda}_{l}(E)=\Lambda_{l}(E)|_{\mu_l\to-\mu_l}$, where
 $\psi$ is the digamma function. The right hand side is the standard wide-band
 expansion, the same approximation that `itype=1` uses for the principal parts of the
 1vN, Redfield and RTD kernels.
+
+## Which shift belongs to this dissipator
+
+The two-argument weight is
+
+$$
+w(x_1,x_2) = \frac{1}{2}\left[\Lambda(x_1)+\Lambda(x_2)\right]
+           + \delta w(x_1,x_2).
+$$
+
+The arithmetic mean alone is the principal-value part of the second-order lead
+self-energy, and it is the shift that accompanies a *Bloch-Redfield* kernel. It is
+not the shift that accompanies the dissipator QmeQ actually uses. The jump
+operators of the Lindblad approach dress each tunneling matrix element with the
+square root of an occupation factor and keep one operator per lead rather than one
+per Bohr frequency
+([Kirsanskas, Franckie & Wacker 2018](https://doi.org/10.1103/PhysRevB.97.035432)),
+the construction later derived as a controlled weak-coupling approximation by
+[Nathan & Rudner 2020](https://doi.org/10.1103/PhysRevB.102.115109). The Hermitian
+shift generated alongside those jump operators carries the same square roots, and
+its weight is
+
+$$
+w(x_1,x_2) = -\mathcal{P}\!\!\int\!\mathrm{d}v\,
+             \frac{\sqrt{J(x_1-v)J(x_2-v)}}{v},
+$$
+
+with $J=f$ on the particle family and $J=1-f$ on the hole family. Subtracting the
+arithmetic mean, which is the same object at coincident arguments, leaves
+
+$$
+\delta w(x_1,x_2) = \frac{1}{2}\mathcal{P}\!\!\int\!\mathrm{d}v\,
+   \frac{\left[\sqrt{J(x_1-v)}-\sqrt{J(x_2-v)}\right]^{2}}{v},
+$$
+
+computed by `func_ule_shift`. Three properties matter in practice. The difference of
+square roots cancels the bandwidth logarithm, so $\delta w$ is cutoff free even
+though neither weight is on its own. It vanishes identically when $x_1=x_2$, so the
+two shifts agree on every diagonal element, where the level shift is ordinary
+second-order perturbation theory and not a matter of choice; they differ only off
+the diagonal, which is where a nonsecular generator has an error bar anyway. And
+$\delta w$ is **not** even in its arguments, so unlike $\Lambda$ the hole family
+may not be obtained by reversing the chemical potential: its arguments are written
+in the direction the hole family runs.
 
 $H_{LS}$ is Hermitian and block diagonal in the charge, as it must be because
 the charge of the total system is conserved. For a single spinless level, or for any
@@ -118,43 +164,29 @@ verifies that the level renormalisation extracted from $H_{LS}$ agrees with the
 
 ## Switching the Lamb shift on and off
 
-The descriptive `principal_part` option controls principal-value contributions
-across the first-order approaches. For Lindblad, `principal_part='digamma'`
-includes the Lamb shift and `principal_part='omit'` excludes it. Numerical
-quadrature is not implemented for this approach. The independent `bandwidth`
-option controls whether dissipative transitions outside the specified lead bands
-are dropped. See [Transport integration options](transport-options.md) for the
-complete cross-approach compatibility table.
+`principal_part` selects the shift and `bandwidth` the dissipator; they are
+independent, and `itype` does not select the shift. See
+[Transport integration options](transport-options.md) for the cross-approach table.
 
 | Option | Lamb shift | Dissipator |
 |---|---|---|
 | `bandwidth='finite'` | unchanged | outside-band transitions dropped |
-| `bandwidth='infinite'` | unchanged | infinite bandwidth |
-| `principal_part='digamma'` | included | unchanged |
+| `bandwidth='infinite'` (default) | unchanged | infinite bandwidth |
+| `principal_part='digamma'` (default) | wide-band digamma form | unchanged |
+| `principal_part='quad'` | integrated over the band | unchanged |
 | `principal_part='omit'` | **neglected** | unchanged |
 
-The default `principal_part='omit'` preserves the Lindblad results of QmeQ 1.1
-and earlier. The integer `itype` remains accepted as a backwards-compatible
-shorthand for existing calculations, but it does not opt into the newly implemented
-Lamb shift:
+`'quad'` evaluates the same principal values as `'digamma'` over the actual
+band, so it keeps the bandwidth constant the digamma form drops and converges
+to `'digamma'` as `dband` grows. The geometric correction $\delta w$ is cutoff
+free either way.
 
 ```python
-import qmeq
-
-# With the Lamb shift and an infinite-band dissipator
 system = qmeq.Builder(nsingle, hsingle, coulomb, nleads, tleads,
                       mulst, tlst, dband, kerntype='Lindblad',
                       bandwidth='infinite', principal_part='digamma')
 system.solve()
-HLS = system.appr.HLS          # lead-resolved, shape (nleads, nmany, nmany)
-shifts = HLS.sum(axis=0)       # the Lamb shift Hamiltonian itself
-
-# Without it, with the same dissipator
-reference = qmeq.Builder(nsingle, hsingle, coulomb, nleads, tleads,
-                         mulst, tlst, dband, kerntype='Lindblad',
-                         bandwidth='infinite', principal_part='omit')
-reference.solve()
-assert abs(reference.appr.HLS).max() == 0.0
+shifts = system.appr.HLS.sum(axis=0)   # HLS is lead-resolved
 ```
 
 The electron-phonon Lindblad approach reuses the electron-lead part of the kernel and
@@ -163,9 +195,6 @@ contribute a Lamb shift; their `itype_ph` flag is unrelated and unchanged.
 
 ## Limitations
 
-* The Lamb shift is evaluated in the wide-band digamma approximation. A numerical
-  evaluation of the principal-value integrals, as `principal_part='quad'` performs
-  for the 1vN and Redfield kernels, is not implemented.
 * The phonon-induced Lamb shift of the electron-phonon variants is not included.
 * Adding the Lamb shift makes the kernel stiffer. For weakly coupled models whose
   currents are many orders of magnitude below the level spacing, check the solution

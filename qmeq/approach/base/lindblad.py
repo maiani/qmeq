@@ -5,6 +5,8 @@ import itertools
 
 from ...specfunc.specfunc import func_pauli
 from ...specfunc.specfunc import func_lambshift
+from ...specfunc.specfunc import func_ule_shift
+from ...specfunc.specfunc import func_lambshift_quad
 from ..aprclass import Approach
 
 # ---------------------------------------------------------------------------------------------------
@@ -27,32 +29,49 @@ def generate_lamb_shift(appr):
 
     .. math::
 
-        (H_{LS}^{l})_{bb'} = \frac{1}{2}\sum_{a}T^{l}_{ba}T^{l}_{ab'}
-                             \left[\Lambda_{l}(E_b-E_a)+\Lambda_{l}(E_{b'}-E_a)\right]
-                           + \frac{1}{2}\sum_{c}T^{l}_{bc}T^{l}_{cb'}
-                             \left[\tilde{\Lambda}_{l}(E_b-E_c)
-                                   +\tilde{\Lambda}_{l}(E_{b'}-E_c)\right],
+        (H_{LS}^{l})_{bb'} = \sum_{a}T^{l}_{ba}T^{l}_{ab'}\,
+                             w_{l}\!\left(x^{a}_{b},x^{a}_{b'}\right)
+                           + \sum_{c}T^{l}_{bc}T^{l}_{cb'}\,
+                             \tilde{w}_{l}\!\left(\tilde{x}^{c}_{b},
+                                                  \tilde{x}^{c}_{b'}\right),
 
     where :math:`H_{LS}=\sum_{l}H_{LS}^{l}`, the states :math:`a` (:math:`c`) have one
-    electron less (more) than the states :math:`b`, :math:`b'`, and
+    electron less (more) than the states :math:`b`, :math:`b'`, the scaled transition
+    energies are :math:`x^{a}_{b}=(E_b-E_a-\mu_l)/T_l` and
+    :math:`\tilde{x}^{c}_{b}=(E_c-E_b-\mu_l)/T_l`, and the two-argument weight is
 
     .. math::
 
-        \Lambda_{l}(E) = \mathrm{Re}\,\psi\!\left(\frac{1}{2}
-                         + i\frac{E-\mu_{l}}{2\pi T_{l}}\right), \qquad
-        \tilde{\Lambda}_{l}(E) = \Lambda_{l}(E)\big|_{\mu_l\to-\mu_l},
+        w_{l}(x_1,x_2) = \frac{1}{2}\left[\Lambda_{l}(x_1)+\Lambda_{l}(x_2)\right]
+                       + \delta w(x_1,x_2).
 
-    are the principal value factors returned by
-    :func:`~qmeq.specfunc.specfunc.func_lambshift`. The particle (:math:`a`) and hole
+    The first term is the principal-value part of the second-order lead self-energy; the
+    second, :func:`~qmeq.specfunc.specfunc.func_ule_shift`, is what makes the shift belong
+    to *this* dissipator rather than to a Bloch--Redfield one, since the jump operators of
+    :meth:`ApproachLindblad.generate_fct` carry the same square roots
+    [NathanRudner2020, Eqs. (D7)-(D8)]. The two agree on the diagonal and differ only off
+    it. :math:`\delta w` is not even in its arguments, so the hole family is written with
+    its own transition energies rather than the reversed chemical potential.
+
+    Here
+
+    .. math::
+
+        \Lambda(x) = \mathrm{Re}\,\psi\!\left(\frac{1}{2}+i\frac{x}{2\pi}\right)
+
+    is the principal value factor returned by
+    :func:`~qmeq.specfunc.specfunc.func_lambshift`, which takes the unscaled energy and
+    forms :math:`x` itself. Because :math:`\mathrm{Re}\,\psi(1/2+iy)` is even, the hole
+    family may equivalently call it with :math:`\mu_l\to-\mu_l`, which is how it is
+    written below. The particle (:math:`a`) and hole
     (:math:`c`) contributions correspond to the two terms of the anticommutator of the
     tunneling operators. :math:`H_{LS}` is Hermitian and block diagonal in the charge, as it
     has to be because the charge of the total system is conserved.
 
-    The Lamb shift is controlled by the descriptive ``principal_part`` option. Setting
-    it to ``'digamma'`` includes the shift and ``'omit'`` excludes it; numerical
-    quadrature is not implemented for the Lindblad approach. The legacy ``itype`` option
-    continues to control the dissipative transition rates but does not opt into the
-    newly implemented Lamb shift.
+    ``principal_part='digamma'`` (the default) evaluates the principal values in the
+    wide-band digamma form, ``'quad'`` integrates them over the actual band, and
+    ``'omit'`` drops the shift. ``itype`` controls the dissipative transition rates
+    and does not select the shift.
 
     This is a module level function and not a method of
     :class:`~qmeq.approach.base.lindblad.ApproachLindblad`, because the electron-phonon
@@ -65,11 +84,21 @@ def generate_lamb_shift(appr):
         Approach object holding the arrays below.
     """
     Tba, E, si = appr.leads.Tba, appr.qd.Ea, appr.si
-    mulst, tlst = appr.leads.mulst, appr.leads.tlst
+    mulst, tlst, dlst = appr.leads.mulst, appr.leads.tlst, appr.leads.dlst
     ncharge, nleads, statesdm = si.ncharge, si.nleads, si.statesdm
+    mode, limit = appr.funcp.principal_part, appr.funcp.dqawc_limit
 
-    if appr.funcp.principal_part != "digamma":
+    if mode not in ("digamma", "quad"):
         return
+
+    def principal(energy, chemical_potential, temperature, lead):
+        """``Lambda`` in the selected evaluation."""
+        if mode == "quad":
+            return func_lambshift_quad(
+                energy, chemical_potential, temperature,
+                dlst[lead, 0], dlst[lead, 1], limit,
+            )
+        return func_lambshift(energy, chemical_potential, temperature)
 
     HLS = appr.HLS
     for bcharge in range(ncharge):
@@ -80,13 +109,22 @@ def generate_lamb_shift(appr):
                 mu, T = mulst[l], tlst[l]
                 fct = 0
                 for a in statesdm[acharge]:
-                    fct += 0.5*Tba[l, b, a]*Tba[l, a, bp]*(
-                            func_lambshift(E[b]-E[a], mu, T)
-                            + func_lambshift(E[bp]-E[a], mu, T))
+                    # Particle family: the dot rises out of |a>.
+                    weight = 0.5*(principal(E[b]-E[a], mu, T, l)
+                                  + principal(E[bp]-E[a], mu, T, l)) \
+                             + func_ule_shift((E[b]-E[a]-mu)/T,
+                                              (E[bp]-E[a]-mu)/T, False)
+                    fct += Tba[l, b, a]*Tba[l, a, bp]*weight
                 for c in statesdm[ccharge]:
-                    fct += 0.5*Tba[l, b, c]*Tba[l, c, bp]*(
-                            func_lambshift(E[b]-E[c], -mu, T)
-                            + func_lambshift(E[bp]-E[c], -mu, T))
+                    # Hole family: the dot falls out of |c>. The principal value
+                    # is even, so it takes the reversed chemical potential; the
+                    # geometric correction is not even, so its arguments are
+                    # written in the direction that family runs.
+                    weight = 0.5*(principal(E[b]-E[c], -mu, T, l)
+                                  + principal(E[bp]-E[c], -mu, T, l)) \
+                             + func_ule_shift((E[c]-E[b]-mu)/T,
+                                              (E[c]-E[bp]-mu)/T, True)
+                    fct += Tba[l, b, c]*Tba[l, c, bp]*weight
                 HLS[l, b, bp] = fct
                 HLS[l, bp, b] = fct.conjugate()
 

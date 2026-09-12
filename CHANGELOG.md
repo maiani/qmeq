@@ -2,6 +2,48 @@
 
 ## [Unreleased]
 
+### Added
+
+- `principal_part='quad'` for the Lindblad approach, through
+  `func_lambshift_quad`. It integrates the same principal values over the lead
+  band that `'digamma'` evaluates in the wide-band form, so it keeps the
+  bandwidth constant the digamma form drops and converges to `'digamma'` as
+  `dband` grows; a test asserts that `1/D` rate rather than a tolerance. The
+  geometric correction `func_ule_shift` is cutoff free and is unchanged by the
+  choice.
+
+### Changed
+
+- The Lindblad defaults are now `principal_part='digamma'` and
+  `bandwidth='infinite'`, so a plain `Builder(..., kerntype='Lindblad')` keeps
+  the Lamb shift. Previously the shift was off unless asked for. `itype` still
+  selects only the bandwidth, so calls that passed `itype` and relied on the
+  shift being absent must now pass `principal_part='omit'`.
+
+
+- Make the Lindblad Lamb shift belong to the Lindblad dissipator. QmeQ's
+  Lindblad approach is not the secular (Davies) generator: following
+  `KirsanskasFranckieWacker2018`, cited as Ref. [32] of the QmeQ paper, it
+  dresses each tunneling matrix element with the square root of an occupation
+  factor and keeps one jump operator per lead rather than one per Bohr
+  frequency, which is the construction `NathanRudner2020` later derived as a
+  controlled weak-coupling approximation. `principal_part='digamma'` previously
+  paired that dissipator with the principal-value part of the second-order lead
+  self-energy, which is the shift belonging to a *Bloch-Redfield* kernel. The
+  weight is now the one generated alongside these jump operators
+  [NathanRudner2020, Eqs. (D7)-(D8)]: the arithmetic mean plus the cutoff-free
+  geometric correction `func_ule_shift`.
+
+  The two weights agree on every diagonal element, where the level shift is
+  ordinary second-order perturbation theory, so a charge sector that is
+  one-dimensional or uniformly shifted is unaffected and the analytic
+  single-level and spin-degenerate results are unchanged. They differ off the
+  diagonal, so stationary currents change at the percent level wherever
+  coherences between distinct same-charge energies matter. `principal_part`
+  still selects whether a shift is included at all, and `'omit'` remains the
+  default and reproduces Appendix F of the QmeQ paper, which excludes
+  principal-part effects.
+
 ### Removed
 
 - Remove the superseded Sphinx documentation tree and its dependency, CI, and
@@ -9,6 +51,42 @@
   generated API reference, and internal conventions.
 
 ### Fixed
+
+- Correct the amplitude conversion in the non-interacting NEGF test oracle's
+  QmeQ adapter. `model_from_qmeq` read `tleads` as `g = sqrt(2*pi)*conj(t)`;
+  the conversion is normalisation only, `g = sqrt(2*pi)*t`. Conjugating flips
+  the phase of any loop a single lead closes across two dot modes, which
+  changes the current at leading order: against QmeQ's own Pauli current the
+  conjugated adapter sits at a flat 19% relative error while the corrected one
+  converges as `O(Gamma**2)`. The error was invisible for real amplitudes and
+  for any model where each lead touches a single mode, and the round-trip
+  helper in `test_noninteracting_negf_solver.py` conjugated in the opposite
+  direction, so the two cancelled and the gauge-invariance check could not see
+  either. A new convergence test against QmeQ's golden-rule current, on a model
+  with cross couplings, now pins the convention. Approach kernels are
+  unaffected; only the oracle's adapter was wrong.
+
+- Correct the orientation of the non-interacting NEGF test oracle's QmeQ
+  adapter. Two conventions were read the wrong way round and only their
+  combination is observable, so neither showed up alone. `_qmeq_matrix` filled
+  `hsingle` as `h_ij d^dag_i d_j`, but `construct_ham_hopping` removes an
+  electron at the first index and adds one at the second, so the entry is the
+  coefficient of `d^dag_j d_i`; and `amplitude_matrix` returned `conj(g)` where
+  `g` is already the coefficient of `d^dag`, as QmeQ's `tleads` entry is.
+  Together they conjugate every amplitude, which is the **time-reversed** model.
+
+  Nothing cheap could see it. Conjugation leaves the spectrum, every `|g|**2`
+  and so every golden-rule rate untouched, so Pauli and first-order currents
+  agree exactly and `test_qmeq_conversion_converges_to_the_golden_rule` still
+  passed; both orientations are gauge covariant, so the rephasing check could
+  not separate them either. A two-terminal non-interacting current is even in
+  the flux, which leaves nothing for the previous models to detect. With three
+  leads the odd part enters at `O(Gamma**2)`, and grading RTD at second order
+  against the conjugated model gave `O(Gamma**2)` convergence instead of the
+  true `O(Gamma**3)` -- converging, but one order short.
+  `test_negf_orientation_pins_the_flux_sign` now measures that order. QmeQ's own
+  `hsingle` and `tleads` conventions are unchanged; only the oracle's reading of
+  them was wrong.
 
 - Correct the free-coherence resolvent derivative in RTDnoise to use the same
   Laplace orientation as its vertex blocks. With coherence corrections enabled,

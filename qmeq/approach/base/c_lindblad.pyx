@@ -26,6 +26,13 @@ from libc.math cimport sqrt
 
 from ...specfunc.c_specfunc cimport func_pauli
 from ...specfunc.c_specfunc cimport func_lambshift
+# The geometric correction to the Lamb shift is a principal-value quadrature,
+# so it has no cdef twin: this calls the memoised Python implementation. It is
+# evaluated once per distinct pair of scaled transition energies while the
+# kernel is built, never inside a hot inner product, and ``lru_cache`` collapses
+# the repeats that degenerate spectra produce.
+from ...specfunc.specfunc import func_ule_shift
+from ...specfunc.specfunc import func_lambshift_quad
 
 from ..c_aprclass cimport Approach
 from ..c_kernel_handler cimport KernelHandler
@@ -54,11 +61,16 @@ cdef void generate_lamb_shift(Approach appr):
     cdef long_t acount, bcount, ccount
     cdef double_t mu, T
     cdef complex_t fct
+    cdef double_t weight
 
     cdef complex_t [:, :, :] HLS = appr._HLS
 
-    if appr.funcp.principal_part != "digamma":
+    if appr.funcp.principal_part not in ("digamma", "quad"):
         return
+
+    cdef bint use_quad = appr.funcp.principal_part == "quad"
+    cdef double_t [:, :] dlst = appr._dlst
+    cdef long_t limit = appr.funcp.dqawc_limit
 
     for bcharge in range(kh.ncharge):
         acharge = bcharge-1
@@ -77,14 +89,37 @@ cdef void generate_lamb_shift(Approach appr):
                     fct = 0
                     for k in range(acount):
                         a = statesdm[acharge, k]
-                        fct = fct + 0.5*Tba[l, b, a]*Tba[l, a, bp]*(
-                                func_lambshift(E[b]-E[a], mu, T)
-                                + func_lambshift(E[bp]-E[a], mu, T))
+                        # Particle family: the dot rises out of |a>.
+                        if use_quad:
+                            weight = 0.5*(
+                                func_lambshift_quad(E[b]-E[a], mu, T,
+                                                    dlst[l, 0], dlst[l, 1], limit)
+                                + func_lambshift_quad(E[bp]-E[a], mu, T,
+                                                      dlst[l, 0], dlst[l, 1], limit))
+                        else:
+                            weight = 0.5*(func_lambshift(E[b]-E[a], mu, T)
+                                          + func_lambshift(E[bp]-E[a], mu, T))
+                        weight = weight + func_ule_shift((E[b]-E[a]-mu)/T,
+                                                         (E[bp]-E[a]-mu)/T, False)
+                        fct = fct + Tba[l, b, a]*Tba[l, a, bp]*weight
                     for k in range(ccount):
                         c = statesdm[ccharge, k]
-                        fct = fct + 0.5*Tba[l, b, c]*Tba[l, c, bp]*(
-                                func_lambshift(E[b]-E[c], -mu, T)
-                                + func_lambshift(E[bp]-E[c], -mu, T))
+                        # Hole family: the dot falls out of |c>. The principal
+                        # value is even, so it takes the reversed chemical
+                        # potential; the geometric correction is not even, so
+                        # its arguments run the other way.
+                        if use_quad:
+                            weight = 0.5*(
+                                func_lambshift_quad(E[b]-E[c], -mu, T,
+                                                    dlst[l, 0], dlst[l, 1], limit)
+                                + func_lambshift_quad(E[bp]-E[c], -mu, T,
+                                                      dlst[l, 0], dlst[l, 1], limit))
+                        else:
+                            weight = 0.5*(func_lambshift(E[b]-E[c], -mu, T)
+                                          + func_lambshift(E[bp]-E[c], -mu, T))
+                        weight = weight + func_ule_shift((E[c]-E[b]-mu)/T,
+                                                         (E[c]-E[bp]-mu)/T, True)
+                        fct = fct + Tba[l, b, c]*Tba[l, c, bp]*weight
                     HLS[l, b, bp] = fct
                     HLS[l, bp, b] = fct.conjugate()
 

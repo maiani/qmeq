@@ -41,8 +41,52 @@ N. M. Gergs, S. A. Bender, R. A. Duine, and D. Schuricht, “Spin Switching via
 Quantum Dot Spin Valves,” *Physical Review Letters* **120**, 017701 (2018).
 [DOI](https://doi.org/10.1103/PhysRevLett.120.017701)
 
-Its Supplemental Material gives a related contour-integration treatment of
-the fourth-order RTD energy integrals.
+Its Supplemental Material, Sec. I.B, gives a related contour-integration
+treatment of the fourth-order RTD energy integrals: a flat reservoir band with a
+hard cutoff, one integral closed analytically by the residue theorem, and the
+remaining tanh-pole sum carried out numerically rather than by an Ozaki
+approximation. Temperatures are per reservoir throughout, and the O(Gamma)
+effective Liouvillian there carries the explicit `ln(D / 2 pi T)` term that the
+wide-band forms drop. It builds on the O(Gamma^2) expressions in the
+Supplemental Material of N. M. Gergs, C. B. M. Horig, M. R. Wegewijs, and
+D. Schuricht, *Physical Review B* **91**, 201107(R) (2015), whose own
+Supplemental Material, Sec. I B 3, states that its second-order energy
+integrations are done analytically *for* `T_L = T_R = T` while noting that this
+"presents no principal limitation of our method". Neither paper is itself a
+closed-form unequal-temperature derivation: the 2015 main text fixes
+`T_L = T_R` and the 2018 setting is a spin valve with polarized reservoirs.
+What both supply is the finite-cutoff contour route that does not require
+equal temperatures.
+
+### `KirsanskasFranckieWacker2018`
+
+G. Kiršanskas, M. Franckié, and A. Wacker, “Phenomenological position and energy
+resolving Lindblad approach to quantum kinetics,” *Physical Review B* **97**,
+035432 (2018).
+[DOI](https://doi.org/10.1103/PhysRevB.97.035432) ·
+[arXiv](https://arxiv.org/abs/1710.02762)
+
+The construction QmeQ's Lindblad approach implements, cited as Ref. [32] of the
+QmeQ paper while still in preparation. Each tunneling matrix element is dressed
+with the square root of an occupation factor and one jump operator is kept per
+lead rather than one per Bohr frequency, so the generator is of GKLS form
+without a secular approximation and retains the nonsecular terms a Redfield
+kernel has.
+
+### `NathanRudner2020`
+
+F. Nathan and M. S. Rudner, “Universal Lindblad equation for open quantum
+systems,” *Physical Review B* **102**, 115109 (2020).
+[DOI](https://doi.org/10.1103/PhysRevB.102.115109) ·
+[arXiv](https://arxiv.org/abs/2004.01469)
+
+Derives the same square-root construction as a controlled weak-coupling
+approximation with an error bound, and supplies the Hermitian Lamb shift that
+belongs to it. Eq. (2) gives the jump operator; Appendix D, Eqs. (D7)-(D8), give
+the shift. Note that the main text's restatement of the shift, Eq. (34), carries
+the second energy argument as `E_n - E_l` where Eq. (D8) has `E_l - E_n`. Only
+the appendix form is Hermitian, as the paper requires below its Eq. (D1), so
+`func_ule_shift` follows Eq. (D8).
 
 ## Special functions
 

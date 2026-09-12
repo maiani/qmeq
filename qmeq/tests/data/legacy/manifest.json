@@ -609,7 +609,17 @@
   },
   "provenance": {
     "classification": "legacy snapshots",
-    "note": "Original generating revisions and environments were not recorded.",
+    "lindblad_lamb_shift_entries": [
+      "Lindblad0current",
+      "Lindblad0energy_current",
+      "Lindblad1current",
+      "Lindblad1energy_current",
+      "pyLindblad0current",
+      "pyLindblad0energy_current",
+      "pyLindblad1current",
+      "pyLindblad1energy_current"
+    ],
+    "note": "Original generating revisions and environments were not recorded. The Lindblad entries at itype 0 and 1 are not original either: they hold a Lamb-shifted result, which QmeQ 1.1 did not produce, and were recomputed when the Lindblad Lamb shift was corrected to the weight belonging to its own dissipator. The itype 2 and 3 Lindblad entries carry no shift and were reproduced unchanged by that recomputation, which is what shows the change was confined to the shift. Every other entry is untouched.",
     "status": "unknown"
   },
   "reference_bundle_schema": 1,

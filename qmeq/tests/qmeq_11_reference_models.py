@@ -11,6 +11,24 @@ class _OhmicBath(Func):
         return 3.8804e-4 * energy
 
 
+# What each legacy itype stands for. These references are pinned, so the
+# evaluation is spelled out rather than left to an approach default: a default
+# that moves must not silently change what is compared.
+_ITYPE_PRINCIPAL_PART = {0: "quad", 1: "digamma", 2: "omit", 3: "omit"}
+
+
+def _principal_part(kerntype, itype):
+    """The evaluation ``itype`` stands for, stated explicitly.
+
+    ``None`` only for 2vN, which has no principal-value contribution and
+    rejects the option outright.
+    """
+    approach = kerntype[2:] if kerntype.startswith("py") else kerntype
+    if approach == "2vN":
+        return None
+    return _ITYPE_PRINCIPAL_PART[itype]
+
+
 def _core_model(kerntype, itype):
     """A small coherent double dot used by all electronic approaches."""
     return qmeq.Builder(
@@ -25,6 +43,7 @@ def _core_model(kerntype, itype):
         dband={0: 1000.0, 1: 1000.0},
         kerntype=kerntype,
         itype=itype,
+        principal_part=_principal_part(kerntype, itype),
         indexing="charge",
         kpnt=64,
     )
@@ -56,6 +75,7 @@ def _elph_model(kerntype):
         bath_func=[_OhmicBath()],
         kerntype=kerntype,
         itype=2,
+        principal_part=_principal_part(kerntype, 2),
         itype_ph=2,
         indexing="ssq",
         symmetry="spin",

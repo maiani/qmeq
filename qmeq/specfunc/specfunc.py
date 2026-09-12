@@ -7,6 +7,7 @@ from numpy.fft import fft, ifft
 from numpy import pi
 from numpy import exp
 from scipy import linalg
+from scipy.special import expit
 from scipy.special import psi
 from scipy.integrate import quad
 
@@ -127,6 +128,116 @@ def func_lambshift(Ecb, mu, T):
     """
     alpha = (Ecb-mu)/T
     return digamma(0.5+1.0j*alpha/(2*pi)).real
+
+
+@lru_cache(maxsize=MAX_CACHE)
+def func_ule_shift(alpha1, alpha2, hole):
+    r"""
+    Geometric correction to the Lamb shift of the Lindblad approach.
+
+    QmeQ's Lindblad dissipator dresses each tunneling matrix element with the
+    square root of an occupation factor [KirsanskasFranckieWacker2018], and the
+    Hermitian shift belonging to that dissipator carries the same square roots
+    [NathanRudner2020, Eqs. (D7)-(D8)]:
+
+    .. math::
+
+        w(x_1,x_2) = -\mathcal{P}\!\!\int\!\mathrm{d}v\,
+                     \frac{\sqrt{J(x_1-v)J(x_2-v)}}{v},
+
+    with :math:`J=f` for the particle family and :math:`J=1-f` for the hole
+    family. The second-order self-energy gives the arithmetic mean
+    :math:`[\Lambda(x_1)+\Lambda(x_2)]/2` instead; this function returns the
+    difference, which expanding the square writes cutoff free as
+
+    .. math::
+
+        \delta w(x_1,x_2) = \frac{1}{2}\mathcal{P}\!\!\int\!\mathrm{d}v\,
+            \frac{\left[\sqrt{J(x_1-v)}-\sqrt{J(x_2-v)}\right]^2}{v}.
+
+    Two properties are easy to get wrong. It vanishes when the arguments
+    coincide, so the two shifts differ only off the diagonal. And it is *not*
+    even in its arguments, so unlike :func:`func_lambshift` the hole family may
+    **not** be obtained by reversing the chemical potential: pass the transition
+    energies in the direction that family runs.
+
+    Parameters
+    ----------
+    alpha1, alpha2 : float
+        Scaled transition energies :math:`(E-\mu)/T` of the two outer states.
+    hole : bool
+        ``False`` for the particle family, ``True`` for the hole family.
+
+    Returns
+    -------
+    float
+        Correction added to the arithmetic weight, in the same normalization
+        as :func:`func_lambshift`.
+    """
+    if alpha1 == alpha2:
+        return 0.0
+
+    def occupation(x):
+        # expit(-x) is the Fermi function without the overflow that the bare
+        # exponential hits far out in the quadrature tail.
+        return expit(-x) if not hole else expit(x)
+
+    def numerator(v):
+        return 0.5*(np.sqrt(occupation(alpha1-v)) - np.sqrt(occupation(alpha2-v)))**2
+
+    value, _ = quad(lambda v: (numerator(v) - numerator(-v))/v,
+                    1.0e-13, 400.0, limit=400, epsabs=1.0e-13, epsrel=1.0e-11)
+    return float(value)
+
+
+
+@lru_cache(maxsize=MAX_CACHE)
+def func_lambshift_quad(Ecb, mu, T, Dm, Dp, limit):
+    r"""
+    Principal value factor of the Lamb shift, by quadrature over the band.
+
+    The same object :func:`func_lambshift` approximates in the wide-band limit,
+
+    .. math::
+
+        \Lambda(E) = \mathcal{P}\!\!\int_{D_-}^{D_+}\!\!\mathrm{d}\omega\,
+                     \frac{f\big((\omega-\mu)/T\big)}{\omega-E},
+
+    evaluated numerically instead, so the bandwidth constant
+    :math:`-\ln(D/2\pi T)` that the digamma form drops is kept. This is the
+    Cauchy integral :func:`func_1vN` evaluates for the 1vN and Redfield kernels
+    at ``itype=0``; the hole family is obtained by reversing :math:`\mu`, as it
+    is there. It pairs with :func:`func_ule_shift`, which is cutoff free and so
+    needs no band.
+
+    Parameters
+    ----------
+    Ecb : float
+        Energy.
+    mu, T : float
+        Chemical potential and temperature of the lead.
+    Dm, Dp : float
+        Bandwidth edges of the lead.
+    limit : int
+        Maximum number of QUADPACK sub-intervals.
+
+    Returns
+    -------
+    float
+        Principal value factor, in the same normalization as
+        :func:`func_lambshift`.
+    """
+    alpha, Rm, Rp = (Ecb-mu)/T, (Dm-mu)/T, (Dp-mu)/T
+    if alpha == Rm or alpha == Rp:
+        raise ValueError(
+            f"principal_part='quad' cannot integrate a transition energy "
+            f"sitting exactly on a band edge: (E-mu)/T = {alpha!r}. Move the "
+            f"band edge or the transition energy, or use "
+            f"principal_part='digamma'."
+        )
+    value, _ = quad(lambda u: expit(-u), Rm, Rp, weight='cauchy', wvar=alpha,
+                    epsabs=1.0e-10, epsrel=1.0e-10, limit=limit)
+    return float(value)
 
 
 def func_1vN(Ecb, mu, T, Dm, Dp, itype, limit):

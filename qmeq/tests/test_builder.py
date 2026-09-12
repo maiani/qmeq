@@ -138,16 +138,18 @@ def test_transport_option_legacy_mapping(itype, bandwidth, principal_part):
     assert legacy.principal_part == descriptive.principal_part == principal_part
 
 
-def test_transport_option_defaults_preserve_legacy_itype_zero():
+def test_transport_option_defaults():
+    """Each approach defaults to its most complete supported evaluation."""
     first_order = Builder(nsingle=0, kerntype="Redfield")
     lindblad = Builder(nsingle=0, kerntype="Lindblad")
 
     assert first_order.itype == 0
     assert first_order.bandwidth == "finite"
     assert first_order.principal_part == "quad"
-    assert lindblad.itype == 0
-    assert lindblad.bandwidth == "finite"
-    assert lindblad.principal_part == "omit"
+    # Lindblad keeps its Lamb shift by default, in the wide-band form.
+    assert lindblad.itype == 1
+    assert lindblad.bandwidth == "infinite"
+    assert lindblad.principal_part == "digamma"
 
 
 @pytest.mark.parametrize(
@@ -166,7 +168,6 @@ def test_transport_option_conflicts_raise(kwargs):
 @pytest.mark.parametrize(
     ("kerntype", "kwargs"),
     [
-        ("Lindblad", {"principal_part": "quad"}),
         ("Pauli", {"principal_part": "digamma"}),
         ("RTD", {"bandwidth": "finite", "principal_part": "quad"}),
         ("2vN", {"bandwidth": "finite"}),
@@ -210,6 +211,24 @@ def test_transport_options_can_be_changed_on_existing_lindblad():
     assert system.principal_part == "digamma"
 
 
+
+# What each legacy itype stands for, for approaches where itype selects it.
+_ITYPE_PRINCIPAL_PART = {0: "quad", 1: "digamma", 2: "omit", 3: "omit"}
+
+
+def _principal_part(kerntype, itype):
+    """The evaluation this row is pinned at, stated rather than defaulted.
+
+    For Lindblad ``itype`` selects only the bandwidth, and the stored rows at
+    ``itype`` 0 and 1 hold a Lamb-shifted result, so that approach is spelled
+    out separately. Leaving any of it to a default is what lets a changed
+    default silently re-point a pinned comparison.
+    """
+    if kerntype in {'Lindblad', 'pyLindblad'}:
+        return "digamma" if itype in (0, 1) else "omit"
+    return _ITYPE_PRINCIPAL_PART[itype]
+
+
 def test_Builder_double_dot_spinful():
     data = LEGACY_BUILDER_REFERENCE
     p = ParametersDoubleDotSpinful()
@@ -226,11 +245,7 @@ def test_Builder_double_dot_spinful():
         elif kerntype in {'RTD', 'pyRTD'} and itype in [0, 2]:
             continue
 
-        principal_part = (
-            "digamma"
-            if kerntype in {'Lindblad', 'pyLindblad'} and itype in {0, 1}
-            else None
-        )
+        principal_part = _principal_part(kerntype, itype)
         system = Builder(
             p.nsingle, p.hsingle, p.coulomb, p.nleads, p.tleads,
             p.mulst, p.tlst, p.dlst, kerntype=kerntype, itype=itype,
@@ -261,8 +276,11 @@ def test_Builder_double_dot_spinful():
     # Check least-squares solution with non-square matrix, i.e., symq=False
     for kerntype in kerns:
         itype = 1 if kerntype in ('pyRTD', 'RTD') else 2
+        # itype=2 is the no-principal-part case; the Lindblad default is
+        # 'digamma', so the omission has to be explicit.
         system = Builder(p.nsingle, p.hsingle, p.coulomb, p.nleads, p.tleads, p.mulst, p.tlst, p.dlst,
-                         kerntype=kerntype, itype=itype, symq=False)
+                         kerntype=kerntype, itype=itype, symq=False,
+                         principal_part=_principal_part(kerntype, itype))
 
         for i in range(repetitions):
             system.solve()
@@ -277,7 +295,8 @@ def test_Builder_double_dot_spinful():
     for kerntype in kerns:
         itype = 2
         system = Builder(p.nsingle, p.hsingle, p.coulomb, p.nleads, p.tleads, p.mulst, p.tlst, p.dlst,
-                         kerntype=kerntype, itype=itype, mfreeq=True)
+                         kerntype=kerntype, itype=itype, mfreeq=True,
+                         principal_part=_principal_part(kerntype, itype))
 
         for i in range(repetitions):
             system.solve()
@@ -289,7 +308,8 @@ def test_Builder_double_dot_spinful():
     indexings = ['Lin', 'charge', 'sz', 'ssq']
     for kerntype, indexing in itertools.product(kerns, indexings):
         system = Builder(p.nsingle, p.hsingle, p.coulomb, p.nleads, p.tleads, p.mulst, p.tlst, p.dlst,
-                         kerntype=kerntype, itype=2, indexing=indexing)
+                         kerntype=kerntype, itype=2, indexing=indexing,
+                         principal_part=_principal_part(kerntype, 2))
 
         for i in range(repetitions):
             system.solve()

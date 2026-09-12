@@ -70,15 +70,12 @@ def resolve_transport_options(itype, bandwidth, principal_part, kerntype):
                 )
             bandwidth = expected_bandwidth
         else:
-            bandwidth = bandwidth or "finite"
+            bandwidth = bandwidth or (
+                "infinite" if approach == "Lindblad" else "finite"
+            )
 
         if approach == "Lindblad":
-            if principal_part == "quad":
-                raise ValueError(
-                    "The Lindblad approach supports principal_part='omit' "
-                    "or 'digamma'; quadrature is not implemented."
-                )
-            principal_part = principal_part or "omit"
+            principal_part = principal_part or "digamma"
         else:
             if principal_part not in (None, "omit"):
                 raise ValueError(

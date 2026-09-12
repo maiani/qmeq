@@ -81,18 +81,18 @@ class Builder(BuilderBase):
         Legacy shorthand for `bandwidth` and `principal_part`. The mappings are
         0 = finite/quad, 1 = infinite/digamma, 2 = finite/omit, and
         3 = infinite/omit. Existing calls remain supported. For Lindblad, legacy
-        `itype` controls only the bandwidth and preserves the historical omission
-        of the Lamb shift.
+        `itype` controls only the bandwidth; use `principal_part` to select the
+        Lamb shift.
     bandwidth : str
         Treatment of lead transitions outside `dband`: ``'finite'`` drops them
         and ``'infinite'`` keeps them. Pauli, Lindblad, 1vN, and Redfield support
         this option. RTD requires ``'infinite'``; 2vN does not use it.
     principal_part : str
-        Treatment of principal-value contributions. 1vN and Redfield support
-        ``'quad'``, ``'digamma'``, and ``'omit'``. For Lindblad the principal
-        part is the Lamb shift, and only ``'digamma'`` and ``'omit'`` are
-        supported. Pauli has no principal-value contribution, RTD requires
-        ``'digamma'``, and 2vN does not use this option.
+        Treatment of principal-value contributions. 1vN, Redfield and Lindblad
+        support ``'quad'``, ``'digamma'``, and ``'omit'``; for Lindblad the
+        principal part is the Lamb shift, and the default is ``'digamma'``.
+        Pauli has no principal-value contribution, RTD requires ``'digamma'``,
+        and 2vN does not use this option.
     dqawc_limit : int
         For itype=0 dqawc_limit determines the maximum number of sub-intervals
         in the partition of the given integration interval.

@@ -113,6 +113,17 @@ class SpinfulDoubleDotWithElPh(BuilderElPh):
     # ------------------------------------------------
 
 
+# What each legacy itype stands for. These snapshots are pinned, so the
+# evaluation is stated rather than left to an approach default: for Lindblad
+# itype selects only the bandwidth, and a default that moves must not silently
+# change what is compared.
+_ITYPE_PRINCIPAL_PART = {0: "quad", 1: "digamma", 2: "omit", 3: "omit"}
+
+
+def _principal_part(kerntype, itype):
+    return _ITYPE_PRINCIPAL_PART[itype]
+
+
 def test_Builder_elph_double_dot_spinful():
     data = LEGACY_BUILDER_ELPH_REFERENCE
     calcs = Calcs()
@@ -126,7 +137,9 @@ def test_Builder_elph_double_dot_spinful():
         if kerntype in {'Pauli', 'pyPauli', 'Lindblad', 'pyLindblad'} and (itype in [0, 1] or itype_ph in [0]):
             continue
 
-        system = SpinfulDoubleDotWithElPh(kerntype=kerntype, itype=itype, itype_ph=itype_ph)
+        system = SpinfulDoubleDotWithElPh(
+            kerntype=kerntype, itype=itype, itype_ph=itype_ph,
+            principal_part=_principal_part(kerntype, itype))
 
         for i in range(repetitions):
             system.solve()
@@ -150,7 +163,9 @@ def test_Builder_elph_double_dot_spinful():
                 assert norm(getattr(system, param) - data[attr+param]) < EPS
 
         # Check least-squares solution with non-square matrix, i.e., symq=False
-        system = SpinfulDoubleDotWithElPh(kerntype=kerntype, itype=itype, itype_ph=itype_ph, symq=False)
+        system = SpinfulDoubleDotWithElPh(
+            kerntype=kerntype, itype=itype, itype_ph=itype_ph, symq=False,
+            principal_part=_principal_part(kerntype, itype))
 
         for i in range(repetitions):
             system.solve()

@@ -34,6 +34,9 @@ def _first_order_system(kerntype, gate, bias, countingleads=(0,)):
         dband={0: 1000.0, 1: 1000.0},
         kerntype=kerntype,
         itype=2,
+        # Stated rather than defaulted: this reference is pinned, so an
+        # approach default that moves must not change what is compared.
+        principal_part="omit",
         countingleads=countingleads,
     )
 

@@ -71,7 +71,7 @@ def test_lamb_shift_changes_the_current(kerntype):
 @pytest.mark.parametrize(('old_itype', 'equivalent_itype'), [(0, 2), (1, 3)])
 def test_legacy_itype_keeps_pre_lamb_shift_results(
         kerntype, old_itype, equivalent_itype):
-    """Legacy itype calls do not opt into the newly implemented Lamb shift."""
+    """``itype`` alone does not select the Lamb shift."""
     legacy = build(
         ParametersDoubleDotSpinful(), kerntype=kerntype, itype=old_itype,
         principal_part="omit"
@@ -247,3 +247,33 @@ def test_lamb_shift_of_elph_lindblad(kerntype):
     # The currents of this weakly coupled model are tiny, so compare relative to them
     assert abs(with_ls.current.sum()) < 1e-4*np.abs(with_ls.current).max()
     assert norm(with_ls.current - without_ls.current) > 0.0
+
+
+@pytest.mark.parametrize('kerntype', ['Lindblad', 'pyLindblad'])
+def test_quad_converges_to_the_digamma_lamb_shift(kerntype):
+    """``'quad'`` and ``'digamma'`` evaluate the same principal values.
+
+    The digamma form is the wide-band limit and drops the bandwidth constant,
+    so the two differ by a finite-band correction that must vanish as ``1/D``.
+    Asserting the rate rather than a tolerance is what shows they are the same
+    object rather than two nearby approximations.
+    """
+    parameters = ParametersDoubleDotSpinful()
+
+    def current(dband, principal_part):
+        system = qmeq.Builder(
+            parameters.nsingle, parameters.hsingle, parameters.coulomb,
+            parameters.nleads, parameters.tleads, parameters.mulst,
+            parameters.tlst, dband, kerntype=kerntype,
+            principal_part=principal_part,
+        )
+        system.solve()
+        return system.current[0]
+
+    reference = current(1e3, "digamma")
+    errors = [abs(current(dband, "quad") - reference)
+              for dband in (1e3, 1e4, 1e5)]
+
+    assert errors[0] > 1e-6, errors
+    for coarse, fine in zip(errors, errors[1:]):
+        assert 5.0 < coarse/fine < 20.0, errors

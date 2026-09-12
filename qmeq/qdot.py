@@ -84,8 +84,13 @@ def construct_ham_hopping(qd, hsingle, statelst, ham_=None):
         QuantumDot object.
     hsingle : dict
         Dictionary corresponding to single-particle hopping (tunneling) Hamiltonian.
-        The dictionary is of the format hsingle[(i, j)] = hij, where i, j are the state labels
-        and hij is the matrix element of the single particle Hamiltonian.
+        The dictionary is of the format hsingle[(i, j)] = hij, where i, j are the state labels.
+        The entry is the coefficient of :math:`d^{\\dagger}_{j} d_{i}`: an electron is removed
+        at the first index and added at the second, so with the usual matrix-element reading
+        hij is :math:`H_{ji}`, not :math:`H_{ij}`. With the default herm_hs=True the partner
+        (j, i) is added as its conjugate, so a Hermitian single-particle Hamiltonian supplied
+        from one triangle is unaffected by the ordering; only an explicitly complex entry
+        distinguishes the two readings.
     statelst : list
         List of indices of states under consideration.
     ham_ : None or ndarray
@@ -430,8 +435,13 @@ def construct_manybody_eigenstates_ssq(qd, charge, sz, ssq, hsingle, coulomb, ha
         :math:`S^{2}` value of the states to consider.
     hsingle : dict
         Dictionary corresponding to single-particle hopping (tunneling) Hamiltonian.
-        The dictionary is of the format hsingle[(i, j)] = hij, where i, j are the state labels
-        and hij is the matrix element of the single particle Hamiltonian.
+        The dictionary is of the format hsingle[(i, j)] = hij, where i, j are the state labels.
+        The entry is the coefficient of :math:`d^{\\dagger}_{j} d_{i}`: an electron is removed
+        at the first index and added at the second, so with the usual matrix-element reading
+        hij is :math:`H_{ji}`, not :math:`H_{ij}`. With the default herm_hs=True the partner
+        (j, i) is added as its conjugate, so a Hermitian single-particle Hamiltonian supplied
+        from one triangle is unaffected by the ordering; only an explicitly complex entry
+        distinguishes the two readings.
     coulomb : dict
         Dictionary containing coulomb matrix elements. The dictionary is of the format
         coulomb[(m, n, k, l)] = U, where m, n, k, l are the state labels
@@ -477,8 +487,13 @@ def construct_manybody_eigenstates_ssq_all(qd, charge, hsingle, coulomb, ham_=No
         Charge (number of particles) of the states to consider.
     hsingle : dict
         Dictionary corresponding to single-particle hopping (tunneling) Hamiltonian.
-        The dictionary is of the format hsingle[(i, j)] = hij, where i, j are the state labels
-        and hij is the matrix element of the single particle Hamiltonian.
+        The dictionary is of the format hsingle[(i, j)] = hij, where i, j are the state labels.
+        The entry is the coefficient of :math:`d^{\\dagger}_{j} d_{i}`: an electron is removed
+        at the first index and added at the second, so with the usual matrix-element reading
+        hij is :math:`H_{ji}`, not :math:`H_{ij}`. With the default herm_hs=True the partner
+        (j, i) is added as its conjugate, so a Hermitian single-particle Hamiltonian supplied
+        from one triangle is unaffected by the ordering; only an explicitly complex entry
+        distinguishes the two readings.
     coulomb : dict
         Dictionary containing coulomb matrix elements. The dictionary is of the format
         coulomb[(m, n, k, l)] = U, where m, n, k, l are the state labels
