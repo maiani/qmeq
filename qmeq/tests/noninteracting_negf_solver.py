@@ -19,11 +19,12 @@ Conventions, fixed here and pinned by ``test_noninteracting_negf_solver.py``:
   :math:`2\\pi` absorbed into :math:`g`, so the level-width matrix of channel
   :math:`c` is :math:`\\Gamma_c=u_cu_c^\\dagger` with
   :math:`(u_c)_j=g_{cj}^{\\ast}` -- the *conjugate* amplitude; see
-  :meth:`NoninteractingModel.amplitude_matrix`. This is QmeQ's own
-  normalisation of ``tleads`` up to
-  :math:`g=\\sqrt{2\\pi}\\,t^{\\ast}`.  The conjugation follows from QmeQ
-  storing the electron-adding matrix element as ``tleads`` whereas ``g``
-  multiplies :math:`\\gamma_c^\\dagger d_j` in the convention above.
+  :meth:`NoninteractingModel.amplitude_matrix`. The conversion from QmeQ's
+  ``tleads`` is :math:`g=\\sqrt{2\\pi}\\,t`, normalisation only and **no**
+  conjugation; see :func:`model_from_qmeq` for why the conjugated form is
+  wrong and
+  ``test_noninteracting_negf_qmeq_bridge.py::test_qmeq_conversion_converges_to_the_golden_rule``
+  for what settles it.
 * Currents are **positive inward** (into the dot).
 * The zero-frequency noise is
   :math:`S=\\lim_{t\\to\\infty}\\mathrm d\\,\\mathrm{Var}X(t)/\\mathrm dt`, with
@@ -108,22 +109,21 @@ class NoninteractingModel:
         return int(np.max(self.lead_of_channel)) + 1
 
     def amplitude_matrix(self):
-        """``A`` with ``Gamma_c = outer(A[:, c], conj(A[:, c]))``, i.e. ``conj(g)``.
+        """``A`` with ``Gamma_c = outer(A[:, c], conj(A[:, c]))``, i.e. ``g``.
 
-        Contracting the reservoir in
-        ``H_T = sum_{cj} (g_{cj} gamma_c^dagger d_j + h.c.)`` gives a self-energy
-        proportional to ``conj(g_{cj}) g_{ck}``, so the vector that enters the
-        level-width matrix is the **conjugate** of the tunnelling amplitude.
+        ``H_T = sum_{cj} (g_{cj} d_j^dagger gamma_c + h.c.)`` gives a self-energy
+        proportional to ``g_{cj} conj(g_{ck})``, so ``g`` enters unconjugated:
+        it is already the coefficient of ``d^dagger``, as QmeQ's ``tleads`` is.
 
-        This is not cosmetic. With ``A = g`` instead, the combination that
-        survives in an observable is ``a_{alpha 1} - a_{12} - a_{alpha 2}``,
-        which is *not* invariant under rephasing the dot states, so the answer
-        depends on an unphysical phase choice. With ``A = conj(g)`` it is
-        ``-(a_{alpha 1} + a_{12} - a_{alpha 2})``, minus the oriented plaquette
-        flux, which is invariant. ``test_gauge_invariance_of_observables`` pins
-        this.
+        Do not "fix" this to ``conj(g)``. Both are gauge covariant, so a
+        rephasing check cannot tell them apart; they differ by the time reversal
+        of the model, which leaves the spectrum and every ``|g|^2`` alone. Only
+        an observable odd under time reversal separates them, and a two-terminal
+        non-interacting current is even in the flux.
+        ``test_negf_orientation_pins_the_flux_sign`` uses three leads, where the
+        wrong orientation costs one order of convergence.
         """
-        return np.conj(np.asarray(self.couplings, dtype=complex))
+        return np.asarray(self.couplings, dtype=complex)
 
     def width_matrix(self):
         """Total level-width matrix ``sum_c Gamma_c = A A^dagger``."""
@@ -244,18 +244,25 @@ def model_from_qmeq(nsingle, hsingle=None, coulomb=None, nleads=0,
             interaction_values = (entry[-1] for entry in coulomb)
         if any(value != 0 for value in interaction_values):
             raise ValueError("NEGF is exact only for coulomb=0.")
-    hamiltonian = _qmeq_matrix(
+    # QmeQ's construct_ham_hopping removes an electron at the first index of
+    # hsingle and adds one at the second, so the entry is the coefficient of
+    # d^dag_j d_i -- the transpose of what its docstring suggests.
+    # _qmeq_matrix fills the naive orientation; for a Hermitian matrix the
+    # transpose is the conjugate.
+    hamiltonian = np.conj(_qmeq_matrix(
         hsingle, nsingle, nsingle, "hsingle", hermitian=herm_hs
-    )
+    ))
     if not np.allclose(hamiltonian, hamiltonian.conj().T, atol=1e-12, rtol=0.0):
         raise ValueError("hsingle must define a Hermitian Hamiltonian.")
-    # QmeQ indexes tleads as (lead, state) and stores the electron-adding
-    # matrix element.  Here g multiplies gamma^dagger d, so g=sqrt(2*pi)*t^*;
-    # NEGF stores channels as columns.
+    # QmeQ indexes tleads as (lead, state); NEGF stores channels as columns.
+    # Normalisation only, g = sqrt(2*pi)*t, with NO conjugation: both packages
+    # put the amplitude on the operator that creates a dot electron. The
+    # hsingle transpose above is a separate matter and does not pair with this.
+    # Orientation is pinned by test_negf_orientation_pins_the_flux_sign.
     tleads_matrix = _qmeq_matrix(tleads, nleads, nsingle, "tleads")
     return NoninteractingModel(
         hamiltonian=hamiltonian,
-        couplings=np.sqrt(2.0 * np.pi) * tleads_matrix.T.conj(),
+        couplings=np.sqrt(2.0 * np.pi) * tleads_matrix.T,
         mu=_qmeq_lead_array(mulst, nleads, "mulst"),
         temperature=_qmeq_lead_array(tlst, nleads, "tlst"),
         lead_of_channel=np.arange(nleads),

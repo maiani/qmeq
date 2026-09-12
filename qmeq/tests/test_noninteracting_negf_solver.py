@@ -61,8 +61,13 @@ def spinful_double_dot(epsilon1, epsilon2, tc, b1, b2, g_left, g_right,
         physical_couplings[2 + spin, 2 + spin] = g_right[1]
 
     # The helper arguments are physical g amplitudes, while the adapter takes
-    # QmeQ's public t convention: g=sqrt(2*pi)*conj(t).
-    tleads = physical_couplings.conj() / np.sqrt(2.0 * np.pi)
+    # QmeQ's public t convention: g=sqrt(2*pi)*t, normalisation only.  This
+    # line used to conjugate, which inverted the adapter's own (also wrong)
+    # conjugation, so the round trip was the identity and the gauge-invariance
+    # test below could not see either.  What settles the convention is
+    # agreement with QmeQ itself; see
+    # test_qmeq_conversion_converges_to_the_golden_rule.
+    tleads = physical_couplings / np.sqrt(2.0 * np.pi)
 
     # The DQD is expressed through the generic adapter: it is a regression
     # fixture, not a privileged NEGF model.
