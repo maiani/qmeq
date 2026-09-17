@@ -32,46 +32,40 @@ def generate_lamb_shift(appr):
         (H_{LS}^{l})_{bb'} = \sum_{a}T^{l}_{ba}T^{l}_{ab'}\,
                              w_{l}\!\left(x^{a}_{b},x^{a}_{b'}\right)
                            + \sum_{c}T^{l}_{bc}T^{l}_{cb'}\,
-                             \tilde{w}_{l}\!\left(\tilde{x}^{c}_{b},
-                                                  \tilde{x}^{c}_{b'}\right),
+                             \tilde{w}_{l}\!\left(y^{c}_{b},
+                                                  y^{c}_{b'}\right),
 
     where :math:`H_{LS}=\sum_{l}H_{LS}^{l}`, the states :math:`a` (:math:`c`) have one
     electron less (more) than the states :math:`b`, :math:`b'`, the scaled transition
-    energies are :math:`x^{a}_{b}=(E_b-E_a-\mu_l)/T_l` and
-    :math:`\tilde{x}^{c}_{b}=(E_c-E_b-\mu_l)/T_l`, and the two-argument weight is
+    energies are :math:`x^a_b=(E_b-E_a-\mu_l)/T_l` and
+    :math:`y^c_b=(E_c-E_b-\mu_l)/T_l`. With
+    :math:`S(x)=\operatorname{Re}\psi(1/2+ix/(2\pi))`, the weights are
 
     .. math::
 
-        w_{l}(x_1,x_2) = \frac{1}{2}\left[\Lambda_{l}(x_1)+\Lambda_{l}(x_2)\right]
-                       + \delta w(x_1,x_2).
+        w_l(x_1,x_2) &= [S(x_1)+S(x_2)]/2+\delta_f(-x_1,-x_2),\\
+        \tilde w_l(y_1,y_2) &= [S(y_1)+S(y_2)]/2+\delta_f(y_1,y_2).
 
-    The first term is the principal-value part of the second-order lead self-energy; the
-    second, :func:`~qmeq.specfunc.specfunc.func_ule_shift`, is what makes the shift belong
-    to *this* dissipator rather than to a Bloch--Redfield one, since the jump operators of
-    :meth:`ApproachLindblad.generate_fct` carry the same square roots
-    [NathanRudner2020, Eqs. (D7)-(D8)]. The two agree on the diagonal and differ only off
-    it. :math:`\delta w` is not even in its arguments, so the hole family is written with
-    its own transition energies rather than the reversed chemical potential.
+    Here ``delta_f`` is :func:`~qmeq.specfunc.specfunc.func_ule_shift`.
+    The N-1 intermediate describes emission into an empty lead state;
+    the N+1 intermediate describes absorption from an occupied lead state.
+    Their direct weights are respectively ``+P int sqrt(h*h)/v`` and
+    ``-P int sqrt(f*f)/v``. Reversing v in the first gives the negative
+    arguments above, INCLUDING the sign of mu. The evenness of S does not
+    extend to delta_f. Both have the same negative bandwidth logarithm,
+    which multiplies the fermionic anticommutator and hence the identity.
 
-    Here
+    Use [NathanRudner2020, Eq. (D7)] and the CORRECTED D8,
+    [NathanRudner2021Erratum, Eq. (6)]: for outer b,b' and intermediate k,
+    ``p=E_k-E_b, q=E_b'-E_k``. The original D8 and main-text Eq. (34)
+    contain misprints. Hermiticity and equal-argument tests alone do not
+    determine the off-diagonal weights; direct-integral tests cover both
+    intermediate charge sectors separately. See ``theory/lambshift.md``.
 
-    .. math::
-
-        \Lambda(x) = \mathrm{Re}\,\psi\!\left(\frac{1}{2}+i\frac{x}{2\pi}\right)
-
-    is the principal value factor returned by
-    :func:`~qmeq.specfunc.specfunc.func_lambshift`, which takes the unscaled energy and
-    forms :math:`x` itself. Because :math:`\mathrm{Re}\,\psi(1/2+iy)` is even, the hole
-    family may equivalently call it with :math:`\mu_l\to-\mu_l`, which is how it is
-    written below. The particle (:math:`a`) and hole
-    (:math:`c`) contributions correspond to the two terms of the anticommutator of the
-    tunneling operators. :math:`H_{LS}` is Hermitian and block diagonal in the charge, as it
-    has to be because the charge of the total system is conserved.
-
-    ``principal_part='digamma'`` (the default) evaluates the principal values in the
-    wide-band digamma form, ``'quad'`` integrates them over the actual band, and
-    ``'omit'`` drops the shift. ``itype`` controls the dissipative transition rates
-    and does not select the shift.
+    ``principal_part='digamma'`` evaluates the wide-band weights above.
+    ``'quad'`` retains finite-band arithmetic principal values but still uses
+    the wide-band geometric correction; it is not an exact finite-band ULE.
+    ``'omit'`` drops the shift. ``itype`` controls the dissipative rates.
 
     This is a module level function and not a method of
     :class:`~qmeq.approach.base.lindblad.ApproachLindblad`, because the electron-phonon
@@ -109,21 +103,20 @@ def generate_lamb_shift(appr):
                 mu, T = mulst[l], tlst[l]
                 fct = 0
                 for a in statesdm[acharge]:
-                    # Particle family: the dot rises out of |a>.
+                    # Lower intermediate: emission into an empty lead state.
+                    # [NathanRudner2021Erratum, Eq. (6)]: delta_f(-x1, -x2).
                     weight = 0.5*(principal(E[b]-E[a], mu, T, l)
                                   + principal(E[bp]-E[a], mu, T, l)) \
-                             + func_ule_shift((E[b]-E[a]-mu)/T,
-                                              (E[bp]-E[a]-mu)/T, False)
+                             + func_ule_shift((E[a]-E[b]+mu)/T,
+                                              (E[a]-E[bp]+mu)/T)
                     fct += Tba[l, b, a]*Tba[l, a, bp]*weight
                 for c in statesdm[ccharge]:
-                    # Hole family: the dot falls out of |c>. The principal value
-                    # is even, so it takes the reversed chemical potential; the
-                    # geometric correction is not even, so its arguments are
-                    # written in the direction that family runs.
+                    # Upper intermediate: absorption from an occupied lead state.
+                    # [NathanRudner2021Erratum, Eq. (6)]: delta_f(y1, y2).
                     weight = 0.5*(principal(E[b]-E[c], -mu, T, l)
                                   + principal(E[bp]-E[c], -mu, T, l)) \
                              + func_ule_shift((E[c]-E[b]-mu)/T,
-                                              (E[c]-E[bp]-mu)/T, True)
+                                              (E[c]-E[bp]-mu)/T)
                     fct += Tba[l, b, c]*Tba[l, c, bp]*weight
                 HLS[l, b, bp] = fct
                 HLS[l, bp, b] = fct.conjugate()

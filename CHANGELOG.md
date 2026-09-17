@@ -31,8 +31,13 @@
   paired that dissipator with the principal-value part of the second-order lead
   self-energy, which is the shift belonging to a *Bloch-Redfield* kernel. The
   weight is now the one generated alongside these jump operators
-  [NathanRudner2020, Eqs. (D7)-(D8)]: the arithmetic mean plus the cutoff-free
-  geometric correction `func_ule_shift`.
+  [NathanRudner2020, Eq. (D7)] with the indices of Eq. (D8) corrected by
+  [NathanRudner2021Erratum, Eq. (6)]: the arithmetic mean plus the cutoff-free
+  correction `func_ule_shift`. A lower intermediate state emits into an empty
+  lead state and adds `delta_f(-x1, -x2)`; an upper one absorbs an occupied
+  lead electron and adds `delta_f(y1, y2)`. The helper takes two arguments and
+  has no `hole` branch, and the Python and Cython kernels use the same energy
+  and chemical-potential orientation.
 
   The two weights agree on every diagonal element, where the level shift is
   ordinary second-order perturbation theory, so a charge sector that is
@@ -40,9 +45,12 @@
   single-level and spin-degenerate results are unchanged. They differ off the
   diagonal, so stationary currents change at the percent level wherever
   coherences between distinct same-charge energies matter. `principal_part`
-  still selects whether a shift is included at all, and `'omit'` remains the
-  default and reproduces Appendix F of the QmeQ paper, which excludes
-  principal-part effects.
+  still selects whether a shift is included at all; `'omit'` reproduces
+  Appendix F of the QmeQ paper, which excludes principal-part effects.
+
+  Direct geometric-integral tests cover both families. Equal arguments erase
+  the correction, and implementations that share it agree whether or not it is
+  right, so neither is used as a gate.
 
 ### Removed
 

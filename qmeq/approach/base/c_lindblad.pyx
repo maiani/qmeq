@@ -89,7 +89,8 @@ cdef void generate_lamb_shift(Approach appr):
                     fct = 0
                     for k in range(acount):
                         a = statesdm[acharge, k]
-                        # Particle family: the dot rises out of |a>.
+                        # Lower intermediate: emission into an empty lead state.
+                        # [NathanRudner2021Erratum, Eq. (6)]: delta_f(-x1, -x2).
                         if use_quad:
                             weight = 0.5*(
                                 func_lambshift_quad(E[b]-E[a], mu, T,
@@ -99,15 +100,13 @@ cdef void generate_lamb_shift(Approach appr):
                         else:
                             weight = 0.5*(func_lambshift(E[b]-E[a], mu, T)
                                           + func_lambshift(E[bp]-E[a], mu, T))
-                        weight = weight + func_ule_shift((E[b]-E[a]-mu)/T,
-                                                         (E[bp]-E[a]-mu)/T, False)
+                        weight = weight + func_ule_shift((E[a]-E[b]+mu)/T,
+                                                         (E[a]-E[bp]+mu)/T)
                         fct = fct + Tba[l, b, a]*Tba[l, a, bp]*weight
                     for k in range(ccount):
                         c = statesdm[ccharge, k]
-                        # Hole family: the dot falls out of |c>. The principal
-                        # value is even, so it takes the reversed chemical
-                        # potential; the geometric correction is not even, so
-                        # its arguments run the other way.
+                        # Upper intermediate: absorption from an occupied lead state.
+                        # [NathanRudner2021Erratum, Eq. (6)]: delta_f(y1, y2).
                         if use_quad:
                             weight = 0.5*(
                                 func_lambshift_quad(E[b]-E[c], -mu, T,
@@ -118,7 +117,7 @@ cdef void generate_lamb_shift(Approach appr):
                             weight = 0.5*(func_lambshift(E[b]-E[c], -mu, T)
                                           + func_lambshift(E[bp]-E[c], -mu, T))
                         weight = weight + func_ule_shift((E[c]-E[b]-mu)/T,
-                                                         (E[c]-E[bp]-mu)/T, True)
+                                                         (E[c]-E[bp]-mu)/T)
                         fct = fct + Tba[l, b, c]*Tba[l, c, bp]*weight
                     HLS[l, b, bp] = fct
                     HLS[l, bp, b] = fct.conjugate()

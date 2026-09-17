@@ -19,7 +19,7 @@ states $b$, $b'$, $b''$ carry $N$ electrons, the states
 $a$ carry $N-1$, and the states $c$ carry $N+1$ electrons.
 All expressions are written in the eigenbasis of $H_{QD}$, in which the
 tunneling amplitudes are the rotated matrix elements $T^{l}_{ba}$ (these
-already contain the factor $1/2\pi$, so that
+contain the amplitude factor $1/\sqrt{2\pi}$, so that
 $\sum_{j}|t_{lj}|^{2}=\Gamma_{l}/2\pi$).
 
 ## Lamb shift Hamiltonian
@@ -56,58 +56,107 @@ $\psi$ is the digamma function. The right hand side is the standard wide-band
 expansion, the same approximation that `itype=1` uses for the principal parts of the
 1vN, Redfield and RTD kernels.
 
-## Which shift belongs to this dissipator
+## Derivation with the corrected source indices
 
-The two-argument weight is
-
-$$
-w(x_1,x_2) = \frac{1}{2}\left[\Lambda(x_1)+\Lambda(x_2)\right]
-           + \delta w(x_1,x_2).
-$$
-
-The arithmetic mean alone is the principal-value part of the second-order lead
-self-energy, and it is the shift that accompanies a *Bloch-Redfield* kernel. It is
-not the shift that accompanies the dissipator QmeQ actually uses. The jump
-operators of the Lindblad approach dress each tunneling matrix element with the
-square root of an occupation factor and keep one operator per lead rather than one
-per Bohr frequency
-([Kirsanskas, Franckie & Wacker 2018](https://doi.org/10.1103/PhysRevB.97.035432)),
-the construction later derived as a controlled weak-coupling approximation by
-[Nathan & Rudner 2020](https://doi.org/10.1103/PhysRevB.102.115109). The Hermitian
-shift generated alongside those jump operators carries the same square roots, and
-its weight is
+Use Nathan-Rudner Eq. (D7) together with **corrected D8**, Eq. (6) of the
+[2021 erratum](https://doi.org/10.1103/PhysRevB.104.119901). Both the original
+main-text Eq. (34) and the original D8 contain misprints. Writing the outer
+states as $b,b'$ and the intermediate as $k$, the source says
 
 $$
-w(x_1,x_2) = -\mathcal{P}\!\!\int\!\mathrm{d}v\,
-             \frac{\sqrt{J(x_1-v)J(x_2-v)}}{v},
+p=E_k-E_b,\qquad q=E_{b'}-E_k,\qquad
+F(p,q)=-2\pi\gamma\,\mathcal P\int\frac{d\omega}{\omega}
+                     g(\omega-p)g(\omega+q).
 $$
 
-with $J=f$ on the particle family and $J=1-f$ on the hole family. Subtracting the
-arithmetic mean, which is the same object at coincident arguments, leaves
+These arguments follow directly by inserting the energy eigenoperators into
+D1. Exchanging $b,b'$ sends $(p,q)$ to $(-q,-p)$ and conjugate-transposes
+the spectral matrix product, proving Hermiticity. Reversing both arguments
+also preserves Hermiticity, so that property alone cannot choose the physical
+expression. The corrected indices agree with D3 and perturbation theory.
+
+For one normal lead channel, strip the tunnel amplitudes out of its two
+spectra. At bath energy $\omega$ they are
+$A(\omega)=1-f_\alpha(\omega)$ and $C(\omega)=f_\alpha(-\omega)$,
+where $f_\alpha(\epsilon)=f((\epsilon-\mu_\alpha)/T_\alpha)$ and
+$f(x)=1/(1+e^x)$. The Hermitian bath quadratures diagonalize into these two
+channels. Their square-root products select $A$ for $M_{ba}M^*_{b'a}$ and
+$C$ for $M^*_{cb}M_{cb'}$, not the occupations of the opposite jump.
+
+For the **lower intermediate** $a$, put $\Delta_i=E_{b_i}-E_a$.
+D7 samples $A(\omega+\Delta_i)$. With $v=-\omega/T$ and
+$x_i=(\Delta_i-\mu)/T$, its weight is
 
 $$
-\delta w(x_1,x_2) = \frac{1}{2}\mathcal{P}\!\!\int\!\mathrm{d}v\,
-   \frac{\left[\sqrt{J(x_1-v)}-\sqrt{J(x_2-v)}\right]^{2}}{v},
+w_<(x_1,x_2)=+\mathcal P\int\frac{dv}{v}
+             \sqrt{[1-f(x_1-v)][1-f(x_2-v)]}.
 $$
 
-computed by `func_ule_shift`. Three properties matter in practice. The difference of
-square roots cancels the bandwidth logarithm, so $\delta w$ is cutoff free even
-though neither weight is on its own. It vanishes identically when $x_1=x_2$, so the
-two shifts agree on every diagonal element, where the level shift is ordinary
-second-order perturbation theory and not a matter of choice; they differ only off
-the diagonal, which is where a nonsecular generator has an error bar anyway. And
-$\delta w$ is **not** even in its arguments, so unlike $\Lambda$ the hole family
-may not be obtained by reversing the chemical potential: its arguments are written
-in the direction the hole family runs.
+For the **upper intermediate** $c$, put $\Delta_i=E_c-E_{b_i}$.
+D7 samples $C(\omega-\Delta_i)=f_\alpha(\Delta_i-\omega)$.
+With $v=\omega/T$ and $y_i=(\Delta_i-\mu)/T$, the weight is
 
-$H_{LS}$ is Hermitian and block diagonal in the charge, as it must be because
-the charge of the total system is conserved. For a single spinless level, or for any
-charge sector that is one-dimensional or uniformly shifted (for example a
-spin-degenerate orbital without a magnetic field), the Lamb shift reduces to a
-constant within each charge sector, drops out of the commutator and leaves the
-currents unchanged. It matters whenever coherences between states of the same charge
-matter, which is exactly the regime in which the Lindblad approach differs from the
-Pauli master equation.
+$$
+w_>(y_1,y_2)=-\mathcal P\int\frac{dv}{v}
+             \sqrt{f(y_1-v)f(y_2-v)}.
+$$
+
+These formulas use QmeQ's $t=M/\sqrt{2\pi}$ normalization; in the
+rate-amplitude convention $M$ each weight has an additional $1/(2\pi)$.
+The two weights are dimensionless, and $t t^*$ supplies the energy unit.
+The $T$ in $d\omega$ cancels the denominator; $\mu$ is included in each
+scaled argument, not in the integration variable.
+
+## One cutoff-free correction, two energy orientations
+
+Define $S(x)=\operatorname{Re}\psi(1/2+ix/(2\pi))$ and
+
+$$
+\delta_f(u_1,u_2)=\frac12\mathcal P\int\frac{dv}{v}
+   [\sqrt{f(u_1-v)}-\sqrt{f(u_2-v)}]^2.
+$$
+
+Expanding the square, then changing $v\to-v$ for the lower intermediate,
+gives the minimal wide-band implementation (common bandwidth constant omitted):
+
+$$
+\boxed{w_<(x_1,x_2)=\tfrac12[S(x_1)+S(x_2)]+\delta_f(-x_1,-x_2)},
+$$
+$$
+\boxed{w_>(y_1,y_2)=\tfrac12[S(y_1)+S(y_2)]+\delta_f(y_1,y_2)}.
+$$
+
+Thus `func_ule_shift` has one Fermi branch. Its lower-intermediate arguments
+are $(E_a-E_b+\mu)/T$ and $(E_a-E_{b'}+\mu)/T$; its upper-intermediate
+arguments are $(E_c-E_b-\mu)/T$ and $(E_c-E_{b'}-\mu)/T$.
+**$S$ is even, but $\delta_f$ is not.** If a separate hole correction is
+introduced, it obeys $\delta_h(x_1,x_2)=-\delta_f(-x_1,-x_2)$ and must
+be SUBTRACTED for the lower intermediate. Adding $\delta_f(x)$ below and
+$\delta_h(y)$ above passes every diagonal test but gives the wrong ULE.
+
+The correction vanishes for equal arguments, is symmetric under argument
+exchange, and is quadratic in a small mismatch. These structural checks
+are necessary, not sufficient. Tests evaluate the two direct geometric
+principal-value integrals independently at asymmetric arguments, nonzero
+chemical potential, and with complex tunneling amplitudes.
+
+## Independent sign anchors
+
+Second-order Rayleigh-Schrödinger perturbation theory fixes the diagonal:
+
+$$
+\delta E_b^{<}=\sum_a |t_{ba}|^2\mathcal P\int d\epsilon\,
+ \frac{1-f_\alpha(\epsilon)}{E_b-E_a-\epsilon},\qquad
+\delta E_b^{>}=\sum_c |t_{cb}|^2\mathcal P\int d\epsilon\,
+ \frac{f_\alpha(\epsilon)}{E_b-E_c+\epsilon}.
+$$
+
+Both reduce to $S((\Delta-\mu)/T)-\ln(D/(2\pi T))$ in a symmetric
+wide band. The opposite signs in the geometric integrals above do **not**
+mean opposite bandwidth shifts: the occupied and empty spectra have their
+nonzero tails on opposite sides of the principal-value pole. Both physical
+contributions have the same negative logarithm. Hence the bandwidth term
+is the fermionic anticommutator, not their difference.
 
 ## The bandwidth constant
 
@@ -176,10 +225,11 @@ independent, and `itype` does not select the shift. See
 | `principal_part='quad'` | integrated over the band | unchanged |
 | `principal_part='omit'` | **neglected** | unchanged |
 
-`'quad'` evaluates the same principal values as `'digamma'` over the actual
-band, so it keeps the bandwidth constant the digamma form drops and converges
-to `'digamma'` as `dband` grows. The geometric correction $\delta w$ is cutoff
-free either way.
+`'quad'` evaluates the arithmetic principal values over the actual band,
+while retaining the wide-band geometric correction. It converges to the
+wide-band result, but is not the exact ULE for a finite spectral band: that
+would require band support inside both square roots and the physical
+finite-band particle/removal denominators.
 
 ```python
 system = qmeq.Builder(nsingle, hsingle, coulomb, nleads, tleads,

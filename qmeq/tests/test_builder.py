@@ -219,13 +219,14 @@ _ITYPE_PRINCIPAL_PART = {0: "quad", 1: "digamma", 2: "omit", 3: "omit"}
 def _principal_part(kerntype, itype):
     """The evaluation this row is pinned at, stated rather than defaulted.
 
-    For Lindblad ``itype`` selects only the bandwidth, and the stored rows at
-    ``itype`` 0 and 1 hold a Lamb-shifted result, so that approach is spelled
-    out separately. Leaving any of it to a default is what lets a changed
-    default silently re-point a pinned comparison.
+    The stored Lindblad 0/1 entries characterize the superseded incorrect
+    off-diagonal ULE shift (see the bundle manifest). Keep the historical
+    arrays immutable. This legacy regression exercises the no-shift model;
+    test_lambshift.py independently checks the corrected shift through direct
+    spectral integrals, backend assembly and solution-method controls.
     """
     if kerntype in {'Lindblad', 'pyLindblad'}:
-        return "digamma" if itype in (0, 1) else "omit"
+        return "omit"
     return _ITYPE_PRINCIPAL_PART[itype]
 
 
@@ -254,8 +255,11 @@ def test_Builder_double_dot_spinful():
 
         for i in range(repetitions):
             system.solve()
-            attr = kerntype+str(itype)
-            setattr(calcs, attr, system)
+            # All transitions are inside this model's band; legacy itype=2
+            # is the unchanged no-shift reference for both bandwidth modes.
+            reference_itype = 2 if kerntype in {'Lindblad', 'pyLindblad'} else itype
+            attr = kerntype+str(reference_itype)
+            setattr(calcs, kerntype+str(itype), system)
 
             if PRNTQ:
                 print('kerntype - ', kerntype, 'itype - ', itype, 'repetition - ', i)

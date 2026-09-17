@@ -64,7 +64,7 @@ G. Kiršanskas, M. Franckié, and A. Wacker, “Phenomenological position and en
 resolving Lindblad approach to quantum kinetics,” *Physical Review B* **97**,
 035432 (2018).
 [DOI](https://doi.org/10.1103/PhysRevB.97.035432) ·
-[arXiv](https://arxiv.org/abs/1710.02762)
+[arXiv](https://arxiv.org/abs/1711.03460)
 
 The construction QmeQ's Lindblad approach implements, cited as Ref. [32] of the
 QmeQ paper while still in preparation. Each tunneling matrix element is dressed
@@ -80,13 +80,24 @@ systems,” *Physical Review B* **102**, 115109 (2020).
 [DOI](https://doi.org/10.1103/PhysRevB.102.115109) ·
 [arXiv](https://arxiv.org/abs/2004.01469)
 
-Derives the same square-root construction as a controlled weak-coupling
-approximation with an error bound, and supplies the Hermitian Lamb shift that
-belongs to it. Eq. (2) gives the jump operator; Appendix D, Eqs. (D7)-(D8), give
-the shift. Note that the main text's restatement of the shift, Eq. (34), carries
-the second energy argument as `E_n - E_l` where Eq. (D8) has `E_l - E_n`. Only
-the appendix form is Hermitian, as the paper requires below its Eq. (D1), so
-`func_ule_shift` follows Eq. (D8).
+Derives the square-root jump construction and its Hermitian shift. Use Eq. (D7)
+with the corrected Eq. (D8) from `NathanRudner2021Erratum`, NOT either original
+restatement. For outer states b,b' and intermediate k the arguments are
+`p=E_k-E_b`, `q=E_b'-E_k`. A lower intermediate emits into empty lead states;
+an upper intermediate absorbs occupied lead states. See `theory/lambshift.md`
+and the direct principal-value tests. Hermiticity alone does not distinguish
+an expression with both energy arguments reversed.
+
+### `NathanRudner2021Erratum`
+
+F. Nathan and M. S. Rudner, “Erratum: Universal Lindblad equation for open
+quantum systems [Phys. Rev. B 102, 115109 (2020)],” *Physical Review B* **104**,
+119901 (2021). [DOI](https://doi.org/10.1103/PhysRevB.104.119901).
+
+Equations (1)-(2) correct the main-text indices and sign; Eq. (5) corrects
+Appendix D4; Eq. (6) corrects D8. D7 is unchanged. The corrected D8 agrees
+with D3 and with second-order energy denominators. Merely choosing the
+original appendix over the main text does not resolve the errors.
 
 ## Special functions
 

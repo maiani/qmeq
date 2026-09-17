@@ -108,9 +108,10 @@ def func_lambshift(Ecb, mu, T):
     commutator :math:`[H_{LS},\rho]`. Dropping it also makes the returned value
     independent of the bandwidth.
 
-    The hole (particle removal) contributions are obtained by calling this function
-    with a reversed chemical potential, :math:`\mu\to-\mu`, which is exact here because
-    :math:`\mathrm{Re}\,\psi(1/2+iy)` is an even function of :math:`y`.
+    Only this arithmetic principal value is even in its scaled argument.
+    Reversing BOTH energy and chemical potential leaves it unchanged.
+    This does not apply to the ULE correction: lower and upper intermediate
+    states use different argument orientations in :func:`func_ule_shift`.
 
     Parameters
     ----------
@@ -131,62 +132,60 @@ def func_lambshift(Ecb, mu, T):
 
 
 @lru_cache(maxsize=MAX_CACHE)
-def func_ule_shift(alpha1, alpha2, hole):
-    r"""
-    Geometric correction to the Lamb shift of the Lindblad approach.
+def func_ule_shift(alpha1, alpha2):
+    r"""Cutoff-free Fermi correction to the universal Lindblad Lamb shift.
 
-    QmeQ's Lindblad dissipator dresses each tunneling matrix element with the
-    square root of an occupation factor [KirsanskasFranckieWacker2018], and the
-    Hermitian shift belonging to that dissipator carries the same square roots
-    [NathanRudner2020, Eqs. (D7)-(D8)]:
+    Define :math:`f(x)=1/(1+e^x)` and
 
     .. math::
 
-        w(x_1,x_2) = -\mathcal{P}\!\!\int\!\mathrm{d}v\,
-                     \frac{\sqrt{J(x_1-v)J(x_2-v)}}{v},
+        \delta_f(x_1,x_2)=\frac12\mathcal{P}\int\frac{dv}{v}
+        [\sqrt{f(x_1-v)}-\sqrt{f(x_2-v)}]^2.
 
-    with :math:`J=f` for the particle family and :math:`J=1-f` for the hole
-    family. The second-order self-energy gives the arithmetic mean
-    :math:`[\Lambda(x_1)+\Lambda(x_2)]/2` instead; this function returns the
-    difference, which expanding the square writes cutoff free as
+    This is the geometric weight minus its arithmetic diagonal mean, NOT a
+    particle/hole selector. For outer states b,b' with N electrons:
 
-    .. math::
+    * intermediate a with N-1: use ``delta_f(-x1, -x2)``, where
+      ``xi = (E_bi - E_a - mu)/T``;
+    * intermediate c with N+1: use ``delta_f(y1, y2)``, where
+      ``yi = (E_c - E_bi - mu)/T``.
 
-        \delta w(x_1,x_2) = \frac{1}{2}\mathcal{P}\!\!\int\!\mathrm{d}v\,
-            \frac{\left[\sqrt{J(x_1-v)}-\sqrt{J(x_2-v)}\right]^2}{v}.
+    Both are added to the mean of ``func_lambshift``. The lower intermediate
+    represents emission into an EMPTY lead state: its integral is
+    ``+P int sqrt((1-f(x1-v))*(1-f(x2-v)))/v``. The upper intermediate
+    represents absorption from an OCCUPIED lead state: its integral is
+    ``-P int sqrt(f(y1-v)*f(y2-v))/v``. Changing v to -v maps the former
+    correction to ``delta_f(-x1,-x2)``. In particular, reverse the chemical
+    potential as well as the energy when reversing an argument.
 
-    Two properties are easy to get wrong. It vanishes when the arguments
-    coincide, so the two shifts differ only off the diagonal. And it is *not*
-    even in its arguments, so unlike :func:`func_lambshift` the hole family may
-    **not** be obtained by reversing the chemical potential: pass the transition
-    energies in the direction that family runs.
+    Source: [NathanRudner2020, Eq. (D7)] with the indices of Eq. (D8)
+    corrected by [NathanRudner2021Erratum, Eq. (6)]. For outer b,b' and
+    intermediate k the source arguments are ``p=E_k-E_b, q=E_b'-E_k``.
+    The original D8 is also misprinted; Hermiticity alone cannot fix it.
+    Diagonal tests cannot detect a wrong family: this correction is zero
+    at equal arguments. See the direct-integral tests and theory/lambshift.md.
 
     Parameters
     ----------
     alpha1, alpha2 : float
-        Scaled transition energies :math:`(E-\mu)/T` of the two outer states.
-    hole : bool
-        ``False`` for the particle family, ``True`` for the hole family.
+        Dimensionless arguments, oriented as specified above.
 
     Returns
     -------
     float
-        Correction added to the arithmetic weight, in the same normalization
-        as :func:`func_lambshift`.
+        Dimensionless correction in the normalization of ``func_lambshift``;
+        tunnel amplitudes supply the energy unit (and the 1/(2*pi) factor).
     """
     if alpha1 == alpha2:
         return 0.0
 
-    def occupation(x):
-        # expit(-x) is the Fermi function without the overflow that the bare
-        # exponential hits far out in the quadrature tail.
-        return expit(-x) if not hole else expit(x)
-
     def numerator(v):
-        return 0.5*(np.sqrt(occupation(alpha1-v)) - np.sqrt(occupation(alpha2-v)))**2
+        return 0.5*(np.sqrt(expit(v-alpha1)) - np.sqrt(expit(v-alpha2)))**2
 
     value, _ = quad(lambda v: (numerator(v) - numerator(-v))/v,
-                    1.0e-13, 400.0, limit=400, epsabs=1.0e-13, epsrel=1.0e-11)
+                    1.0e-13, max(400.0, abs(alpha1)+80.0, abs(alpha2)+80.0),
+                    points=sorted({abs(x) for x in (alpha1, alpha2) if abs(x) > 1e-13}),
+                    limit=400, epsabs=1.0e-13, epsrel=1.0e-11)
     return float(value)
 
 
@@ -206,8 +205,11 @@ def func_lambshift_quad(Ecb, mu, T, Dm, Dp, limit):
     evaluated numerically instead, so the bandwidth constant
     :math:`-\ln(D/2\pi T)` that the digamma form drops is kept. This is the
     Cauchy integral :func:`func_1vN` evaluates for the 1vN and Redfield kernels
-    at ``itype=0``; the hole family is obtained by reversing :math:`\mu`, as it
-    is there. It pairs with :func:`func_ule_shift`, which is cutoff free and so
+    at ``itype=0``. The Lindblad ``quad`` option retains these arithmetic
+    band corrections but still uses the wide-band geometric correction; it
+    is not an exact finite-band ULE. For an asymmetric physical band, reversing
+    energy requires reversing the band edges as well as mu. It pairs with
+    :func:`func_ule_shift`, which is cutoff free and so
     needs no band.
 
     Parameters
