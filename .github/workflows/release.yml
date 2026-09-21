@@ -128,13 +128,19 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
 
+    # Trusted publishing: prefix.dev exchanges this job's OIDC token for an
+    # upload credential, so there is no stored API key to expire. pixi performs
+    # that exchange by itself precisely because no credentials are configured
+    # here. The channel's authorized source must name this workflow file.
+    permissions:
+      contents: read
+      id-token: write
+
     steps:
       - uses: prefix-dev/setup-pixi@v0.10.1
         with:
           pixi-version: latest
           run-install: false
-          auth-host: prefix.dev
-          auth-token: ${{ secrets.PREFIX_API_KEY }}
 
       - name: Download the tested Conda packages
         uses: actions/download-artifact@v8
