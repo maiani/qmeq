@@ -99,6 +99,37 @@ Appendix D4; Eq. (6) corrects D8. D7 is unchanged. The corrected D8 agrees
 with D3 and with second-order energy denominators. Merely choosing the
 original appendix over the main text does not resolve the errors.
 
+## Analytic benchmarks
+
+### `StoofNazarov1996`
+
+T. H. Stoof and Yu. V. Nazarov, “Time-dependent resonant tunneling via two
+discrete states,” *Physical Review B* **53**, 1050 (1996).
+[DOI](https://doi.org/10.1103/PhysRevB.53.1050) ·
+[arXiv](https://arxiv.org/abs/cond-mat/9506036)
+
+Equation (8) is the stationary current through a serial double dot at large
+bias, `I = T^2 Gamma_R / (T^2 (2 + Gamma_R/Gamma_L) + Gamma_R^2/4 + eps_0^2)`,
+with `T` the interdot hopping and `eps_0` the detuning between the two levels.
+Used as the analytic oracle of the large-bias check in
+`examples/tutorials/04_coherence_and_approximations.ipynb`, which reproduces it
+to machine precision at asymmetric couplings. This is the spinless form; for
+the spin-resolved one see `GurvitzPrager1996`.
+
+### `GurvitzPrager1996`
+
+S. A. Gurvitz and Ya. S. Prager, “Microscopic derivation of rate equations for
+quantum transport,” *Physical Review B* **53**, 15932 (1996).
+[DOI](https://doi.org/10.1103/PhysRevB.53.15932) ·
+[arXiv](https://arxiv.org/abs/cond-mat/9511026)
+
+The same double-dot rate equations with spin components accounted for. Its
+Eq. (46) carries `Gamma_R/(2 Gamma_L)` where `StoofNazarov1996` Eq. (8) carries
+`Gamma_R/Gamma_L`, a difference that paper attributes to the spin sum. At
+symmetric coupling the two differ as `2.5 Omega^2` against `3 Omega^2` in the
+denominator. Recorded to fix which of the two QmeQ's spinless two-orbital
+tutorial model reproduces; it is the Stoof-Nazarov form.
+
 ## Special functions
 
 ### `Ozaki2007`
