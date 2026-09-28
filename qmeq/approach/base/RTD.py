@@ -118,7 +118,7 @@ def _warn_if_unequal_temperature_cutoff_is_small(qd, leads):
             f"scale ratio is {ratio:.3g}, below the conservative diagnostic "
             f"threshold {_RTD_WIDEBAND_RATIO_WARNING:.0f}. Repeat the "
             "calculation with larger dband values and require convergence of "
-            "every reported observable.",
+            "every reported observable. See the RTD section of docs/docs/guide/approaches.md.",
             RTDBandwidthWarning,
             stacklevel=3,
         )
@@ -197,7 +197,7 @@ def _warn_if_rtd_coherence_is_not_resolved(appr):
                 "RTD found no tunnel broadening for the same-charge states "
                 "used in its population kernel. The stationary kernel may be "
                 "singular; check that tunnel amplitudes connect the intended "
-                "states and leads.",
+                "states and leads. See the RTD section of docs/docs/guide/approaches.md.",
                 RTDNoBroadeningWarning,
                 stacklevel=3,
             )
@@ -212,7 +212,7 @@ def _warn_if_rtd_coherence_is_not_resolved(appr):
             "%.3g; occupation-independent upper bound %.3g). The diagonal "
             "density-matrix approximation is not controlled at this point; "
             "use a coherence-retaining method or verify convergence away "
-            "from the degeneracy." % (
+            "from the degeneracy. See the RTD section of docs/docs/guide/approaches.md." % (
                 closest.minimum_splitting, closest.state_a, closest.state_b,
                 closest.charge, closest.gamma, closest.ratio, closest.threshold,
                 closest.gamma_upper_bound),

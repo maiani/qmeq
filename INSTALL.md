@@ -1,7 +1,33 @@
 Installation of QmeQ
 ====================
 
-QmeQ can be installed through [pip][pip] or by building it from source.
+QmeQ 1.2 is not on PyPI yet. **`pip install qmeq` installs the upstream QmeQ
+1.1 from 2021**, which has none of the features described in this
+documentation and whose results differ in the cases listed at the top of
+[CHANGELOG.md](CHANGELOG.md). Install it in one of these ways instead:
+
+* **Conda or pixi**, from the [prefix.dev][prefix] channel, with compiled,
+  OpenMP-enabled packages for Linux (x86-64, aarch64) and macOS:
+
+  ```bash
+  $ pixi add --channel https://prefix.dev/andmai/science qmeq
+  $ conda install -c https://prefix.dev/andmai/science qmeq
+  ```
+
+* **pip, from a release.** Every [release][releases] carries compiled wheels
+  for Python 3.11-3.14 on Linux, macOS and Windows, and the source
+  distribution. Download the wheel for your platform and `pip install` it, or
+  build a tag from source (this needs a C compiler; see below):
+
+  ```bash
+  $ pip install "qmeq @ git+https://github.com/maiani/qmeq.git@v1.2.0.dev11"
+  ```
+
+  A project that must reproduce its results should pin a tag like this rather
+  than a branch.
+
+* **From source**, as described below.
+
 To be able to use and build QmeQ you need to have:
 
 * [Python][Python] 3.11 or newer,
@@ -34,13 +60,8 @@ and are also rendered in the documentation. Running the notebooks requires
 $ pip install matplotlib jupyter
 ```
 
-To install QmeQ through pip run
-
-```bash
-$ pip install qmeq
-```
-
-or by going into the [downloaded source][qmeqsrc] directory and running
+To install QmeQ from source, go into the [downloaded source][qmeqsrc]
+directory and run
 
 ```bash
 $ pip install .
@@ -52,13 +73,14 @@ To work on QmeQ itself, install it in editable mode instead
 $ pip install -e .
 ```
 
-Optional feature sets are available as extras and can be requested in brackets;
-they combine with any of the commands above (e.g. `pip install -e .[dev]`):
+Optional feature sets are available as extras and can be requested in
+brackets from the source directory (`qmeq[test]` without a path would again
+fetch the upstream 1.1 from PyPI):
 
 ```bash
-$ pip install qmeq[test]         # pytest for running the test suite
-$ pip install qmeq[docs]         # mkdocs + material, for the docs/ site
-$ pip install qmeq[dev]          # tests, docs, cython, build, and twine
+$ pip install ".[test]"          # pytest for running the test suite
+$ pip install ".[docs]"          # mkdocs + material, for the docs/ site
+$ pip install -e ".[dev]"        # tests, docs, cython, build, and twine
 ```
 
 We note that the binaries **pip** and **python** have to be in the system path.
@@ -131,10 +153,10 @@ To run the [tests][qmeqtest] included with QmeQ we use
 
 * [pytest][pytest] testing framework.
 
-To install it, use the `test` extra
+To install it, use the `test` extra from the source directory
 
 ```bash
-$ pip install qmeq[test]
+$ pip install ".[test]"
 ```
 
 From the source directory the tests can be performed by calling
@@ -158,7 +180,7 @@ the [Material][mkdocs-material] theme. Install its dependencies with the
 `docs` extra and build with
 
 ```bash
-$ pip install qmeq[docs]
+$ pip install ".[docs]"
 $ mkdocs build --strict -f 'path to qmeq source'/docs/mkdocs.yml
 ```
 
@@ -181,5 +203,7 @@ Public API details are generated from the source docstrings.
 [cext]: https://github.com/cython/cython/wiki/CythonExtensionsOnWindows
 [examples]: examples
 
-[qmeqsrc]: http://github.com/gedaskir/qmeq/archive/master.zip
-[qmeqtest]: http://github.com/gedaskir/qmeq/tree/master/qmeq/tests
+[prefix]: https://prefix.dev
+[releases]: https://github.com/maiani/qmeq/releases
+[qmeqsrc]: https://github.com/maiani/qmeq/archive/refs/heads/master.zip
+[qmeqtest]: https://github.com/maiani/qmeq/tree/master/qmeq/tests

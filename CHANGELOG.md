@@ -252,10 +252,14 @@ number because 1.1 was wrong there. The cases, each detailed below:
   timeout, and `example1b` covers the same 2vN path.
 - **Documentation** is MkDocs, built with `--strict` so any warning fails the
   build; the docstring rules this required are recorded in the conventions
-  pages. `INSTALL.md` uses `pip install .` instead of the deprecated
-  `python setup.py install` and documents `pytest --pyargs qmeq.tests` for an
-  installed build, and `README.md` and `INSTALL.md` link to the vendored
-  `examples/`.
+  pages. Each approach's validity domain and known failure modes are collected
+  in `docs/docs/guide/approaches.md`, which the RTD warnings point to.
+  `INSTALL.md` names the ways to install this version -- the prefix.dev
+  channel, the wheels and sdist on each GitHub release, or a source build --
+  and warns that `pip install qmeq` still gives the upstream 1.1. It uses
+  `pip install .` instead of the deprecated `python setup.py install`,
+  documents `pytest --pyargs qmeq.tests` for an installed build, and with
+  `README.md` links to the vendored `examples/`.
 - **Internal clean-ups with no numerical effect**, the historical reference
   corpora reproducing unchanged on both backends: the "no index" sentinel is
   named `NO_INDEX` at 61 sites; the packed-real offset is one precomputed

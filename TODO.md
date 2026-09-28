@@ -85,14 +85,14 @@ Ground rules for anything below:
 
 ## P1: distribution and support contract
 
-- [ ] Cover both the pip and the Conda installation paths.
-  - Conda already ships: `release.yml` builds, tests, and uploads the recipe to
-    the `andmai/science` prefix.dev channel on a tag. PyPI does not, yet
-    `INSTALL.md` tells users `pip install qmeq` and links its source download
-    at `gedaskir/qmeq`, both of which resolve to the upstream project rather
-    than this fork. Publish under a name you own (Trusted
-    Publishing, no token), then have `INSTALL.md` name both paths instead of
-    mentioning Conda only as the OpenMP-enabled alternative for macOS.
+- [ ] Publish to PyPI under a name you own.
+  - `INSTALL.md` now names the working routes -- the `andmai/science`
+    prefix.dev channel, which `release.yml` fills on a tag, and the wheels and
+    sdist on each GitHub release -- and warns that `pip install qmeq` gives
+    the upstream 1.1. A plain `pip install` of this fork still needs a PyPI
+    project (Trusted Publishing, no token).
+  - The Conda channel stops at 1.2.0.dev9: the dev10 upload predates the OIDC
+    publishing change. Confirm the next tag reaches it.
 
 ## P2: documentation
 - [ ] Publish the built documentation.
@@ -116,10 +116,7 @@ Ground rules for anything below:
     RTD bandwidth/coherence/no-broadening warnings in
     `qmeq/approach/base/RTD.py`, with every claim marked Verified, Stated, or
     Open per the site's evidence discipline.
-  - Still open: the RTD warning *messages* in `RTD.py` do not yet point
-    readers at the page (a code change, out of scope for a documentation
-    pass) — and this line item's own completion still needs a `CHANGELOG.md`
-    entry, which is left for the next edit to that file.
+  - The RTD warnings now point readers at the page.
 
 ## Release gate
 
