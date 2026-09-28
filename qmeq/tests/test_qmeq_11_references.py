@@ -40,6 +40,13 @@ BASE_CASES = (
     ("RTD", 1),
 )
 
+# QmeQ 1.1's 2vN iteration conjugated Phi[1] without transposing its Phi[0]
+# index, which is exact only while every same-charge coherence is real. This
+# model's biased stationary coherence is complex, so every iteration after the
+# first differs from 1.1 (the current by -2.5%) and the stored 2vN stationary
+# values record the error; see test_2vN_population_columns_match_qmeq_11.
+STRICT_BASE_CASES = tuple(case for case in BASE_CASES if case[0] != "2vN")
+
 ELPH_CASES = ("Pauli", "Lindblad", "Redfield", "1vN")
 SNAPSHOT_FIELDS = ("current", "energy_current", "heat_current", "phi0", "kern")
 STATIONARY_FIELDS = ("current", "energy_current", "heat_current", "phi0")
@@ -201,7 +208,7 @@ def test_qmeq_11_reference_provenance_and_coverage():
             assert metadata["dtype"] == str(array.dtype)
 
 
-@pytest.mark.parametrize(("approach", "itype"), BASE_CASES)
+@pytest.mark.parametrize(("approach", "itype"), STRICT_BASE_CASES)
 def test_electronic_approaches_match_qmeq_11(approach, itype):
     key = f"base/{approach}/itype={itype}"
     system = build_reference_system(
@@ -211,6 +218,31 @@ def test_electronic_approaches_match_qmeq_11(approach, itype):
     _assert_snapshot_matches(
         REFERENCES[key], _current_snapshot(system), rtol=rtol, atol=atol,
         fields=STATIONARY_FIELDS,
+    )
+
+
+@pytest.mark.parametrize("use_selected_backend", [True, False],
+                         ids=["selected-backend", "pure-python"])
+def test_2vN_population_columns_match_qmeq_11(use_selected_backend):
+    """The part of the 2vN kernel the 1.1 conjugation error cannot reach.
+
+    The error sits in the conjugated Phi[1] terms and acts only through the
+    transposed Phi[0] coherence index, so kernel columns belonging to
+    populations must still reproduce QmeQ 1.1 to its original tolerance; only
+    the coherence columns, and through them the stationary state, change.
+    Rephasing covariance of the corrected iteration is gated separately in
+    test_aprclass.py.
+    """
+    reference = REFERENCES["base/2vN/itype=2"]
+    system = build_reference_system(
+        "base", "2vN", 2, use_selected_backend=use_selected_backend
+    )
+    npauli = system.si.npauli
+    np.testing.assert_allclose(
+        np.asarray(system.appr.kern)[:, :npauli],
+        np.asarray(reference["kern"])[:, :npauli],
+        rtol=2e-9, atol=2e-11,
+        err_msg="QmeQ 1.1 regression in the 2vN population columns",
     )
 
 
@@ -226,7 +258,7 @@ def test_electron_phonon_approaches_match_qmeq_11(approach):
     )
 
 
-@pytest.mark.parametrize(("approach", "itype"), BASE_CASES)
+@pytest.mark.parametrize(("approach", "itype"), STRICT_BASE_CASES)
 def test_pure_python_electronic_kernels_match_qmeq_11(approach, itype):
     key = f"base/{approach}/itype={itype}"
     system = build_reference_system("base", approach, itype)

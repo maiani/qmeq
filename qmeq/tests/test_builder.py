@@ -435,8 +435,13 @@ def test_Builder_double_dot_spinful():
 
 
 def test_Builder_double_dot_spinless_2vN():
-    data_current = {'2vN': [0.18472226147540757, -0.1847222614754047]}
-    data_energy_current = {'2vN': [0.2828749942707809, -0.28333373130210493]}
+    # Characterization values after the 2vN conjugation fix. The biased
+    # stationary coherence of this real-parameter model is complex, so the
+    # earlier values (current 0.18472226147540757, energy current
+    # 0.2828749942707809/-0.28333373130210493) carried the error; the earlier
+    # code reproduces these values in the gauge where that coherence is real.
+    data_current = {'2vN': [0.18468305902951057, -0.18468305902950988]}
+    data_energy_current = {'2vN': [0.27515299024212325, -0.2810460512471309]}
     #
     kerns = ['2vN']
     kerns += ['py2vN'] if CHECK_PY else []

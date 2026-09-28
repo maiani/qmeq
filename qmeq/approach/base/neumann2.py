@@ -8,7 +8,7 @@ import warnings
 from ..._warnings import QmeqWarning
 from ...wrappers.mytypes import complexnp
 from ...wrappers.mytypes import doublenp
-from ...wrappers.mytypes import intnp
+from ...wrappers.mytypes import longnp
 
 from ...specfunc.specfunc import kernel_fredriksen
 from ...specfunc.specfunc import hilbert_fredriksen
@@ -34,6 +34,40 @@ def _hilbert_fredriksen_batched(values, kernel):
         )[:energy_points]
 
     return transformed.reshape(values.shape)
+
+
+def get_dm0_transpose_index(si):
+    """
+    Map each `Phi[0]` index to the index of the transposed element.
+
+    The 2vN arrays store `Phi[1](k)` as a linear map on `Phi[0]`,
+    ``Phi[1]_{cb}(k) = sum_{bb'} L_{cb,bb'}(k) Phi[0]_{bb'}``. The integral
+    equation also contains complex-conjugated `Phi[1]` elements. Because
+    `Phi[0]` is Hermitian, ``conj(Phi[0]_{b'b}) = Phi[0]_{bb'}``, so
+    ``conj(Phi[1]_{cb}(k)) = sum_{bb'} conj(L_{cb,b'b}(k)) Phi[0]_{bb'}``. The
+    conjugated map is therefore ``conj(L)`` with its `Phi[0]` column transposed,
+    ``bb' -> b'b``. Without the transpose the conjugation is exact only when
+    every same-charge coherence is real; otherwise the result is wrong and
+    depends on the phases of the many-body eigenvectors.
+
+    Parameters
+    ----------
+    si : StateIndexingDMc
+        State indexing object of the 2vN approach.
+
+    Returns
+    -------
+    ndarray
+        Integer array of length ``si.ndm0``. Entry ``bb'`` holds the index of
+        ``b'b``; populations map to themselves.
+    """
+    transpose = np.arange(si.ndm0, dtype=longnp)
+    for charge in range(si.ncharge):
+        for b, bp in itertools.product(si.statesdm[charge], si.statesdm[charge]):
+            bbp = si.get_ind_dm0(b, bp, charge)
+            if bbp >= 0:
+                transpose[bbp] = si.get_ind_dm0(bp, b, charge)
+    return transpose
 
 
 def get_htransf_phi1k(phi1k, funcp):
@@ -311,17 +345,10 @@ class Approach2vN(ApproachBase2vN):
             (Modifies) Right hand side column vector for master equation.
         """
         phi1_phi0, E, Tba, si = self.phi1_phi0, self.qd.Ea, self.leads.Tba, self.si
-        ncharge, nleads, ndm0, statesdm = si.ncharge, si.nleads, si.ndm0, si.statesdm
+        ncharge, nleads, statesdm = si.ncharge, si.nleads, si.statesdm
 
-        # Integrated Phi[1]_{bc} in terms of phi1_phi0
-        shuffle = np.zeros((ndm0, ndm0), dtype=intnp)
-        for charge in range(ncharge):
-            for b, bp in itertools.combinations_with_replacement(statesdm[charge], 2):
-                bbp = si.get_ind_dm0(b, bp, charge)
-                bpb = si.get_ind_dm0(bp, b, charge)
-                shuffle[bbp, bpb] = 1
-                shuffle[bpb, bbp] = 1
-        phi1_phi0_conj = np.dot(np.conjugate(phi1_phi0), shuffle)
+        # Integrated Phi[1]_{bc} = conj(Phi[1]_{cb}) in terms of Phi[0]
+        phi1_phi0_conj = np.conjugate(phi1_phi0)[:, :, get_dm0_transpose_index(si)]
 
         kern = self.kern
         for charge in range(ncharge):
@@ -416,6 +443,8 @@ class TermsCalculator2vN(object):
 
         self.phi1k_delta = self.appr.phi1k_delta
         self.kern1k_inv = self.appr.kern1k_inv
+
+        self.dm0_transpose = get_dm0_transpose_index(self.si)
 
 
     def iterate(self):
@@ -696,6 +725,9 @@ class TermsCalculator2vN(object):
             Index corresponding to `Phi[1](k)` matrix element.
         conj : bool
             If conj=True the term in the integral equation is conjugated.
+            The returned maps then act on `Phi[0]` as the conjugated
+            `Phi[1]` element, so their `Phi[0]` index is transposed as well;
+            see :func:`get_dm0_transpose_index`.
 
         Returns
         -------
@@ -719,10 +751,10 @@ class TermsCalculator2vN(object):
         fb = phi1k[b_idx, l, cb]
         fa = phi1k[a_idx, l, cb]
         u = (fb-fa)/(b-a)*Ek + (b*fa-a*fb)/(b-a)
-        u = u.conjugate() if conj else u
+        u = u.conjugate()[self.dm0_transpose] if conj else u
         #
         fb = hphi1k[b_idx, l, cb]
         fa = hphi1k[a_idx, l, cb]
         hu = (fb-fa)/(b-a)*Ek + (b*fa-a*fb)/(b-a)
-        hu = hu.conjugate() if conj else hu
+        hu = hu.conjugate()[self.dm0_transpose] if conj else hu
         return pi*hu, pi*u

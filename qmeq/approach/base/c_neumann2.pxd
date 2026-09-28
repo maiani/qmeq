@@ -33,6 +33,7 @@ cdef class TermsCalculator2vN:
     cdef complex_t [:, :, :, :] phi1k_delta_old
     cdef complex_t [:, :, :, :] kern1k_inv
     cdef complex_t [:, :, : ,:] hphi1k_delta
+    cdef long_t [:] dm0_transpose
 
 
     cdef void retrieve_approach_variables(self)

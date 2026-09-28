@@ -16,6 +16,7 @@ import itertools
 
 from .neumann2 import get_htransf_phi1k
 from .neumann2 import get_htransf_fk
+from .neumann2 import get_dm0_transpose_index
 from .neumann2 import Approach2vN as Approach2vNPy
 
 from ..aprclass import ApproachBase2vN
@@ -115,6 +116,8 @@ cdef class TermsCalculator2vN:
 
         self.phi1k_delta = self.appr.phi1k_delta
         self.kern1k_inv = self.appr.kern1k_inv
+
+        self.dm0_transpose = get_dm0_transpose_index(self.appr.si)
 
     cdef void phi1k_local(self, long_t k, long_t l, KernelHandler kh):
 
@@ -391,13 +394,14 @@ cdef class TermsCalculator2vN:
                         int_t eta,
                         complex_t [:] term):
 
-        cdef long_t b_idx, a_idx, bbp
+        cdef long_t b_idx, a_idx, bbp, src
         cdef double_t a, b
         cdef complex_t fa, fb, u, hu
 
         cdef long_t ndm0 = term.shape[0]
         cdef complex_t [:, :, :, :] phi1k = self.phi1k_delta_old
         cdef complex_t [:, :, : ,:] hphi1k = self.hphi1k_delta
+        cdef long_t [:] dm0_transpose = self.dm0_transpose
 
         cdef double_t [:] Ek_grid = self.Ek_grid_ext
         cdef long_t Eklen = Ek_grid.shape[0]
@@ -414,19 +418,17 @@ cdef class TermsCalculator2vN:
         b, a = Ek_grid[b_idx], Ek_grid[a_idx]
 
         for bbp in range(ndm0):
-            # fa = phi1k[a_idx, l, cb, bbp].conjugate() if conj else phi1k[a_idx, l, cb, bbp]
-            # fb = phi1k[b_idx, l, cb, bbp].conjugate() if conj else phi1k[b_idx, l, cb, bbp]
-            # u = Ek/(b-a)*(fb-fa) + 1/(b-a)*(b*fa-a*fb)
-            fa = phi1k[a_idx, l, cb, bbp]
-            fb = phi1k[b_idx, l, cb, bbp]
+            # A conjugated Phi[1] element acts on Phi[0] through the transposed
+            # column b'b; see neumann2.get_dm0_transpose_index.
+            src = dm0_transpose[bbp] if conj else bbp
+
+            fa = phi1k[a_idx, l, cb, src]
+            fb = phi1k[b_idx, l, cb, src]
             u = Ek/(b-a)*(fb-fa) + 1/(b-a)*(b*fa-a*fb)
             u = u.conjugate() if conj else u
 
-            # fa = hphi1k[a_idx, l, cb, bbp].conjugate() if conj else hphi1k[a_idx, l, cb, bbp]
-            # fb = hphi1k[b_idx, l, cb, bbp].conjugate() if conj else hphi1k[b_idx, l, cb, bbp]
-            # hu = Ek/(b-a)*(fb-fa) + 1/(b-a)*(b*fa-a*fb)
-            fa = hphi1k[a_idx, l, cb, bbp]
-            fb = hphi1k[b_idx, l, cb, bbp]
+            fa = hphi1k[a_idx, l, cb, src]
+            fb = hphi1k[b_idx, l, cb, src]
             hu = Ek/(b-a)*(fb-fa) + 1/(b-a)*(b*fa-a*fb)
             hu = hu.conjugate() if conj else hu
 

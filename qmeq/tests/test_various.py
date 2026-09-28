@@ -114,14 +114,17 @@ def test_get_phi0_and_get_phi1():
     system = qmeq.Builder(p.nsingle, p.hsingle, p.coulomb, p.nleads, p.tleads, p.mulst, p.tlst, p.dlst,
                           kerntype='2vN', kpnt=p.kpnt)
     system.solve(niter=5)
-    assert norm(abs(system.get_phi0(1, 2)) - 0.0028388555051) < EPS
+    # Values after the 2vN conjugation fix (previously 0.0028388555051 and
+    # 2.4806366680863543, which carried the error for this model's complex
+    # stationary coherence; see test_Builder_double_dot_spinless_2vN).
+    assert norm(abs(system.get_phi0(1, 2)) - 0.002838192513168362) < EPS
     assert norm(system.get_phi0(1, 2).conjugate() - system.get_phi0(2, 1)) < EPS
-    assert norm(abs(get_phi0(system, 1, 2)) - 0.0028388555051) < EPS
+    assert norm(abs(get_phi0(system, 1, 2)) - 0.002838192513168362) < EPS
     assert norm(get_phi0(system, 1, 2).conjugate() - get_phi0(system, 2, 1)) < EPS
     #
-    assert norm( abs(system.get_phi1(0, 1, 0)) - 2.4806366680863543) < EPS
+    assert norm( abs(system.get_phi1(0, 1, 0)) - 2.4805706286452267) < EPS
     assert norm(system.get_phi1(0, 1, 0).conjugate() - system.get_phi1(0, 0, 1)) < EPS
-    assert norm( abs(get_phi1(system, 0, 1, 0)) - 2.4806366680863543) < EPS
+    assert norm( abs(get_phi1(system, 0, 1, 0)) - 2.4805706286452267) < EPS
     assert norm(get_phi1(system, 0, 1, 0).conjugate() - get_phi1(system, 0, 0, 1)) < EPS
 
 

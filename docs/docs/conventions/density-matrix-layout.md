@@ -37,6 +37,22 @@ independent complex unknowns and complex linearity survives. That is exactly
 what the 2vN approaches do, with `StateIndexingDMc` and `dtype = complexnp`.
 The choice is per-approach and deliberate.
 
+Hermiticity still enters 2vN in one place. The 2vN equations contain
+complex-conjugated first-order elements, and the code stores
+$\Phi^{[1]}(k)$ as a linear map $L(k)$ on $\Phi^{[0]}$. The conjugate of an
+element is not the conjugated map applied to $\Phi^{[0]}$:
+$\Phi^{[1]*}_{cb} = \sum_{bb'} L^*_{cb,bb'}\,\Phi^{[0]*}_{bb'}$, and only
+$\Phi^{[0]*}_{bb'} = \Phi^{[0]}_{b'b}$ makes it linear again, with the
+$\Phi^{[0]}$ column transposed:
+$\Phi^{[1]*}_{cb} = \sum_{bb'} L^*_{cb,b'b}\,\Phi^{[0]}_{bb'}$.
+`neumann2.get_dm0_transpose_index` supplies that transpose to both the
+integral-equation iteration and the assembly of the $\Phi^{[0]}$ kernel.
+Dropping it leaves population columns alone and is invisible while every
+same-charge coherence is real in the working eigenbasis. Otherwise it changes
+the result and makes it depend on the phases of the eigenvectors, even for a
+model with real parameters, because a stationary state under bias generally
+has complex coherences.
+
 ### It is smaller
 
 Degrees of freedom for a system of `nsingle` orbitals, measured:

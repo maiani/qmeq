@@ -80,6 +80,16 @@ Ground rules for anything below:
     followable in the way the RTD `dband` sweep above would make bandwidth
     followable.
 
+- [ ] Explain the 2vN equilibrium current at finite interaction.
+  - With the conjugation fix 2vN is gauge covariant, but at `mu_L = mu_R`
+    and equal temperatures it still carries a small nonzero current: about
+    2% of the biased current at `U = 2` on a spinless double dot, ~5e-8 at
+    `U = 0`, independent of `dband` and `kpnt`. Halving the tunnelling
+    amplitude cuts the ratio from 1.4e-2 to 7.5e-4, 2e-5 and 1.7e-6, so it is
+    high order in the coupling, which fits a limitation of the 2vN truncation
+    but is not shown to be one. Establish which, and document it in the
+    approaches guide if it is.
+
 ## P1: distribution and support contract
 
 - [ ] Cover both the pip and the Conda installation paths.

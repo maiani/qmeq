@@ -14,7 +14,9 @@ number because 1.1 was wrong there. The cases, each detailed below:
 - **Different numbers, because 1.1 was wrong.** Compiled electron-phonon
   Lindblad (trace-violating coherence columns); any compiled calculation after
   assigning `system.mulst`, `tlst` or `dlst` (the first values were kept);
-  `BuilderManyBody` with compiled RTD; RTD with complex tunnel amplitudes
+  `BuilderManyBody` with compiled RTD; 2vN whenever a same-charge coherence
+  is complex, which includes real-parameter models under bias (2.5% in the
+  current of the 1.1 reference double dot); RTD with complex tunnel amplitudes
   (3e-3 relative at `dband=20`, 4e-5 at `dband=200`); RTD with lead-dependent
   bandwidths at unequal temperatures or with complex amplitudes (about 3e-4);
   electron-phonon rates through the Bose function (about 1e-10).
@@ -294,6 +296,18 @@ Present in QmeQ 1.1:
   followed the assignment; in a single-level bias step the compiled current
   stayed at 0.0047 against 0.0168. Assignment now writes in place. `change()`
   and `add()` were never affected.
+- **2vN conjugated `Phi[1]` terms.** `Phi[1](k)` is stored as a linear map
+  on `Phi[0]`, and the iteration conjugated that map without transposing its
+  `Phi[0]` index, using `Phi[0]_{bb'}` where `conj(Phi[0]_{bb'}) =
+  Phi[0]_{b'b}` belongs. Every iteration after the first was therefore wrong
+  whenever a same-charge coherence was complex in the eigenbasis, and the
+  result depended on the arbitrary phases of the many-body eigenvectors (0.2%
+  in the current and 7% in the energy current under a rephasing of one test
+  model, not shrinking with `kpnt`). `generate_kern` already applied the
+  transpose; the iteration now shares it on both backends. Populations-only
+  models and `niter=1` are unchanged, and the kernel's population columns
+  still reproduce QmeQ 1.1, whose 2vN stationary values record the error; a
+  rephasing-covariance test gates the fix.
 - **`BuilderManyBody` with compiled RTD** applied its many-body state indexing
   after the approach was built, so a per-thread kernel buffer was sized from a
   placeholder state count: wrong currents and, for larger systems,
