@@ -25,6 +25,59 @@ kernel, and the fourth-order direct and exchange diagrams; see especially
 Eqs. (19), (49), (53), (56)-(59), and (61)-(65). Equation (49) fixes the free
 molecular resolvent used when eliminating non-diagonal density-matrix elements.
 
+### `SaptsovWegewijs2012`
+
+R. B. Saptsov and M. R. Wegewijs, “Fermionic Superoperators for Zero-Temperature
+Nonlinear Transport: Real-Time Perturbation Theory and Renormalization Group for
+Anderson Quantum Dots,” *Physical Review B* **86**, 235432 (2012).
+[DOI](https://doi.org/10.1103/PhysRevB.86.235432) ·
+[arXiv](https://arxiv.org/abs/1207.3207)
+
+Section II.E gives the local-conservation-law construction used to express a
+stationary current through a lead-resolved effective kernel. This is the
+general starting point for the RTD charge- and energy-current construction; it
+does not by itself contain QmeQ's complete second-order energy-current formula.
+
+### `GergsEtAl2015`
+
+N. M. Gergs, C. B. M. Hörig, M. R. Wegewijs, and D. Schuricht, “Charge
+Fluctuations in Nonlinear Heat Transport,” *Physical Review B* **91**,
+201107(R) (2015).
+[DOI](https://doi.org/10.1103/PhysRevB.91.201107)
+
+Used for the finite-bandwidth contour treatment of fourth-order RTD energy
+integrals and for the nonlinear heat-transport setting. In particular, its
+Supplemental Material, Sec. I.B.3, performs the second-order energy integrations
+analytically for equal reservoir temperatures and explains that this equality
+is not a principal restriction of the method.
+
+### `Gergs2017`
+
+N. M. Gergs, *Transport and Topological States in Strongly Correlated
+Nanostructures*, PhD thesis, Utrecht University (2017).
+[University repository](https://hdl.handle.net/1874/354038)
+
+The QmeQ RTD energy-current derivation follows this thesis for the additional
+barrier/interlead contribution. That contribution starts at fourth order in
+the tunneling amplitudes, or second order in the tunnel broadening, and is
+needed because the tunneling Hamiltonian does not conserve lead plus dot energy
+separately.
+
+### `JosefssonRTDDocs`
+
+M. Josefsson, *Documentation of the Theoretical Description Used to Implement
+the Real Time Diagrammatic Approach in QmeQ*, technical derivation and source
+document.
+[Repository](https://github.com/M-Josefsson/RTD-docs)
+
+This is the direct derivation of QmeQ's RTD observable kernels. Its energy-current
+section rewrites the stationary lead current using local energy conservation as
+a dot-energy contraction with the lead-resolved kernel plus the two barrier
+kernels called `WE1` and `WE2` in QmeQ. The separate wide-band principal-value
+terms may contain the same cutoff logarithm, but it cancels between the complete
+barrier contributions. Cite this source for the QmeQ-specific decomposition and
+`SaptsovWegewijs2012` and `Gergs2017` for its published and thesis lineage.
+
 ### `Emary2009`
 
 C. Emary, “Counting Statistics of Cotunneling Electrons,” *Physical Review B*
@@ -47,16 +100,11 @@ hard cutoff, one integral closed analytically by the residue theorem, and the
 remaining tanh-pole sum carried out numerically rather than by an Ozaki
 approximation. Temperatures are per reservoir throughout, and the O(Gamma)
 effective Liouvillian there carries the explicit `ln(D / 2 pi T)` term that the
-wide-band forms drop. It builds on the O(Gamma^2) expressions in the
-Supplemental Material of N. M. Gergs, C. B. M. Horig, M. R. Wegewijs, and
-D. Schuricht, *Physical Review B* **91**, 201107(R) (2015), whose own
-Supplemental Material, Sec. I B 3, states that its second-order energy
-integrations are done analytically *for* `T_L = T_R = T` while noting that this
-"presents no principal limitation of our method". Neither paper is itself a
-closed-form unequal-temperature derivation: the 2015 main text fixes
-`T_L = T_R` and the 2018 setting is a spin valve with polarized reservoirs.
-What both supply is the finite-cutoff contour route that does not require
-equal temperatures.
+wide-band forms drop. It builds on the O(Gamma^2) expressions in
+`GergsEtAl2015`. Neither paper is itself a closed-form unequal-temperature
+derivation: the 2015 main text fixes `T_L = T_R` and the 2018 setting is a spin
+valve with polarized reservoirs. What both supply is the finite-cutoff contour
+route that does not fundamentally require equal temperatures.
 
 ### `KirsanskasFranckieWacker2018`
 
