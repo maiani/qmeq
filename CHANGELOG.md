@@ -2,850 +2,397 @@
 
 ## [Unreleased]
 
+Upgrading from QmeQ 1.1: a script that uses only the 1.1 interface gives the
+1.1 result, raises an error that says what to change, or gives a different
+number because 1.1 was wrong there. The cases, each detailed below:
+
+- **Now raises.** A Lindblad system without `principal_part` (`'omit'` with
+  `itype=0` gives the 1.1 result); an unknown `kerntype`, `indexing`,
+  `symmetry`, `itype` or `itype_ph`; `mfreeq=True` with RTD; a lead temperature
+  that is zero, negative, or missing from a partial `tlst`; `get_ind_dm0` with
+  an unsupported `maptype`. Python 3.11 or newer is required.
+- **Different numbers, because 1.1 was wrong.** Compiled electron-phonon
+  Lindblad (trace-violating coherence columns); any compiled calculation after
+  assigning `system.mulst`, `tlst` or `dlst` (the first values were kept);
+  `BuilderManyBody` with compiled RTD; RTD with complex tunnel amplitudes
+  (3e-3 relative at `dband=20`, 4e-5 at `dband=200`); RTD with lead-dependent
+  bandwidths at unequal temperatures or with complex amplitudes (about 3e-4);
+  electron-phonon rates through the Bose function (about 1e-10).
+- **Different output.** What used to be printed is now a `QmeqWarning` or
+  `QmeqRuntimeWarning`, and new diagnostics warn about unphysical stationary
+  states and about RTD outside its regime; filter `qmeq.QmeqWarning` to
+  silence them all. The RTD array `Lnn` is now `Lnn_inv`.
+
 ### Added
 
-- `principal_part='quad'` for the Lindblad approach, through
-  `func_lambshift_quad`. It integrates the same principal values over the lead
-  band that `'digamma'` evaluates in the wide-band form, so it keeps the
-  bandwidth constant the digamma form drops and converges to `'digamma'` as
-  `dband` grows; a test asserts that `1/D` rate rather than a tolerance. The
-  geometric correction `func_ule_shift` is cutoff free and is unchanged by the
-  choice.
+- **Lamb shift in the Lindblad approach.** The renormalisation of the
+  many-body energies by the leads is built as a lead-resolved Hamiltonian
+  `HLS` (a new approach attribute, shaped like `Tba`) and enters through the
+  commutator `-1j*[HLS, phi0]`, beyond the secular approximation. Its weight
+  is the one generated alongside QmeQ's own jump operators: QmeQ's Lindblad
+  approach is not the secular (Davies) generator but, following
+  `KirsanskasFranckieWacker2018`, dresses each tunnelling matrix element with
+  the square root of an occupation factor and keeps one jump operator per
+  lead, the construction `NathanRudner2020` derived as a controlled
+  weak-coupling approximation. The weight is therefore the arithmetic mean of
+  the principal values plus the cutoff-free correction `func_ule_shift`
+  [NathanRudner2020, Eq. (D7)], with the indices of Eq. (D8) as corrected by
+  [NathanRudner2021Erratum, Eq. (6)]: a lower intermediate state emits into an
+  empty lead state and adds `delta_f(-x1, -x2)`, an upper one absorbs an
+  occupied lead electron and adds `delta_f(y1, y2)`. It agrees with the
+  Bloch-Redfield shift on every diagonal element, so one-dimensional and
+  uniformly shifted charge sectors (the analytic single-level and
+  spin-degenerate cases) are unaffected, and differs off the diagonal.
+  `principal_part` selects it and has no default for Lindblad: `'digamma'`
+  evaluates the principal values in the wide-band digamma form
+  (`func_lambshift`, with a compiled twin), `'quad'` integrates them over the
+  lead band (`func_lambshift_quad`) and converges to `'digamma'` at the `1/D`
+  rate a test asserts, and `'omit'` reproduces QmeQ 1.1 and Appendix F of the
+  QmeQ paper. See `generate_lamb_shift` and `docs/docs/theory/lambshift.md`.
+- **Descriptive transport options** `bandwidth` (`'finite'`/`'infinite'`) and
+  `principal_part` (`'quad'`/`'digamma'`/`'omit'`), replacing the two meanings
+  combined in `itype`. `itype` stays a supported shorthand with no deprecation
+  planned; for Lindblad it selects only the bandwidth. Conflicting combinations
+  raise `ValueError`.
+- **Zero-frequency particle-current counting statistics**, originally
+  implemented by Simon Wozny in his
+  [QmeQ fork](https://github.com/si8881wo/qmeq) following
+  [Emary, Phys. Rev. B 80, 235306 (2009)](https://arxiv.org/abs/0902.3544).
+  `countingleads` selects the counted leads; `current_noise` gives the first
+  two cumulants for Pauli, Lindblad, Redfield and 1vN on both backends, and
+  `current_noise_matrix` the lead-resolved covariance, ordered as
+  `countingleads`, whose entries sum to `current_noise`. The `RTDnoise`
+  approach (Python traversal, with compiled scalar integrals when the Cython
+  backend is active; `pyRTDnoise` is all Python) gives the full fourth-order
+  result, its sequential companion (`current_noise_first`,
+  `current_noise_matrix_first`) and a consistently fourth-order-truncated
+  result, and supports RTD's eliminated-coherence correction when
+  `off_diag_corrections=True`. Its Laplace derivatives are analytic for
+  first-order coherence blocks and the bare propagator and a scale-aware
+  centred difference, checked against a five-point stencil, for the explicit
+  second-order integrals; its equal-temperature integrals share stationary
+  RTD's analytic wide-band real part, so `W(chi=0, z=0) == W`. What is
+  validated against exact non-interacting transport, for currents and for the
+  noise, is listed in `docs/docs/theory/counting-statistics.md`; see also
+  tutorial 7.
+- **RTD truncation order**, `approach.rtd_order`, on `RTD`, `pyRTD`,
+  `RTDnoise` and `pyRTDnoise`, defaulting to the previous behaviour, 2. Order 1
+  keeps only the two-vertex block and reproduces the golden-rule kernel
+  exactly (on a single level `phi0` and all currents equal Pauli at `itype=1`
+  to `0.0` on both backends), and accepts a thermal bias, since only the
+  four-vertex integrals need equal lead temperatures. `off_diag_corrections`
+  stays an independent switch, so enabling it at order 1 is a diagnostic
+  control rather than a consistent truncation. Unimplemented or non-integer
+  orders raise, and changing the order restarts the approach.
+- **Diagnostics instead of silent results.**
+  - Every stationary solution is checked for negative populations, a trace
+    away from one, and NaN/inf entries. An unphysical result warns once per
+    approach (`QmeqRuntimeWarning`) and is recorded as
+    `approach.stationary_diagnostics`, with a `physical` flag, the minimum
+    population, the trace and its deviation, and the solver's rank and residual
+    where available. 2vN is diagnosed after its final iteration only.
+  - RTD warns (`RTDCoherenceWarning`, once per approach) when its
+    diagonal-density-matrix approximation is not spectrally resolved, judging
+    the closest same-charge pair against the Fermi-weighted sequential escape
+    rates that damp it with a five-to-one margin, and records the case, with
+    its charge sector and state indices, as
+    `approach.rtd_coherence_diagnostics`. `RTDNoBroadeningWarning` flags active
+    same-charge states with no tunnel broadening at all.
+  - RTD warns (`RTDBandwidthWarning`) at unequal temperatures when `dband` is
+    not conservatively separated from the transport scales.
+  - `QmeqWarning` and `QmeqRuntimeWarning` are public, so all QmeQ diagnostics
+    can be captured or filtered as a group; the RTD categories are exported at
+    the package top level.
+- **Backend selection** with `QMEQ_BACKEND=auto|python|cython`, and
+  `qmeq.get_backend_status()` for diagnostics. `auto` falls back to pure Python
+  only for a cleanly absent extension set; a partially built one never imports.
+- **Packed density-matrix layout specification**, `qmeq.approach.dm_layout`:
+  nine numbered rules for the real layout that Lindblad, Redfield, 1vN, their
+  electron-phonon variants and RTD solve in, previously open-coded at 19 sites,
+  with a `LiouvilleState` view, a reference `DensityMatrixLayout`, and a test
+  per rule. It records two unwritten conventions: the packed kernel implements
+  `rho -> -i (W rho)`, which is why Lindblad passes `1j*fct` where 1vN passes
+  `fct`, and the matrix-free handler writes its imaginary rows with the
+  opposite sign, so `dphi0_dt` is not literally the packed time derivative.
+- **Smaller interface additions.** `StateIndexingDM.get_ind_dm0_bool` and
+  `get_ind_dm0_conj`, named forms of `maptype=2` and `3`. `QMEQ_STRICT_INDEX=1`,
+  a pure-Python diagnostic that turns an insertion at an unindexed
+  density-matrix element into an `IndexError` (the full suite passes under
+  it). `RtdMatrix`, an `IntEnum` naming the eight RTD destination arrays, with
+  a compiled mirror `RtdMatrixC` compared member-for-member in the tests.
+  Opportunistic type hints, for readability only.
+- **Tutorials and examples.** A seven-notebook tutorial path in
+  `examples/tutorials/`, each stating a prediction and asserting physical and
+  numerical checks: sequential transport, Coulomb blockade, stability
+  diagrams, coherence and the choice of first-order approach, energy and heat
+  transport, cotunnelling with RTD and 2vN, and counting statistics (Simon
+  Wozny's notebook, vendored with his authorship and licence notice). The
+  example scripts and appendix notebooks from the former `qmeq-examples`
+  repository are vendored under `examples/`, with the original introductory
+  and RTD notebooks kept for reference in `examples/legacy_tutorials/`,
+  rendered in the
+  documentation through `mkdocs-jupyter`, and run as tests
+  (`qmeq/tests/test_examples.py`, long 2vN/RTD ones behind `--runslow`, notebooks
+  behind `-m notebook`). Example scripts save PNG figures.
+- **Reference data and test infrastructure.**
+  - One validated JSON/NPZ reference-bundle format under
+    `qmeq/tests/data/`, loaded through `qmeq/tests/reference_data.py`, with
+    maintainer-only generators in `scripts/reference_data/`; tests never
+    regenerate expected values. The previous builder and electron-phonon
+    dictionaries are kept losslessly as a `legacy` bundle of unknown
+    provenance, and the counting-statistics arrays keep their recorded source
+    commit.
+  - A provenance-locked QmeQ 1.1 regression corpus generated from commit
+    `96cc51076458b11f7db81a5d7d8df04c30bf8384`, the 2024 packaging fork of
+    1.1, which behaves as the PyPI
+    release apart from its `expm1` Bose function. It covers every electronic
+    and electron-phonon method in 1.1, including a legacy RTD matrix
+    (equilibrium, real and complex coherences with off-diagonal corrections on
+    and off, unequal temperatures, many-body input, the spin-symmetry fallback)
+    that records every contribution and block, with invariant tests for
+    decomposition, trace, conservation laws, equilibrium and structural zeros.
+  - An exact non-interacting (NEGF) transport reference for grading currents
+    and noise at the retained order.
+  - A narrowly scoped Ruff correctness gate for Python files and notebooks.
+- **Packaging and release.** A source-based Conda recipe for compiled Python
+  3.11-3.14 on Linux x86-64 and aarch64 and on Intel and Apple Silicon macOS,
+  published to a prefix.dev channel only after every variant builds and passes
+  the fast suite. GitHub releases carry the source distribution beside the
+  wheels, each checked with `twine`, the artifact inventory, and an install
+  outside the checkout. An installed-artifact CI gate runs the reference suites
+  from installed wheels and sdists on both forced backends. Optional extras
+  `test`, `docs` and `dev`.
+- `AUTHORS.md`, recording the scientific authors, major contributors, source
+  forks and integration work, and a prioritised roadmap in `TODO.md`.
 
 ### Changed
 
-- Require an explicit `principal_part` for the Lindblad approach, including
-  its electron-phonon variant. QmeQ 1.1 had no Lamb shift and 1.2.0.dev9-dev10
-  switched it on by default, so the same script computed different things in
-  different versions; since `itype` does not select the shift, any default
-  would repeat that. Building a Lindblad system without `principal_part` now
-  raises `ValueError` and names the choices: `'omit'` for no shift, which
-  with `itype=0` reproduces QmeQ 1.1, or `'digamma'` or `'quad'` to include
-  it. `bandwidth` still defaults to `'infinite'` when neither it nor `itype`
-  is given. Tutorials 4 and 7 now state `principal_part='omit'`, which is what
-  they were written against: the "6-13% below 1vN" that tutorial 4 quotes for
+- **The Lindblad `principal_part` has no default**, in the electron-phonon
+  variant too. QmeQ 1.1 had no Lamb shift and 1.2.0.dev9-dev10 switched it on
+  by default, so the same script computed different things in different
+  versions; since `itype` does not select the shift, any default would repeat
+  that. A Lindblad system without it raises `ValueError` naming the choices.
+  `bandwidth` defaults to `'infinite'` when neither it nor `itype` is given, a
+  path no 1.1 script reaches. Tutorials 4 and 7 state `principal_part='omit'`,
+  which is what they were written against: tutorial 4's "6-13% below 1vN" for
   Lindblad holds without the shift and not with it.
-- Carry only `itype` across a `kerntype` reassignment, as QmeQ 1.1 did.
+- **Reassigning `kerntype` carries over only `itype`**, as in QmeQ 1.1.
   `bandwidth` and `principal_part` resolved for one approach used to be
-  inherited by the next, and they mean different things: a 1vN system at the
-  default `itype=0` has `principal_part='quad'`, so reassigning it to Lindblad
-  switched on a quadrature Lamb shift nobody asked for, and the same model gave
-  three different Lindblad currents depending on which approach it had been
-  built with. The options are now re-derived from `itype` for the new
-  approach. A system reassigned to Lindblad has `principal_part` unset and
-  `solve()` raises until it is set. Switching between an approach and its `py`
-  twin keeps every option, and RTD, which reads `itype` directly, is unchanged.
-
-
-- Refuse invalid input instead of substituting a default. A misspelled
-  `kerntype` used to warn and run the Pauli approach, an unknown `indexing`
-  ran `'charge'` (or `'Lin'` in `StateIndexing`), a misspelled `symmetry` such
-  as `'Spin'` was ignored so the calculation ran without spin symmetry, and an
-  out-of-range `itype` or `itype_ph` was replaced by 0; all of these, and
-  `mfreeq=True` with RTD, which crashed deep in the kernel handler, now raise
-  `ValueError` naming the accepted values. This applies to assignments on an
-  existing system (`system.kerntype`, `system.itype`, `system.mfreeq`) as well
-  as to construction. Valid choices that an approach cannot honour -- `'sz'`
-  indexing for 2vN, spin symmetry or non-charge indexing for RTD, an explicit
-  `itype` other than 1 for RTD -- are still substituted with a `QmeqWarning`,
-  as in QmeQ 1.1, since they give that version's results.
-- Make the Lindblad Lamb shift belong to the Lindblad dissipator. QmeQ's
-  Lindblad approach is not the secular (Davies) generator: following
-  `KirsanskasFranckieWacker2018`, cited as Ref. [32] of the QmeQ paper, it
-  dresses each tunneling matrix element with the square root of an occupation
-  factor and keeps one jump operator per lead rather than one per Bohr
-  frequency, which is the construction `NathanRudner2020` later derived as a
-  controlled weak-coupling approximation. `principal_part='digamma'` previously
-  paired that dissipator with the principal-value part of the second-order lead
-  self-energy, which is the shift belonging to a *Bloch-Redfield* kernel. The
-  weight is now the one generated alongside these jump operators
-  [NathanRudner2020, Eq. (D7)] with the indices of Eq. (D8) corrected by
-  [NathanRudner2021Erratum, Eq. (6)]: the arithmetic mean plus the cutoff-free
-  correction `func_ule_shift`. A lower intermediate state emits into an empty
-  lead state and adds `delta_f(-x1, -x2)`; an upper one absorbs an occupied
-  lead electron and adds `delta_f(y1, y2)`. The helper takes two arguments and
-  has no `hole` branch, and the Python and Cython kernels use the same energy
-  and chemical-potential orientation.
-
-  The two weights agree on every diagonal element, where the level shift is
-  ordinary second-order perturbation theory, so a charge sector that is
-  one-dimensional or uniformly shifted is unaffected and the analytic
-  single-level and spin-degenerate results are unchanged. They differ off the
-  diagonal, so stationary currents change at the percent level wherever
-  coherences between distinct same-charge energies matter. `principal_part`
-  still selects whether a shift is included at all; `'omit'` reproduces
-  Appendix F of the QmeQ paper, which excludes principal-part effects.
-
-  Direct geometric-integral tests cover both families. Equal arguments erase
-  the correction, and implementations that share it agree whether or not it is
-  right, so neither is used as a gate.
+  inherited by the next although they mean different things there: a 1vN
+  system at the default `itype=0` holds `principal_part='quad'`, so
+  reassigning it to Lindblad switched on a quadrature Lamb shift. They are now
+  re-derived for the new approach; a system reassigned to Lindblad has
+  `principal_part` unset and `solve()` raises until it is set. Switching
+  between an approach and its `py` twin keeps every option, and RTD, which
+  reads `itype` directly, is unchanged.
+- **Invalid input raises instead of selecting a default.** A misspelled
+  `kerntype` ran Pauli, an unknown `indexing` ran `'charge'` (or `'Lin'` in
+  `StateIndexing`), a misspelled `symmetry` such as `'Spin'` was ignored, and
+  an out-of-range `itype` or `itype_ph` became 0, each with only a warning;
+  `mfreeq=True` with RTD crashed in the kernel handler. All raise `ValueError`
+  now, on construction and on assignment (`system.kerntype`, `itype`,
+  `mfreeq`). Valid choices an approach cannot honour -- `'sz'` indexing for
+  2vN, spin symmetry or non-charge indexing for RTD, an explicit `itype` other
+  than 1 for RTD -- are still substituted with a `QmeqWarning`, as in 1.1.
+- **Messages are warnings.** Warning-like prints in input validation, state
+  indexing, solver fallbacks and failures, 2vN grid changes and both RTD
+  energy-current implementations are typed `QmeqWarning`/`QmeqRuntimeWarning`
+  warnings; RTDnoise no longer prints a failed kernel matrix. State display
+  and build output are unchanged.
+- **Assigned lead and bath arrays are properties.** `mulst`, `tlst`, `dlst`
+  on the leads and `tlst_ph`, `dlst_ph` on the phonon baths are read like the
+  constructor argument on assignment (a dictionary replaces the whole array),
+  validated, and written into the stored array; a wrong shape raises
+  `ValueError`. See Fixed for why.
+- **Rename the RTD array `Lnn` to `Lnn_inv`** (and `add_element_Lnn` to
+  `add_element_Lnn_inv`): it holds the inverse of the bare coherence splitting,
+  not the coherence-sector Liouvillian. The two backends still store it in
+  different shapes.
+- **Python 3.11 or newer, and a modern build.** Static metadata lives in
+  `pyproject.toml` with a dynamic version, automatic package discovery and
+  `requires-python = ">=3.11"`; `setup.py` only builds the extensions,
+  guarded by `if __name__ == '__main__'`. Extensions are generated with
+  Cython 3 (`>=3.0,<4`) with explicit language level and exception semantics,
+  always from the `.pyx`/`.pxd` sources, into `build/cython/`. OpenMP is
+  optional and compiler-aware through `QMEQ_OPENMP=auto|on|off`, probing
+  `/openmp`, `-fopenmp` and Apple clang's `-Xpreprocessor -fopenmp -lomp`, so
+  `pip install .` works with an unmodified Apple toolchain; serial and threaded
+  builds can differ in the last bits of reduced quantities. macOS wheels are
+  built with Apple clang and without OpenMP (see Fixed); the Conda packages
+  keep it. NumPy's `emath` namespace provides the complex logarithm, and the
+  suite emits no deprecation warnings on NumPy 2.5 and SciPy 1.18.
+- **CI.** The pure-Python suite runs on 3.11-3.14 and the compiled one on
+  Linux, Windows and macOS (`test.yml`, formerly `test_cython.yml`, split into
+  a single `python` job and a Cython-version matrix); the documentation builds
+  strictly in CI; `slow.yml` runs the examples weekly as a compiled-backend
+  gate (a pure-Python leg measured only how slow uncompiled 2vN/RTD sweeps
+  are); `build_wheels.yml` uses cibuildwheel 4.2 for `cp311`-`cp314`, checks
+  the tag against `qmeq.__version__`, and publishes from a separate job;
+  `publish_conda.yml` is now `release.yml`. `example1c` is reported as a
+  skipped example: its 81000-solve stability diagram exceeds any reasonable
+  timeout, and `example1b` covers the same 2vN path.
+- **Documentation** is MkDocs, built with `--strict` so any warning fails the
+  build; the docstring rules this required are recorded in the conventions
+  pages. `INSTALL.md` uses `pip install .` instead of the deprecated
+  `python setup.py install` and documents `pytest --pyargs qmeq.tests` for an
+  installed build, and `README.md` and `INSTALL.md` link to the vendored
+  `examples/`.
+- **Internal clean-ups with no numerical effect**, the historical reference
+  corpora reproducing unchanged on both backends: the "no index" sentinel is
+  named `NO_INDEX` at 61 sites; the packed-real offset is one precomputed
+  `imag_offset`; the `maptype` integers are gone from the kernel handlers and
+  documented in `get_ind_dm0`; the pure-Python electron-phonon approaches no
+  longer bind `si` to an object of a different class; mutable default
+  arguments are `None`; `clean.py` resolves paths from its own location and
+  gained `--dry-run`; pytest uses the native `[tool.pytest]` configuration.
 
 ### Removed
 
-- Remove the superseded Sphinx documentation tree and its dependency, CI, and
-  packaging paths. MkDocs now owns the user guide, tutorials, theory notes,
-  generated API reference, and internal conventions.
-
-### Fixed
-
-- Correct the compiled electron-phonon Lindblad jump term. For the
-  coherence columns of the kernel it paired `L[b, a]` with `conj(L[bp, a])`
-  instead of `conj(L[bp, ap])`, so the generator no longer preserved the
-  trace: stationary states acquired negative populations (as low as -2.25
-  with the default bath) and `I_L != -I_R`, while `pyLindblad` was right. The
-  error dates from the approach's introduction and is in QmeQ 1.1. The
-  compiled kernel now equals the Python one to machine precision, the QmeQ 1.1
-  reference case that was a strict `xfail` passes, and a new backend-parity and
-  trace-preservation gate covers all four electron-phonon approaches. The
-  legacy bundle's compiled `Lindblad22` electron-phonon entries recorded the
-  error; they sit 3e-12 from the corrected result, inside that test's
-  tolerance, and are left unchanged with a provenance note.
-
-- Make assigning a lead or phonon-bath parameter array take effect on the
-  compiled backend. The compiled approaches bind views of `leads.mulst`,
-  `tlst` and `dlst` (and `baths.tlst_ph`, `dlst_ph`) when they are first
-  prepared, and an assignment such as `system.mulst = new_values` replaced the
-  array, so every later solve silently kept the old chemical potentials,
-  temperatures or bandwidths; the pure-Python approaches read the attribute
-  afresh and followed the assignment. In a bias sweep written this way the
-  compiled Pauli current stayed at its first value (0.0047 against 0.0168 in
-  a single-level test). Present in QmeQ 1.1. These attributes are now
-  properties that write into the stored array: an assigned value is read like
-  the constructor argument (a dictionary replaces the whole array), a value
-  already in the stored layout is taken as it is, a wrong shape raises
-  `ValueError`, and assigned temperatures are validated like constructor
-  ones. `change()` and `add()` were never affected.
-
-- Refuse a `tlst` that names some leads and leaves the others at the zero
-  default. Only the named entries were checked, so `tlst={0: 1.0}` on a
-  two-lead system passed validation and reached the kernels with lead 1 at
-  `T = 0`. Constructing leads now requires every temperature to be positive
-  once any is given, naming the missing ones; an empty `tlst` is still
-  accepted for systems that never reach a solve, and `change`/`add` still
-  check only what they update.
-
-- Make `get_phi0` and `get_phi1` recognise a Pauli system. They branched on
-  `funcp.kerntype`, which the builder never sets, so it always held the
-  `FunctionProperties` default `'2vN'`: for Pauli, `get_phi0` on a coherence
-  indexed past the end of `phi0` and raised `IndexError`, and `get_phi1`
-  looked for current amplitudes Pauli does not have instead of returning
-  `None`. They now ask the approach for its kerntype. Present in QmeQ 1.1.
-
-- Accept an approach class as `kerntype`, which the documentation has long
-  offered. Construction assigned `self.kerntype` before the approach object
-  existed and raised `AttributeError`, and reassignment tested
-  `issubclass(value, Approach)`, which compiled approaches never satisfy
-  because they do not derive from the Python `Approach`; so no class could be
-  used in QmeQ 1.1 or since. A class is now recognised by the `kerntype` name
-  every approach carries, and its options are validated under that name, so a
-  Lindblad class needs `principal_part` like the string does. Any other
-  object raises `TypeError`.
-
-- Restore the legacy top-level names `qmeq.Builder_many_body` and
-  `qmeq.Builder_elph`, which QmeQ 1.1 exported and development builds had
-  dropped by accident.
-
-- Correct the amplitude conversion in the non-interacting NEGF test oracle's
-  QmeQ adapter. `model_from_qmeq` read `tleads` as `g = sqrt(2*pi)*conj(t)`;
-  the conversion is normalisation only, `g = sqrt(2*pi)*t`. Conjugating flips
-  the phase of any loop a single lead closes across two dot modes, which
-  changes the current at leading order: against QmeQ's own Pauli current the
-  conjugated adapter sits at a flat 19% relative error while the corrected one
-  converges as `O(Gamma**2)`. The error was invisible for real amplitudes and
-  for any model where each lead touches a single mode, and the round-trip
-  helper in `test_noninteracting_negf_solver.py` conjugated in the opposite
-  direction, so the two cancelled and the gauge-invariance check could not see
-  either. A new convergence test against QmeQ's golden-rule current, on a model
-  with cross couplings, now pins the convention. Approach kernels are
-  unaffected; only the oracle's adapter was wrong.
-
-- Correct the orientation of the non-interacting NEGF test oracle's QmeQ
-  adapter. Two conventions were read the wrong way round and only their
-  combination is observable, so neither showed up alone. `_qmeq_matrix` filled
-  `hsingle` as `h_ij d^dag_i d_j`, but `construct_ham_hopping` removes an
-  electron at the first index and adds one at the second, so the entry is the
-  coefficient of `d^dag_j d_i`; and `amplitude_matrix` returned `conj(g)` where
-  `g` is already the coefficient of `d^dag`, as QmeQ's `tleads` entry is.
-  Together they conjugate every amplitude, which is the **time-reversed** model.
-
-  Nothing cheap could see it. Conjugation leaves the spectrum, every `|g|**2`
-  and so every golden-rule rate untouched, so Pauli and first-order currents
-  agree exactly and `test_qmeq_conversion_converges_to_the_golden_rule` still
-  passed; both orientations are gauge covariant, so the rephasing check could
-  not separate them either. A two-terminal non-interacting current is even in
-  the flux, which leaves nothing for the previous models to detect. With three
-  leads the odd part enters at `O(Gamma**2)`, and grading RTD at second order
-  against the conjugated model gave `O(Gamma**2)` convergence instead of the
-  true `O(Gamma**3)` -- converging, but one order short.
-  `test_negf_orientation_pins_the_flux_sign` now measures that order. QmeQ's own
-  `hsingle` and `tleads` conventions are unchanged; only the oracle's reading of
-  them was wrong.
-
-- Correct the free-coherence resolvent derivative in RTDnoise to use the same
-  Laplace orientation as its vertex blocks. With coherence corrections enabled,
-  the previous sign gave incorrect charge and spin noise while leaving currents
-  and occupations unchanged. The contribution enters resummed noise at
-  `O(Gamma**3)`; a physical retarded-Laplace check now gates its sign.
-
-- Refuse non-positive lead temperatures instead of letting each approach fail
-  its own way. At `tlst = 0` Pauli and Lindblad returned `success=False` from a
-  singular kernel while Redfield, 1vN and RTD returned `success=True` beside an
-  all-`nan` stationary solution, and a negative temperature was accepted
-  outright and returned a confidently wrong current with no warning at all.
-  `LeadsTunneling` now validates on construction, `add`, and `change`, naming
-  the offending entry; a rejected update leaves the stored temperatures
-  untouched. A small positive temperature is well behaved and unaffected.
-- Report the input when `itype=0` meets a transition energy sitting exactly on
-  a band edge, rather than passing SciPy's `Parameter 'wvar' must not equal
-  integration limits` to the user. The Cauchy principal value has its pole on
-  the integration boundary and the accompanying logarithm diverges in the same
-  breath, so the integral does not exist; the error now names the energy and
-  the edge and points at `dband`. Guarded identically in the compiled twin.
-
-- Stop shipping the cythonize output in the source distribution. `setup.py`
-  cythonizes into `build/cython/`, whose generated `.c` files became the
-  extension modules' declared sources and were carried into the sdist
-  regardless of `MANIFEST.in`, accounting for 90% of the uncompressed archive.
-  The sdist now prunes them and falls from 3.8 MB to under 1 MB; installs
-  regenerate them from the shipped `.pyx` sources. The artifact inventory check
-  gained the matching rule, and now also runs over the wheels published from
-  `build_wheels.yml` rather than only a locally built one.
-
-- Complete RTDnoise's second-order complex-amplitude diagrams from their
-  inverted electron-hole and Keldysh partners. The old ``eta0 = -1`` traversal
-  conjugated individual tunnel vertices instead of the complete four-vertex
-  contribution, so the counted population kernel disagreed with ordinary RTD
-  at generic plaquette flux and particle-current errors reverted from cubic to
-  quadratic in the coupling. The value and Laplace-derivative partners now use
-  the conjugate and negative-conjugate relations, respectively, while retaining
-  their transfer labels. The redundant explicit partner traversal is skipped,
-  reducing second-order assembly work. Generic-flux kernel agreement and
-  independent non-interacting current/noise scaling gates cover the repair.
-- Base the RTD eliminated-coherence warning on the Fermi-weighted sequential
-  escape rates that actually damp the closest same-charge pair. The previous
-  `2*pi*sum(|T|**2)` estimate omitted reservoir occupations and could warn deep
-  in Coulomb blockade even when those sequential decay channels were closed.
-  The warning now uses a five-to-one splitting-to-damping margin, matching the
-  documented RTD validity screen instead of the former heuristic factor 10.
-  `RTDCoherenceDiagnostics.gamma_upper_bound` and `upper_bound_ratio` retain
-  that occupation-independent scale for conservative comparisons.
-- Store the counting-resolved coherence correction's Laplace derivative in the
-  channel that is not identically zero. The zero-field Schur product
-  `Wdn G Wnd` is purely imaginary and its Laplace derivative purely real, so
-  `1j*product_dz.imag` kept nothing: `coherence_correction_dz` was zero to
-  machine precision and the correction contributed nothing to the
-  non-Markovian noise. The pair is one analytic object,
-  `W_corr(z) = -1j*Wdn(z) G(z) Wnd(z)`, which also matches the counting path's
-  convention of real kernels and purely imaginary `_dz` arrays. Gated against
-  an independent finite-`z`, transfer-resolved reference; the effect on the
-  noise is `O(Gamma**3)`, which is why no existing gate saw it.
-- Make the second-order Laplace differentiation step unit covariant. The
-  `max(1.0, ...)` floor was absolute, so a model whose whole energy scale sat
-  below `1` in the caller's units was differentiated with a step orders of
-  magnitude too coarse relative to its own features. The step is now a pure
-  fraction of the model's energy scale, and the energy-rescaling covariance
-  test sweeps far below the removed floor as well as above it.
-
-- Correct the RTDnoise first-order Laplace derivatives. `phi` and the Fermi
-  function take the scaled argument `(E-mu)/T`, so `d/dz` carries `1/T_lead`;
-  the pre-existing diagonal derivative and the new population-coherence blocks
-  both omitted it. The reported non-Markovian noise was therefore not
-  covariant under an overall rescaling of `E`, `mu`, `T` and `Gamma`, and
-  carried a leading `O(Gamma**2)` error against the exact non-interacting
-  reference at every temperature except `T = 1` -- which is where every
-  existing gate ran. The pinned QmeQ-1.1 `Lpm_first_dot` bundle now confirms
-  the correction exactly: current values equal the historical array divided by
-  `T_lead` per lead, in the unequal-temperature scenarios too.
-- Complete the analytic population-coherence Laplace derivative. `pi*f(u) +
-  1j*phi(u)` is a single analytic function of the scaled energy, so its
-  derivative cannot keep the `phi'` channel and drop the `pi*f'` one; the
-  latter is ~0.8 times the size of the former and cancels only in the diagonal
-  limit. Four of the twelve call sites also took the sign of the `phi`
-  coefficient where the sign of the `pi*f` coefficient was required, which
-  cancelled the charge-conserving derivative outright. The block's reduction to
-  the diagonal first-order kernel at `a1 == b1` is now a test, at unequal lead
-  temperatures.
-- Stop rejecting population/coherence coordinate pairs whose charges differ by
-  more than one electron. Such pairs are not connected by a first-order vertex,
-  so their block is structurally zero; rejecting them by charge alone made
-  `off_diag_corrections=True` raise `ValueError` in RTDnoise for any dot with
-  more than two single-particle levels. Rejection is now conditional on a
-  nonzero amplitude, and a three-level scenario covers it.
-
-### Added
-
-- Select the RTD truncation order with `approach.rtd_order`, available on
-  `RTD`, `pyRTD`, `RTDnoise` and `pyRTDnoise` and defaulting to the previous
-  behaviour, 2. Order 1 retains the two-vertex block alone and reproduces the
-  golden-rule kernel exactly: on a single level its `phi0`, particle, energy
-  and heat currents agree with `Pauli` at `itype=1` to `0.0`, on both
-  backends. Order 1 therefore turns the truncation-order control the residual
-  scaling gate asks for into a real kernel rather than a Pauli stand-in, and
-  it accepts a thermal bias, because only the four-vertex integrals require
-  equal lead temperatures; the unequal-temperature bandwidth warning and the
-  Ozaki pole expansion are both skipped there. The two energy-current blocks
-  are contractions of one `O(Gamma^2)` correction rather than first and second
-  order, so both are omitted at order 1 while the leading energy current still
-  comes from the `Wdd` contraction. `off_diag_corrections` stays an
-  independent switch: it is an `O(Gamma^2)` term, so enabling it at order 1 is
-  a diagnostic control and not a consistent truncation. Assigning an
-  unimplemented or non-integer order raises, and changing the order restarts
-  the approach so no stale kernel survives.
-
-- Attach the source distribution to the GitHub release alongside the wheels.
-  `build_wheels.yml` gained an `sdist` job that applies the same tag/version
-  guard as the wheel jobs, builds the sdist, runs `twine check` and the
-  artifact inventory over it, installs it into a clean environment outside the
-  checkout, and confirms the compiled backend and the installed metadata. The
-  publish job now uploads both the wheels and that sdist, so a release no
-  longer offers binaries only.
-
-- Support RTD's eliminated-coherence correction in `RTDnoise` when
-  `off_diag_corrections=True`. First-order population-coherence blocks now have
-  one shared traversal, an explicit-array insertion path independent of the
-  historical `RtdMatrix` selector, and a lead- and transfer-resolved Schur
-  composition with analytic Laplace derivatives. Summing its transfer sectors
-  reproduces the ordinary RTD kernel and current, and the exact non-interacting
-  reference confirms the corrected real-amplitude *current* at the retained
-  order. The corresponding noise claim is **not** settled: see the open item
-  below. `off_diag_corrections=False` remains the immutable historical-fixture
-  mode.
-- Replace RTDnoise's fixed `1e-8` Laplace-energy shifts with analytic
-  derivatives for first-order coherence blocks and the bare propagator, plus a
-  scale-aware centered derivative for every explicit second-order
-  direct/exchange integral. A full-kernel test compares the latter against an
-  independent five-point stencil. Live derivative arrays use the explicit
-  `_dz` suffix; the old `*_dot` names remain only as immutable historical
-  fixture keys.
-- Make RTDnoise's equal-temperature counted direct/exchange integrals use the
-  same analytic Appendix-D wide-band real component as stationary RTD. The
-  former finite-pole counted copy broke `W(chi=0,z=0) == W`, moved the
-  stationary state and pseudoinverse with `dband`, and left a spurious
-  `O(Gamma**2)` noise residual. Practical-bandwidth kernel-identity,
-  fourfold-bandwidth-invariance, and independent non-interacting cubic-order
-  gates now cover the repair; unequal-temperature Ozaki integrals retain their
-  existing cutoff-convergence requirement. Bare `RTDnoise` also dispatches its
-  profiled direct/exchange value and derivative calls to numerically equivalent
-  compiled wrappers when the Cython backend is active; explicit `pyRTDnoise`
-  stays all-Python.
-- Warn when legacy RTD's diagonal-density-matrix approximation is not
-  spectrally resolved. The diagnostic estimates each same-charge coherence's
-  broadening from `2*pi*sum(|T|**2)` over adjacent-charge transitions, uses a
-  conservative ten-to-one splitting-to-broadening threshold, records the
-  closest case as `approach.rtd_coherence_diagnostics`, and emits one
-  `RTDCoherenceWarning` per approach. The check is shared by `pyRTD` and the
-  compiled `RTD` backend and does not modify the kernel.
-- Include the charge sector and state indices in the RTD coherence diagnostic,
-  report splittings affected by the inverse-Liouvillian clamp, expose the
-  RTD warning categories at the package top level, and warn when no tunnel
-  broadening is present for the active same-charge states.
-- Diagnose every stationary solution for physicality instead of returning it
-  silently. After each master-equation solve, the approach now checks the
-  reduced density matrix for negative populations, deviation of the trace from
-  one, and NaN/inf entries. An unphysical result emits a `QmeqRuntimeWarning`
-  (once per approach instance) and is recorded as a queryable
-  `approach.stationary_diagnostics` object with a `physical` flag plus the
-  minimum population, trace, trace deviation, and solver-reported conditioning
-  (least-squares rank and residual where the solver provides them), so
-  scripted sweeps can filter on the diagnostic rather than parse stderr. The
-  check runs in shared pure-Python code called from the approach `solve`
-  methods, so its behaviour is identical across approaches and backends; for
-  2vN only the state after the final iteration is diagnosed, since
-  intermediate iterates may be unphysical while still converging.
-- Add public `QmeqWarning` and `QmeqRuntimeWarning` categories so callers can
-  capture or filter all QmeQ diagnostics as a group while distinguishing
-  numerical/runtime failures from input fallbacks.
-- Add `qmeq.approach.dm_layout`, a written specification of the packed real
-  density-matrix layout that Lindblad, Redfield, 1vN, their electron-phonon
-  variants and RTD all solve in. The layout was previously defined only by its
-  uses, with the offset arithmetic, inclusion test and conjugation sign
-  open-coded at 19 sites across the pure-Python and Cython kernel handlers.
-  The module states nine numbered rules, provides an immutable
-  `LiouvilleState` view and a reference `DensityMatrixLayout` with
-  pack/unpack/trace, and is accompanied by a test module in which every test
-  names the rule it pins. Two conventions that had no written record are now
-  specified and covered: the packed kernel implements `rho -> -i (W rho)`,
-  which is why Lindblad passes `1j*fct` where 1vN passes `fct`; and the
-  matrix-free handler writes its imaginary rows with the opposite sign from
-  the assembled kernel, which leaves the stationary null space unchanged but
-  means `dphi0_dt` is not literally the packed time derivative.
-- Add `StateIndexingDM.get_ind_dm0_bool` and `get_ind_dm0_conj`, named forms of
-  the `maptype=2` and `maptype=3` integer arguments, matching the accessor
-  names the Cython handler already used. The integer `maptype` interface is
-  unchanged.
-- Add `QMEQ_STRICT_INDEX=1`, a pure-Python diagnostic that turns an insertion at
-  a density-matrix element with no index into an `IndexError` naming the method
-  and the offending endpoint, instead of silently skipping it. Off by default,
-  and because the check sits inside a branch a correct caller never takes it
-  costs nothing in the normal path. The compiled insertion methods are
-  `noexcept nogil` and cannot raise, so run the strict leg with
-  `QMEQ_BACKEND=python`. This makes the whole suite a standing probe for a
-  missing `is_included` guard; the full suite passes under it.
-- Add `RtdMatrix`, an `IntEnum` naming the eight destination arrays that RTD
-  insertions select, replacing a bare trailing integer at 61 call sites — 30 in
-  `RTD.py` and 31 in `c_RTD.pyx`. The compiled path cannot use a Python enum
-  inside `nogil` code, so `c_kernel_handler.pxd` mirrors it as `RtdMatrixC`,
-  declared `cpdef` rather than `cdef` specifically so the two copies can be
-  compared member-for-member in the test suite rather than drifting silently.
-- Add type hints opportunistically, for readability only: no type checker, no
-  `py.typed` marker and no CI gate. `qmeq.approach.dm_layout` is fully
-  annotated; `qmeq.approach.kernel_handler` and the `qmeq.indexing` lookups
-  carry hints on the signatures that were hardest to read. Note that the kernel
-  handlers accept `StateIndexingDM | StateIndexingDMc`, since the 2vN
-  approaches pass the latter.
-- Add one validated external JSON/NPZ reference-bundle infrastructure for
-  historical and future numerical snapshots. The previous builder and
-  electron-phonon Python dictionaries are preserved losslessly as 100 arrays
-  in a `legacy` bundle whose unknown generating revision and environment are
-  stated explicitly; they are not mislabeled as QmeQ 1.1. The 15
-  counting-statistics arrays retain their separately recorded Simon Wozny
-  source commit. Maintainer-only generators now live under
-  `scripts/reference_data/`, outside the test package, and tests never generate
-  expected values implicitly.
-- Add an installed-artifact CI gate that builds and checks both wheel and
-  source distribution, installs each outside the checkout, verifies the forced
-  Python and Cython backends, and runs the external-reference suites from the
-  installed package.
-- Add a provenance-locked QmeQ 1.1 regression corpus generated from commit
-  `96cc51076458b11f7db81a5d7d8df04c30bf8384`. External JSON/NPZ fixtures cover
-  every electronic and electron-phonon method available in 1.1. The legacy RTD
-  matrix covers equilibrium, real coherences with off-diagonal corrections on
-  and off, complex tunnel amplitudes, unequal temperatures, many-body input,
-  and the documented spin-symmetry fallback to charge indexing. It records the
-  first-order, second-order, and coherence-elimination contributions; all
-  population/coherence blocks; stationary states; and particle, energy, and
-  heat currents. Invariant tests cover decomposition, trace preservation,
-  residuals, normalization, conservation laws, equilibrium, heat-current
-  consistency, and structural zeros. The manifest records model reconstruction
-  data, array ordering, tolerances, and the narrow compatibility envelopes for
-  the intentional post-1.1 complex-integral branch correction without changing
-  the historical values. Tests never regenerate expected data implicitly, and
-  the generator rejects any source revision or QmeQ version other than the
-  pinned 1.1 checkout.
-- Add a source-based Conda recipe for compiled Python 3.11-3.14 Linux x86-64,
-  Linux aarch64, Intel macOS, and Apple Silicon packages, plus a tag/manual
-  GitHub Actions workflow that builds each Python/platform variant
-  independently, runs the fast suite against the installed artifacts, and
-  uploads them to a namespaced prefix.dev channel only after every build
-  succeeds. Generated C build artifacts are no longer installed as package
-  data; the canonical `.pyx` and `.pxd` extension sources remain included.
-  The setup-configuration regression test now skips outside a source
-  checkout so the installed suite remains runnable.
-- Add a narrowly scoped Ruff correctness gate for Python files and notebooks,
-  available through the development dependencies and enforced in CI.
-  Repository-wide automatic formatting remains intentionally disabled while
-  the historical source baseline is reviewed.
-- Add an unequal-temperature RTD cutoff diagnostic. RTD now warns when the
-  finite ``dband`` regulator is not conservatively separated from all
-  transport scales, sizes the Ozaki expansion from the widest lead rather than
-  lead 0, and documents the required observable-level convergence check.
-- Add `AUTHORS.md`, recording the original scientific authors, major code
-  contributors, source forks, and integration work without replacing Git
-  authorship.
-- Add opt-in zero-frequency particle-current counting statistics, originally
-  implemented by Simon Wozny in his
-  [QmeQ fork](https://github.com/si8881wo/qmeq), following
-  [Emary, Phys. Rev. B 80, 235306 (2009)](https://arxiv.org/abs/0902.3544).
-  `countingleads` selects one or more leads sharing an aggregate counting
-  field, and `current_noise` reports the first two cumulants for Pauli,
-  Lindblad, Redfield, and 1vN on both Python and Cython backends. The
-  pure-Python `pyRTDnoise` approach, also available as `RTDnoise`, exposes the
-  full fourth-order-kernel result, its sequential result, and a consistently
-  fourth-order-truncated result. See `docs/docs/theory/counting-statistics.md`
-  and Simon's [example notebook](https://github.com/si8881wo/qmeq-noise-example).
-- Add lead-resolved zero-frequency particle-current covariance matrices.
-  `current_noise_matrix` is ordered as `countingleads` for every supported
-  first-order approach and RTD; RTD also exposes the sequential companion
-  `current_noise_matrix_first`. The existing `current_noise` aggregate is
-  unchanged and equals the sum over the corresponding matrix entries.
-- Vendor and modernize Simon Wozny's counting-statistics notebook as tutorial
-  7, retaining his authorship, source link, and BSD-2-Clause license notice.
-- Include the Lamb shift in the Lindblad approach. The renormalisation of the
-  many-body energies by the coupling to the leads is now built as a lead-resolved
-  Hamiltonian `HLS` (a new attribute of the Lindblad approach, with the same shape
-  as `Tba`) and enters the master equation through the commutator
-  `-1j*[HLS, phi0]`, beyond the secular approximation. It is selected with
-  `principal_part`, which a Lindblad system must state: `'digamma'` or `'quad'`
-  includes it and `'omit'` leaves results as in QmeQ 1.1. The new descriptive
-  `bandwidth` and `principal_part` options replace the two meanings previously
-  combined in `itype`, which remains accepted as a legacy shorthand. The new
-  `qmeq.specfunc.specfunc.func_lambshift` (with a compiled twin) evaluates the
-  principal-value factors in the wide-band digamma approximation. See
-  `qmeq.approach.base.lindblad.generate_lamb_shift` and
-  `docs/docs/theory/lambshift.md` for the implemented expressions.
-- Add a prioritized maintenance roadmap in `TODO.md`.
-- Add a seven-notebook tutorial path in `examples/tutorials/`, each notebook
-  stating a prediction, building the smallest useful model, and asserting
-  physical and numerical checks: a first sequential-transport calculation,
-  Coulomb blockade in the Anderson model, bias-gate stability diagrams,
-  coherence in a double dot with the Pauli/Lindblad/Redfield/1vN comparison,
-  energy and heat transport with thermovoltage and unit conversions, and
-  cotunnelling with the RTD and 2vN approaches including a quantum-dot heat
-  engine and many-body input, and zero-frequency current counting statistics.
-  The path covers the material of the legacy tutorials and Simon Wozny's noise
-  example.
-- Add explicit backend selection through `QMEQ_BACKEND=auto|python|cython` and
-  expose `qmeq.get_backend_status()` for diagnostics and test assertions.
-- Vendor the tutorials, example scripts, and appendix notebooks (previously in
-  the separate `qmeq-examples` repository) under `examples/`.
-- Render the example notebooks in the documentation via `mkdocs-jupyter`,
-  keeping the notebooks in `examples/` as the single source.
-- Run the example scripts and notebooks as tests (`qmeq/tests/test_examples.py`):
-  the quick examples run with the normal suite, while the long-running 2vN / RTD
-  ones are marked `slow` and run only with `pytest --runslow`.
-- The example scripts now save figures as PNG (instead of PDF); the generated
-  figures and data files are gitignored.
-- Run the pure-Python backend test suite in CI (`test_cython.yml`), not only
-  the compiled backend, so a pure-Python-only regression cannot slip through
-  unnoticed.
-
-### Changed
-
-- Run the vendored examples as a compiled-backend gate. `slow.yml` dropped its
-  pure-Python leg: the examples are second-order 2vN and RTD parameter sweeps,
-  so an uncompiled run measured how slow uncompiled kernels are rather than
-  whether the examples still work, taking 2h19m and timing out on three scripts
-  that the compiled leg ran without trouble. Backend parity stays with the
-  kernel-level suites in `test.yml`, which still run both.
-- Stop executing `example1c_spinful_single_orbital.py` as a test, and report
-  the reason as a skip rather than dropping it. Its 201x201 stability diagram
-  runs about 81000 2vN solves, each iterating seven times over `kpnt=2**12`
-  energy points; it exceeded a 1800 s cap on the compiled backend without
-  finishing, so no timeout makes it pass. `example1b` covers the same 2vN code
-  path on a 101-point bias trace. The per-example timeout drops from 1800 s to
-  900 s, which is now a backstop against a hang rather than a budget for a
-  sweep.
-
-- Build the documentation with `mkdocs build --strict`, so any warning fails
-  the build rather than degrading a page quietly, and fix the docstrings that
-  blocked it. A bare index expression such as `szlst[charge][sz]` was read as a
-  Mkdocstrings shorthand cross-reference, `Phi[1](k)` was read as a Markdown
-  link whose target is `k`, and five parameter continuation lines were indented
-  three spaces instead of four. Both rules are recorded in the docstring
-  conventions page.
-
-- Replace warning-like standard-output prints with typed warnings across input
-  validation, state indexing, solver fallback/failure paths, 2vN grid changes,
-  and the Python and Cython RTD energy-current implementations. Deliberate
-  state-display and build-progress output remains unchanged; RTDnoise no longer
-  dumps a full failed kernel matrix to standard output.
-- Generate Cython's intermediate C files under `build/cython/` instead of next
-  to the canonical `.pyx` sources. Remove the obsolete per-file ignore list and
-  the risk of accidentally compiling stale source-tree C output.
-- Remove the unreachable `scipy.misc.factorial` compatibility fallback and use
-  NumPy's public `emath` namespace for the complex logarithm. The fast suite on
-  NumPy 2.5.1 and SciPy 1.18.0, plus a clean Cython 3.2.8 rebuild, emits no
-  deprecation, future, or pending-deprecation warnings.
-- Keep `itype` as a supported compatibility interface alongside the descriptive
-  `bandwidth` and `principal_part` options; no `itype` deprecation is planned.
-- Rename the RTD array `Lnn` to `Lnn_inv`, and `add_element_Lnn` to
-  `add_element_Lnn_inv`. It holds the inverse of the bare coherence energy
-  splitting used to eliminate coherences, not the coherence-sector Liouvillian;
-  the Phase 0 reference fixtures already recorded it under the honest key
-  `inverse_Lnn`, which is provenance-locked and unchanged. Note the two backends
-  still differ in shape here: two-dimensional in pure Python, a bare diagonal in
-  Cython.
-- Stop binding the name `si` to `self.si_elph` in the pure-Python
-  electron-phonon Pauli and 1vN approaches. Those modules hold two indexing
-  objects of *different* classes — `si` is a `StateIndexingDM` while `si_elph`
-  is a `StateIndexingDMc` — and the shared local name made the distinction
-  invisible at the call site, in one case with opposite meanings in adjacent
-  methods of the same class.
-- Name the "no index" sentinel at 61 sites across both backends, replacing bare
-  `-1` comparisons, and drop the comments that had been restating those
-  comparisons in English. `NO_INDEX` records that the value must never be used
-  as an index: NumPy reads it as the last row or column, and the compiled
-  handler is built with `wraparound=False` and `boundscheck=False`, so there it
-  is an out-of-bounds access rather than a wrap.
-- Document what `maptype` actually selects in all three `get_ind_dm0` methods.
-  The method returns an index for `maptype` 0 and 1 but a boolean for 2 and 3,
-  which no docstring previously said; each class now carries a table of the
-  selectors it supports and why the missing ones do not exist.
-
-- Route the duplicated packed-real index arithmetic in both kernel handlers
-  through one named definition. The repeated `ndm0 + i - npauli` offset is now
-  a precomputed `imag_offset`, the existence test for an imaginary partner is
-  the equivalent and clearer `i >= npauli`, the excluded-element sentinel has
-  a name in both backends, and the `maptype` integers are gone from the
-  handlers. No sign, prescription or kernel value changes; the historical
-  reference corpora are reproduced unchanged on both backends.
+- The Sphinx documentation tree and its dependency, CI and packaging paths,
+  superseded by MkDocs, and the outdated `README.rst`.
+- The dead build path that reused checked-in C files, with its `--cython`
+  flag; the unreachable `scipy.misc.factorial` fallback; the Homebrew-GCC
+  symlink script for macOS wheels; and a shadowed duplicate of the pure-Python
+  2vN `TermsCalculator2vN.iterate`.
 
 ### Performance
 
 - Raise `MAX_CACHE`, the `lru_cache` bound on the memoised special functions,
-  from 100 to 10000. The bound sets the cache hit rate and the hit rate sets the
-  runtime: on a pure-Python RTD solve the aggregate hit rate goes from about
-  75-81% to 96-97% and the solve is roughly 2.2 times faster. The knee is near
-  1000 and 50000 adds about one percent more, so 10000 captures nearly all of
-  the available gain for at most about 17 MB at a measured 207 bytes per entry.
-  The bound stays finite deliberately, since distinct keys per solve grow about
-  elevenfold per added orbital and parameter sweeps generate fresh float keys
-  indefinitely; a regression test asserts finiteness. Memoisation is exact, so
-  results are unchanged: every array in the RTD reference matrix is bitwise
-  identical across the two bounds. The compiled backend uses its own
-  `c_specfunc` and is unaffected. Caching `integralD` and `integralX` was
-  measured and rejected -- with twelve arguments and three independent energies
-  they reach a 0.3% hit rate and the key hashing costs more than the calls it
-  saves.
-
+  from 100 to 10000: a pure-Python RTD solve goes from a 75-81% to a 96-97% hit
+  rate and runs about 2.2 times faster, for at most about 17 MB. The bound
+  stays finite on purpose, since parameter sweeps generate fresh keys without
+  end. Results are bitwise unchanged; the compiled backend is unaffected.
+- Batch the 2vN Hilbert transforms in memory-bounded chunks instead of one FFT
+  pair per density-matrix trace, and skip interpolation for exactly zero
+  tunnelling products in the compiled 2vN iteration.
+- Skip RTDnoise's redundant explicit partner traversal in second-order
+  assembly.
 
 ### Fixed
 
-- Make the QmeQ 1.1 electron-phonon kernel regression portable across LAPACK
-  implementations. Raw packed-coherence kernels can differ by a diagonal
-  similarity when `eigh` chooses the opposite sign for a many-body eigenvector;
-  the test now requires agreement under one consistent state-level sign gauge
-  instead of treating that arbitrary basis convention as physics.
-- Skip the Cython build-directory probe when Cython is intentionally absent
-  from a pure-Python test installation. Compiled CI jobs still exercise it.
-- Raise `ValueError` instead of silently returning `None` from `get_ind_dm0`
-  for an unsupported `maptype`. `None` is `np.newaxis`, so a wrong selector
-  reshaped an array rather than raising and surfaced far from its cause.
-- Stop `Builder.get_phi0` asking `StateIndexingDMc` for a conjugation map it
-  does not have. The `maptype=3` lookup ran unconditionally and its result was
-  discarded on the `StateIndexingDMc` branch, so every 2vN call relied on the
-  silent `None` return above. The lookup now happens only in the branch that
-  uses it, and uses the named accessor. Results are unchanged.
-- Make inserting a matrix element at an uncarried endpoint a no-op in both
-  kernel-handler backends. The `-1` sentinel would otherwise index the last row
-  or column and corrupt an unrelated entry. Every shipped caller already guards
-  with `is_included`, and a probe run of the full suite with a hard assertion
-  never fired, so no existing behaviour changes.
+Present in QmeQ 1.1:
 
-- Adopt pytest 9's native `[tool.pytest]` TOML configuration and separate
-  notebook execution from the default suite. The normal suite still exercises
-  the quick Python example; notebooks run explicitly with `-m notebook` in an
-  environment where Jupyter kernels may open local sockets. The scheduled
-  example workflow selects the complete script/notebook group explicitly.
-- Move the original introductory and RTD notebooks, with their image assets, to
-  `examples/legacy_tutorials/`; they are kept for reference and their material
-  is now covered by the numbered tutorials.
-- Batch the 2vN Hilbert transforms in memory-bounded chunks instead of
-  launching one FFT pair for every density-matrix trace.
-- Skip interpolation work for exactly zero tunnelling products in the compiled
-  2vN iteration while preserving parity with the pure-Python implementation.
-- Standardize extension generation on Cython 3 (`>=3.0,<4`) and make the Python
-  language level and Cython 3 exception semantics explicit. Backend parity tests
-  cover Pauli, Lindblad, Redfield, 1vN, 2vN, and RTD.
-- Use NumPy for `pi` and `exp` constants removed from the public SciPy API.
-- Allow the documentation to build without optional Cython extensions.
-- Modernize packaging: move static project metadata to `pyproject.toml`,
-  derive the version dynamically from `qmeq.__version__`, use automatic package
-  discovery, declare a supported-Python range of `>=3.11`, and reduce `setup.py`
-  to building the Cython extensions.
-- Configure pytest `testpaths` in `pyproject.toml` so `pytest` discovers the
-  suite from the project root.
-- Add optional-dependency extras (`test`, `docs`, `dev`) so tooling can be
-  installed on demand, e.g. `pip install qmeq[test]` or `pip install -e .[dev]`.
-- Refresh `INSTALL.md`: replace the deprecated `python setup.py install` command
-  with `pip install .`, document validating an installed build via
-  `pytest --pyargs qmeq.tests`, correct the generated documentation path, and
-  update stale toolchain guidance and links.
-- Point the `README.md` and `INSTALL.md` tutorial/example links at the vendored
-  `examples/` directory instead of the former external repository.
-- Remove the dead "reuse checked-in C files" build path and the `--cython`
-  `setup.py` flag; the `.pyx`/`.pxd` sources are now always cythonized. The
-  removed path was unreachable in practice: generated `.c` files are
-  gitignored and never present in a fresh checkout.
-- Modernize `build_wheels.yml`: bump `cibuildwheel` (v1.11 -> v4.2.0) and the
-  CI runner images, target `cp311`-`cp314` to match `pyproject.toml`, add a
-  `macos-14` (arm64) job alongside `macos-15-intel` (Intel), and detect the
-  Homebrew GCC version dynamically in `scripts/cibw_before_all_macos.sh`
-  instead of pinning to `gcc-10`. Split the workflow into a `build` job
-  (per-OS matrix, no elevated permissions) and a separate `publish` job that
-  only runs on tag pushes and uploads the artifacts from every completed
-  build to the release in one place, matching the build/publish split
-  already used for the Conda packages.
-- Bump `__version__` to `1.2.0.dev1` to mark ongoing modernization work past
-  the released `1.1`.
-- Check the tag against the package version in `build_wheels.yml`, the guard
-  `release.yml` already had. Without it a tag whose name disagrees with
-  `qmeq.__version__` still built, and the publish job attached wheels carrying
-  the package version to a release named after the tag.
-- Replace mutable default arguments (`={}`, `=[]`, `=[0]`) with `None`,
-  normalized to a fresh literal inside the function body, in `BuilderBase`,
-  `BuilderManyBody`, `BuilderElPh`, `BuilderManyBodyElPh`, and
-  `multiarray_sort`. Call semantics and accepted input forms are unchanged.
-- Rewrite `clean.py`: paths are resolved relative to the script's own
-  location instead of the current working directory, generated-file discovery
-  under `qmeq/` is now recursive instead of a hardcoded per-subpackage
-  directory list, and `--dry-run` lists every target without deleting
-  anything.
-- Make OpenMP optional and compiler-aware, selected by
-  `QMEQ_OPENMP=auto|on|off` (default `auto`). `setup.py` no longer guesses a
-  flag from `os.name`; it probes candidate flag sets against the active
-  compiler — `/openmp` for MSVC, `-fopenmp` for GCC, and
-  `-Xpreprocessor -fopenmp` with an explicit `-lomp` for Apple clang, including
-  variants that add the include and library directories of a prefix taken from
-  `QMEQ_OPENMP_PREFIX`, `sys.prefix`, or `brew --prefix libomp`. `auto` falls
-  back to a serial build with a warning, `on` makes that fallback an error, and
-  `off` skips OpenMP outright. This makes `pip install .` work with an
-  unmodified Apple clang toolchain, which previously failed outright.
-  A serial build is fully functional: Cython lowers `prange` to an ordinary
-  loop. Note that serial and threaded builds can differ in the last bits of
-  reduced quantities (observed on the RTD energy current), because the number
-  of per-thread accumulation buffers changes the summation order.
-- Test the compiled build against all three wheel toolchains on every push:
-  `test.yml`'s compiled job is now a matrix over `ubuntu-latest`,
-  `windows-latest`, and `macos-14`, instead of only `ubuntu-latest`. The
-  oldest-supported-Cython leg stays Linux-only.
-- Sweep the whole declared Python range in CI: the pure-Python job now runs on
-  3.11, 3.12, 3.13, and 3.14, matching `pyproject.toml`'s classifiers.
-- Build the documentation in CI as a `mkdocs-docs` job in `test.yml`, so a
-  broken internal link or a nav entry with no matching page fails the build.
-- Add `slow.yml`, running the `--runslow` example suite over both backends
-  weekly and on demand, so the long-running notebooks stay a release gate
-  without slowing down every push.
-- Guard the `setup()` call in `setup.py` with `if __name__ == '__main__'` so its
-  helpers can be introspected without triggering a build. Build frontends run
-  the file as `__main__`, so installs are unaffected.
-- Build the macOS wheels serially and drop the Homebrew-GCC symlink script
-  (`scripts/cibw_before_all_macos.sh`) along with the deployment-target
-  juggling it required. See the corresponding entry under Fixed.
-- Drop Python 3.10 support ahead of the `1.2.0` release; the floor is now
-  `>=3.11`. Python 3.10 is in security-only mode and reaches end-of-life in
-  October 2026, close enough that shipping `1.2.0` with it and dropping it
-  again shortly after was not worth the churn. Updated everywhere the floor
-  was declared: `pyproject.toml` (`requires-python`, classifiers, Ruff
-  `target-version`), `recipe/recipe.yaml`, `recipe/variants.yaml`,
-  `build_wheels.yml` (`CIBW_BUILD`), `release.yml`, `test.yml`, `lint.yml`,
-  `INSTALL.md`, and `AGENTS.md`.
-- Rename `test_cython.yml` to `test.yml` and split its single matrix job
-  into `python` (pure-Python backend, run once) and `cython` (compiled
-  backend, matrix over Cython versions). The old name was misleading and the
-  single-job structure ran the full pure-Python suite once per Cython-version
-  matrix leg for no reason, since it does not depend on Cython at all.
-- Rename `publish_conda.yml` to `release.yml`.
-
-### Fixed
-
-- Track the three images the legacy notebooks embed
-  (`examples/legacy_tutorials/images/`). A blanket `*.png` rule, meant for the
-  figures the example scripts generate, also ignored them, so they existed only
-  in working trees that predated the rule: from a fresh clone the documentation
-  build failed with `image file not readable`. The negations are listed per
-  file, so genuinely generated figures dropped into the same directory stay
-  ignored.
-- Add `ipython-pygments-lexers` to the `docs` extra. The notebooks declare the
-  `ipython3` Pygments lexer, which Pygments itself does not provide, so a
-  docs-only install failed under `-W` with
-  `Pygments lexer name 'ipython3' is not known`. It happened to work in any
-  environment that also had the `test` extra installed, which is why it went
-  unnoticed.
-- Add `setuptools>=77` to the `test` extra. The backend tests introspect
-  `setup.py` in a subprocess, and Python 3.12 and newer no longer provide
-  setuptools alongside the interpreter, so those tests failed on 3.12-3.14.
-  They now also skip cleanly when it is missing rather than erroring.
-- Constrain the CI `setuptools` install to `>=77`, matching
-  `[build-system] requires`. The compiled jobs install their build dependencies
-  by hand and then use `--no-build-isolation`, but a bare
-  `pip install setuptools` is a no-op when an older one is already present, so
-  those jobs silently reused the runner image's version. That is new enough on
-  the Ubuntu images and too old on the macOS and Windows ones, where it cannot
-  parse the PEP 639 `license = "BSD-2-Clause"` metadata and fails with
-  ``invalid pyproject.toml config: `project.license` ``.
-- Add `test_partial_extension_set_never_imports`, covering the documented
-  contract that a *partially* built extension set must fail to import rather
-  than mixing compiled and pure-Python implementations -- under `auto` as well
-  as `cython`, since `auto`'s quiet fallback is only meant for a cleanly absent
-  extension set.
-- Fix the macOS wheels, which could not be built at all and then could not be
-  installed on most Intel Macs. The build depended on symlinking a Homebrew GCC
-  over `gcc` (Apple clang rejects `-fopenmp`), which broke when the glob started
-  matching companion tools like `gcc-ranlib-15`; and because Homebrew's GCC
-  bundles a `libgomp` built for the *runner's* macOS version, `delocate-wheel`
-  then forced the wheel's deployment target up to match, producing
-  `macosx_15_0` Intel wheels that macOS 12-14 cannot install (with no working
-  source fallback, since the sdist build hit the same clang failure). macOS
-  wheels are now built with Apple clang and `QMEQ_OPENMP=off`, so they carry no
-  bundled OpenMP runtime, keep cibuildwheel's low deployment target, and stay
-  installable on older macOS. The kernels remain compiled; only the threading is
-  lost, and the Conda packages still ship with OpenMP.
-- Stop `c_RTD.pyx` from calling `omp_get_max_threads` and `omp_get_thread_num`
-  directly; both now go through a `#ifdef _OPENMP` shim that reports a single
-  thread. Calling them directly made a non-OpenMP build a hard link error on
-  macOS and, on Linux, produced an extension with unresolved OpenMP symbols that
-  imported only because SciPy had already loaded `libiomp5` into the process.
-- Replace the `macos-13` wheel-build runner with `macos-15-intel` in
-  `build_wheels.yml`; the former is a retired GitHub-hosted image and the
-  build job for it would queue indefinitely instead of running.
-- Set `run-install: false` on the `setup-pixi` step in `publish_conda.yml`'s
-  `publish` job. That job never checks out the repository, so pixi's
-  automatic manifest detection defaulted to a nonexistent
-  `<workspace>/pixi.toml` and `pixi install` failed before the job could
-  reach the download/upload steps; the job only needs the `pixi` CLI itself.
-- Add `linux-aarch64` to `[tool.pixi.workspace] platforms` in
-  `pyproject.toml`. Adding the platform to `release.yml`'s build matrix
-  alone was not enough: `pixi install` refused to run at all on that
-  architecture with `unsupported-platform`, since the workspace itself
-  never declared it as installable.
-- Compare the Hilbert transforms in
-  `test_get_htransf_phi1k_matches_scalar_transforms` with
-  `assert_allclose(rtol=1e-13, atol=1e-15)` instead of exact
-  `np.array_equal`. The batched call and the per-slice reference loop it is
-  checked against can associate the underlying FFT operations differently,
-  which surfaced as a last-bit failure on `linux-aarch64` (the first time the
-  suite ran there) even though the two agree exactly on x86-64. The tolerance
-  is a few orders of magnitude above a double-precision ULP and still rejects
-  a genuine error in the batching.
-- Call `_init_before_appr` from `BuilderElPh.__init__` as well, and give
-  `BuilderManyBodyElPh` its own override. That builder repeats
-  `BuilderBase.__init__`'s sequence rather than delegating to it, so the hook
-  added for the compiled-RTD many-body fix never ran on the electron-phonon
-  path: `BuilderManyBodyElPh` still applied its state indexing after the
-  `Approach` object was built, and its inherited hook would have raised
-  `AttributeError` had anything invoked it. Covered by
-  `test_every_builder_runs_the_pre_approach_hook`.
-- Remove a dead, shadowed duplicate definition of the pure-Python 2vN
-  `TermsCalculator2vN.iterate` method. The surviving implementation already
-  contains the initialization performed by the removed definition.
-- Make the two equal-temperature RTD integral paths share the same analytic
-  wide-band component, while retaining the complementary component required
-  for genuinely complex tunnel products. RTD now detects such products with a
+- **Compiled electron-phonon Lindblad jump term.** Coherence columns paired
+  `L[b, a]` with `conj(L[bp, a])` instead of `conj(L[bp, ap])`, so the
+  generator did not preserve the trace: negative populations (down to -2.25
+  with the default bath) and `I_L != -I_R`, while `pyLindblad` was right. The
+  compiled kernel now equals the Python one to machine precision, the 1.1
+  reference case that was a strict `xfail` passes, and a backend-parity and
+  trace-preservation gate covers all four electron-phonon approaches. The
+  legacy bundle's compiled `Lindblad22` entries recorded the error; they sit
+  3e-12 from the corrected result, inside their test's tolerance, and keep a
+  provenance note.
+- **Assigning a lead or bath array was ignored by the compiled backend.** The
+  compiled approaches bind views of those arrays when first prepared, and an
+  assignment such as `system.mulst = values` replaced the array, so every
+  later compiled solve kept the first values while the pure-Python approaches
+  followed the assignment; in a single-level bias step the compiled current
+  stayed at 0.0047 against 0.0168. Assignment now writes in place. `change()`
+  and `add()` were never affected.
+- **`BuilderManyBody` with compiled RTD** applied its many-body state indexing
+  after the approach was built, so a per-thread kernel buffer was sized from a
+  placeholder state count: wrong currents and, for larger systems,
+  out-of-bounds writes that corrupted the heap. A `_init_before_appr` hook now
+  finishes the state setup first, for the electron-phonon builders too, and
+  tutorial 6 no longer needs its `pyRTD`-then-switch workaround.
+- **Lead temperatures.** A zero or negative temperature made each approach
+  fail its own way, some reporting `success=True` beside `nan` populations,
+  and a negative one returned a confidently wrong current; a partial `tlst`
+  left the unnamed leads at zero. `LeadsTunneling` now refuses them on
+  construction, assignment, `add` and `change`, naming the entries; a refused
+  update changes nothing, and an empty `tlst` is still accepted for systems
+  that never solve.
+- **RTD with complex tunnel amplitudes.** The two equal-temperature integral
+  paths now share the analytic wide-band real part and keep the complementary
+  part genuinely complex products need; such products are detected with a
   relative phase tolerance, so roundoff-scale imaginary parts no longer switch
-  individual diagrams to a different approximation or change the current.
-- Normalize the example notebooks to a Python 3 kernel and fix display-math
-  markup in the RTD tutorial so the documentation builds without warnings.
-- Resolve ambiguous ``Approach`` cross-references between the pure-Python and
-  Cython modules via ``napoleon_type_aliases`` so the documentation builds
-  cleanly with warnings treated as errors (``-W``).
-- Add `scipy` to `[build-system] requires` in `pyproject.toml`. `c_lapack.pyx`
-  cimports `scipy.linalg.cython_lapack`, so an isolated PEP 517 build (e.g.
-  `pip install git+https://...`) failed without it declared as a build-time
-  dependency.
-- Make the pure-Python RTD `off_diag_corrections` handling match the compiled
-  backend: `ApproachPyRTD` no longer caches a separate `self.off_diag_corrections`
-  snapshot at construction time; `prepare_arrays`, `clean_arrays`, and
-  `generate_kern` all read `funcp.off_diag_corrections` directly, as `c_RTD.pyx`
-  already did. Previously the cached copy could desync from `funcp` (e.g. after
-  directly mutating the approach object), leaving allocated arrays inconsistent
-  with what `generate_kern` expected and raising `TypeError`/`AttributeError`
-  only on the pure-Python backend.
-- Fix `BuilderManyBody` construction with the compiled RTD approach
-  (`kerntype="RTD"`): the many-body state indexing (`Na`/`Ea`) previously ran
-  after the `Approach` object was constructed, so `ApproachRTD.__init__` sized
-  a per-thread kernel buffer (`nbr_Wdd2_copies`) from a placeholder
-  `si.npauli == 1` instead of the real many-body state count. This produced
-  wrong currents and, for systems with more diagonal states than the sized
-  buffer, out-of-bounds writes that corrupted the heap (observed as a
-  `free(): invalid size` crash on interpreter exit). `BuilderBase` now runs
-  a `_init_before_appr` hook, overridden by `BuilderManyBody`, that finishes
-  the many-body state setup before the `Approach` object is built. The
-  previously required `kerntype="pyRTD"`-then-switch workaround (used in
-  `examples/tutorials/06_cotunnelling_and_second_order.ipynb`) is no longer
-  necessary and has been removed from the tutorial.
-- Use `expm1` in the pure-Python and Cython Bose functions for accuracy near
-  zero, and guard the electron-phonon forms against large positive arguments.
-- Define all compiled special-function names through pure-Python fallbacks when
-  the Cython extensions are unavailable.
-- Fix string comparisons used when expanding spin-symmetric input data.
-- Fix duplicate API metadata, malformed docstring references, and
-  wrapper-page headings so documentation builds cleanly.
+  a diagram to a different approximation. The Ozaki expansion is sized from
+  the widest lead rather than lead 0.
+- **Approach classes as `kerntype`**, which the documentation offers, never
+  worked: construction assigned `self.kerntype` before the approach existed,
+  and `issubclass(value, Approach)` fails for every compiled approach. A class
+  is now recognised by its `kerntype` name and validated under it; any other
+  object raises `TypeError`.
+- **`get_phi0` and `get_phi1` for Pauli** branched on `funcp.kerntype`, which
+  the builder never sets: `get_phi0` on a Pauli coherence raised `IndexError`,
+  and `get_phi1` did not return `None`.
+- **`get_ind_dm0` with an unsupported `maptype`** returned `None`, which NumPy
+  reads as `np.newaxis`, so a wrong selector reshaped an array far from its
+  cause; it raises `ValueError`. Inserting a matrix element at an uncarried
+  endpoint is a no-op in both kernel handlers instead of writing to the last
+  row or column (no shipped caller did).
+- **`itype=0` with a transition exactly on a band edge** passed SciPy's
+  `Parameter 'wvar' must not equal integration limits` to the user, and the
+  compiled path returned zeros; both now raise an error naming the energy, the
+  edge and `dband`, since the principal value does not exist there.
+- **pyRTD** cached `off_diag_corrections` at construction, which could desync
+  from `funcp` and fail only on the pure-Python backend; it reads `funcp` as
+  the compiled RTD does.
+- **Spin-symmetric input** compared strings with `is`, which failed for a
+  `'spin'` built at runtime (from JSON or argparse).
+- **The Bose functions** use `expm1` for accuracy near zero, and the
+  electron-phonon forms are guarded against large arguments.
 
-### Removed
+In features added since QmeQ 1.1 (development builds only):
 
-- Remove the outdated `README.rst`; `README.md` is now the canonical README and
-  is used as the package long description.
+- **RTDnoise.** Complex-amplitude second-order diagrams are completed from
+  their inverted electron-hole and Keldysh partners (the old traversal
+  conjugated single vertices, so particle-current errors fell back from cubic
+  to quadratic in the coupling at generic flux); the first-order Laplace
+  derivatives carry the `1/T_lead` of the scaled argument (the noise was not
+  covariant under rescaling and wrong at every temperature but `T = 1`); the
+  analytic population-coherence derivative keeps both channels of
+  `pi*f + 1j*phi` with the right signs; the counting-resolved coherence
+  correction's derivative is stored in the non-zero channel (it contributed
+  nothing before); the free-coherence resolvent derivative uses the vertex
+  blocks' Laplace orientation; the second-order differentiation step is unit
+  covariant; and population/coherence pairs more than one electron apart are
+  no longer rejected, which had made `off_diag_corrections=True` raise for
+  dots with more than two levels. Each is gated by an independent reference;
+  their effects on the noise are `O(Gamma**2)` to `O(Gamma**3)`.
+- **Lindblad Lamb shift.** The weight first paired QmeQ's dissipator with the
+  Bloch-Redfield principal-value shift, and then had the spectral function and
+  argument orientation of the correction swapped between the two intermediate
+  charge sectors; both are corrected in the form described under Added.
+  1.2.0.dev9-dev10 also switched the shift on by default (see Changed).
+- **RTD coherence warning.** It estimated the damping from
+  `2*pi*sum(|T|**2)`, which omits reservoir occupations and could warn deep in
+  Coulomb blockade; it now uses the Fermi-weighted escape rates.
+  `RTDCoherenceDiagnostics.gamma_upper_bound` keeps the old scale.
+- **Legacy names** `qmeq.Builder_many_body` and `qmeq.Builder_elph`, which
+  development builds had dropped, are restored.
+- **The non-interacting NEGF test oracle** read QmeQ's `hsingle` and `tleads`
+  conventions the wrong way round, which together is the time-reversed model
+  (invisible to two-terminal currents, one order short in three-terminal RTD
+  grading), and its `tleads` conversion conjugated the amplitudes. QmeQ's
+  kernels were unaffected; the oracle's adapter is corrected and pinned by
+  flux-sign and golden-rule convergence tests.
+- **`Builder.get_phi0`** no longer asks `StateIndexingDMc` for a conjugation
+  map it lacks.
+
+Packaging, CI and documentation:
+
+- The source distribution no longer ships the cythonize output (90% of the
+  archive, 3.8 MB down to under 1 MB); `scipy` is a declared build
+  requirement, so isolated PEP 517 builds work.
+- macOS wheels could not be built, and then not installed on most Intel Macs:
+  the Homebrew-GCC symlink broke, and its bundled `libgomp` forced a
+  `macosx_15_0` deployment target. They are built with Apple clang and
+  `QMEQ_OPENMP=off`. `c_RTD.pyx` reaches `omp_*` only through a guarded shim,
+  so a non-OpenMP build no longer fails to link or imports with unresolved
+  symbols.
+- Retired and misconfigured CI pieces: the `macos-13` runner, `pixi install`
+  in the Conda publish job, the undeclared `linux-aarch64` pixi platform, and
+  a `setuptools` install that silently kept a runner's too-old version.
+- The `docs` extra gains `ipython-pygments-lexers` and the `test` extra
+  `setuptools>=77`; the legacy notebooks' images are tracked despite the
+  `*.png` ignore rule; notebooks use a Python 3 kernel; ambiguous `Approach`
+  cross-references and malformed docstrings no longer break a strict build;
+  the documentation builds without the compiled extensions.
+- Tests that were not portable: the QmeQ 1.1 electron-phonon kernel check
+  compares under one consistent eigenvector sign gauge, the batched
+  Hilbert-transform check allows FFT reassociation on aarch64, and the
+  Cython build-directory probe skips when Cython is intentionally absent.
 
 ## [1.1] - 2021-06-04
 
