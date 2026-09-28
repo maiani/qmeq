@@ -37,6 +37,18 @@
   twin keeps every option, and RTD, which reads `itype` directly, is unchanged.
 
 
+- Refuse invalid input instead of substituting a default. A misspelled
+  `kerntype` used to warn and run the Pauli approach, an unknown `indexing`
+  ran `'charge'` (or `'Lin'` in `StateIndexing`), a misspelled `symmetry` such
+  as `'Spin'` was ignored so the calculation ran without spin symmetry, and an
+  out-of-range `itype` or `itype_ph` was replaced by 0; all of these, and
+  `mfreeq=True` with RTD, which crashed deep in the kernel handler, now raise
+  `ValueError` naming the accepted values. This applies to assignments on an
+  existing system (`system.kerntype`, `system.itype`, `system.mfreeq`) as well
+  as to construction. Valid choices that an approach cannot honour -- `'sz'`
+  indexing for 2vN, spin symmetry or non-charge indexing for RTD, an explicit
+  `itype` other than 1 for RTD -- are still substituted with a `QmeqWarning`,
+  as in QmeQ 1.1, since they give that version's results.
 - Make the Lindblad Lamb shift belong to the Lindblad dissipator. QmeQ's
   Lindblad approach is not the secular (Davies) generator: following
   `KirsanskasFranckieWacker2018`, cited as Ref. [32] of the QmeQ paper, it

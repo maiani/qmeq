@@ -14,19 +14,21 @@ ITYPE_OPTIONS = {
 TRANSPORT_OPTIONS = {options: itype for itype, options in ITYPE_OPTIONS.items()}
 
 
+APPROACHES = ('Pauli', 'Lindblad', 'Redfield', '1vN', '2vN', 'RTD', 'RTDnoise')
+KERNTYPES = APPROACHES + tuple('py' + approach for approach in APPROACHES)
+
+
 def validate_kerntype(kerntype):
-    if isinstance(kerntype, str):
-        if kerntype not in {'Pauli', 'Lindblad', 'Redfield', '1vN', '2vN', 'pyPauli',
-                    'pyLindblad', 'pyRedfield', 'py1vN', 'py2vN', 'pyRTD', 'RTD','pyRTDnoise','RTDnoise'}:
-            warnings.warn(
-                "Allowed kerntype values are: 'Pauli', 'Lindblad', "
-                "'Redfield', '1vN', '2vN', 'pyPauli', 'pyLindblad', "
-                "'pyRedfield', 'py1vN', 'py2vN', 'RTD', 'pyRTDnoise', "
-                "'RTDnoise'. Using default kerntype='Pauli'.",
-                QmeqWarning,
-                stacklevel=2,
-            )
-            kerntype = 'Pauli'
+    """Refuse an unknown kerntype string rather than substitute another approach.
+
+    A misspelled name used to fall back to Pauli with a warning, so a sweep
+    meant for a coherent approach silently ran the Pauli one instead.
+    """
+    if isinstance(kerntype, str) and kerntype not in KERNTYPES:
+        raise ValueError(
+            f"Unknown kerntype {kerntype!r}. Allowed values are "
+            + ", ".join(repr(name) for name in KERNTYPES) + "."
+        )
     return kerntype
 
 
@@ -47,14 +49,7 @@ def resolve_transport_options(itype, bandwidth, principal_part, kerntype):
     if itype is None:
         itype = 0
     elif itype not in ITYPE_OPTIONS:
-        if descriptive_explicit:
-            raise ValueError("itype must be 0, 1, 2, or 3.")
-        warnings.warn(
-            "itype needs to be 0, 1, 2, or 3. Using default itype=0.",
-            QmeqWarning,
-            stacklevel=2,
-        )
-        itype = 0
+        raise ValueError(f"itype must be 0, 1, 2, or 3, not {itype!r}.")
 
     legacy_bandwidth, legacy_principal_part = ITYPE_OPTIONS[itype]
 
@@ -154,26 +149,31 @@ def validate_itype(itype, kerntype):
 
 def validate_itype_ph(itype_ph):
     if itype_ph not in {0, 2}:
-        warnings.warn(
-            "itype_ph needs to be 0 or 2. Using default itype_ph=0.",
-            QmeqWarning,
-            stacklevel=2,
-        )
-        itype_ph = 0
+        raise ValueError(f"itype_ph must be 0 or 2, not {itype_ph!r}.")
     return itype_ph
 
 def validate_mfreeq(kerntype, mfreeq):
-    if mfreeq and kerntype in {'RTD', 'pyRTD','RTDnoise','pyRTDnoise'}:
-        warnings.warn(
-            "mfreeq=True is not supported by the RTD approach. "
-            "Using default mfreeq=False.",
-            QmeqWarning,
-            stacklevel=2,
+    if mfreeq and kerntype in {'RTD', 'pyRTD', 'RTDnoise', 'pyRTDnoise'}:
+        raise ValueError(
+            "mfreeq=True is not supported by the RTD approach; use the default "
+            "mfreeq=False."
         )
-        mfreeq = False
     return mfreeq
 
 def validate_indexing(indexing, symmetry, kerntype):
+    # Unknown values are refused: a misspelled symmetry used to be ignored
+    # and a misspelled indexing replaced, both changing the calculation.
+    # Valid choices an approach cannot honour are still substituted with a
+    # warning below, as in QmeQ 1.1.
+    if symmetry not in {None, 'spin'}:
+        raise ValueError(
+            f"symmetry must be None or 'spin', not {symmetry!r}."
+        )
+    if indexing is not None and indexing not in {'Lin', 'charge', 'sz', 'ssq'}:
+        raise ValueError(
+            "indexing must be 'Lin', 'charge', 'sz', or 'ssq', not "
+            f"{indexing!r}."
+        )
     if indexing is None:
         if symmetry == 'spin' and kerntype in {'pyRTD', 'RTD', 'pyRTDnoise', 'RTDnoise'}:
             warnings.warn(
@@ -188,15 +188,6 @@ def validate_indexing(indexing, symmetry, kerntype):
             indexing = 'ssq'
         else:
             indexing = 'charge'
-
-    if indexing not in {'Lin', 'charge', 'sz', 'ssq'}:
-        warnings.warn(
-            "Allowed indexing values are: 'Lin', 'charge', 'sz', 'ssq'. "
-            "Using default indexing='charge'.",
-            QmeqWarning,
-            stacklevel=2,
-        )
-        indexing = 'charge'
 
     if indexing not in {'Lin', 'charge'} and kerntype in {'py2vN', '2vN'}:
         warnings.warn(

@@ -62,9 +62,10 @@ is a property of this toy model, not of the Pauli approach in general.)
 backend is active), or `'pyRTDnoise'` (all Python). A `'py'`-prefixed name
 forces the pure-Python implementation for that approach regardless of
 `QMEQ_BACKEND`; the bare name uses whatever the backend loader selected. An
-unrecognized string warns (`QmeqWarning`) and falls back to `'Pauli'` rather
-than raising. `kerntype` can also be a custom `Approach` subclass. (Validated
-by `validate_kerntype`, `qmeq/builder/validation.py`.)
+unrecognized string raises `ValueError` rather than running another approach,
+and so do unknown `indexing`, `symmetry`, `itype`, and `itype_ph` values and
+`mfreeq=True` with RTD. `kerntype` can also be a custom `Approach` subclass.
+(Validated by `validate_kerntype`, `qmeq/builder/validation.py`.)
 
 `system.kerntype` can be reassigned on an already-built system — it rebuilds
 the solver in place but keeps the model (tutorial 4 uses exactly this to sweep
@@ -185,7 +186,8 @@ for spin down. When `indexing` is omitted it selects `'ssq'` for first-order
 approaches. RTD/RTDnoise require `indexing='charge'` and do not support the
 spin shortcut; 2vN supports only `'Lin'` and `'charge'`. Unsupported
 combinations emit `QmeqWarning` and select a supported indexing, so inspect
-`system.indexing` when adapting an existing model. The internal packed-layout
+`system.indexing` when adapting an existing model; an unknown `indexing` or
+`symmetry` value raises `ValueError`. The internal packed-layout
 contract is documented separately in [State indexing](../conventions/state-indexing.md).
 
 ## Editing an existing model

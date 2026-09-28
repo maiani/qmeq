@@ -29,6 +29,7 @@ from .validation import validate_kerntype
 from .validation import resolve_transport_options
 from .validation import validate_indexing
 from .validation import validate_countingleads
+from .validation import validate_mfreeq
 
 # -----------------------------------------------------------
 # Python modules
@@ -162,6 +163,7 @@ class BuilderBase(object):
     def _init_validate_data(self):
         data = self.data
         data.kerntype = validate_kerntype(data.kerntype)
+        data.mfreeq = validate_mfreeq(data.kerntype, data.mfreeq)
         (data.itype, data.bandwidth,
          data.principal_part) = resolve_transport_options(
             data.itype, data.bandwidth, data.principal_part,
@@ -244,7 +246,9 @@ class BuilderBase(object):
         return self.appr.kerntype
 
     def set_kerntype(self, value):
+        value = validate_kerntype(value)
         if isinstance(value, str):
+            validate_mfreeq(value, self.funcp.mfreeq)
             if self.appr.kerntype != value:
                 approach_string = value[0].capitalize() + value[1:]
                 previous = self.appr.kerntype

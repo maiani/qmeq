@@ -512,19 +512,16 @@ class StateIndexing(object):
             self.indexing = 'Lin'
             self.chargelst = construct_chargelst(nsingle)
             self.i = list(range(self.nmany))
-        elif indexing == 'Lin':
-            self.chargelst = construct_chargelst(nsingle)
-            self.i = list(range(self.nmany))
-        else:
-            warnings.warn(
-                "The indexing has to be 'Lin', 'charge', 'sz', or 'ssq'. "
-                "Using 'Lin' indexing.",
-                QmeqWarning,
-                stacklevel=2,
-            )
+        elif indexing in ('Lin', None):
+            # None is the default, Lin.
             self.indexing = 'Lin'
             self.chargelst = construct_chargelst(nsingle)
             self.i = list(range(self.nmany))
+        else:
+            raise ValueError(
+                "indexing must be 'Lin', 'charge', 'sz', or 'ssq', not "
+                f"{indexing!r}."
+            )
         self.j = make_inverse_map(self.i)
         # Note that these quantum numbers to state and state to quantum numbers dictionaries
         # are necessary only for ssq indexing

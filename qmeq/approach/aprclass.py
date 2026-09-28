@@ -84,7 +84,10 @@ class Approach(object):
         return self.funcp.mfreeq
     @mfreeq.setter
     def mfreeq(self, value):
-        self.funcp.mfreeq = value
+        # Import lazily to avoid a builder/approach import cycle.
+        from ..builder.validation import validate_mfreeq
+
+        self.funcp.mfreeq = validate_mfreeq(self.kerntype, value)
 
     @property
     def symq(self):

@@ -25,24 +25,59 @@ def test_warning_categories_are_public_and_filterable_as_a_group():
 @pytest.mark.parametrize(
     ("call", "match"),
     [
-        (lambda: validate_kerntype("unknown"), "Allowed kerntype"),
+        (lambda: validate_kerntype("Lindbald"), "Unknown kerntype 'Lindbald'"),
         (
             lambda: resolve_transport_options(9, None, None, "Pauli"),
-            "itype needs to be",
+            "itype must be 0, 1, 2, or 3",
         ),
+        (lambda: validate_itype_ph(1), "itype_ph must be 0 or 2"),
+        (lambda: validate_mfreeq("RTD", True), "mfreeq=True"),
+        (
+            lambda: validate_indexing("invalid", None, "Pauli"),
+            "indexing must be",
+        ),
+        (lambda: validate_indexing(None, "Spin", "Pauli"), "symmetry must be"),
+        (lambda: StateIndexing(2, indexing="invalid"), "indexing must be"),
+    ],
+    ids=["kerntype", "itype", "itype_ph", "mfreeq", "indexing", "symmetry",
+         "StateIndexing"],
+)
+def test_invalid_input_raises_instead_of_falling_back(call, match):
+    """A misspelled option must not silently select a different calculation.
+
+    Each of these used to warn and substitute a default: an unknown kerntype
+    ran Pauli, an unknown indexing ran charge or Lin, and a misspelled
+    symmetry was ignored. mfreeq with RTD crashed deep in the kernel handler.
+    """
+    with pytest.raises(ValueError, match=match):
+        call()
+
+
+def test_builder_refuses_invalid_input():
+    with pytest.raises(ValueError, match="Unknown kerntype"):
+        qmeq.Builder(nsingle=0, kerntype="Lindbald")
+    with pytest.raises(ValueError, match="mfreeq=True"):
+        qmeq.Builder(nsingle=0, kerntype="RTD", mfreeq=True)
+    system = qmeq.Builder(nsingle=0, kerntype="Pauli")
+    with pytest.raises(ValueError, match="Unknown kerntype"):
+        system.kerntype = "Lindbald"
+    with pytest.raises(ValueError, match="itype must be"):
+        system.itype = 7
+    rtd = qmeq.Builder(nsingle=0, kerntype="RTD")
+    with pytest.raises(ValueError, match="mfreeq=True"):
+        rtd.mfreeq = True
+
+
+@pytest.mark.parametrize(
+    ("call", "match"),
+    [
         (
             lambda: resolve_transport_options(0, None, None, "RTD"),
             "Only itype=1",
         ),
-        (lambda: validate_itype_ph(1), "itype_ph needs"),
-        (lambda: validate_mfreeq("RTD", True), "mfreeq=True"),
         (
             lambda: validate_indexing(None, "spin", "RTD"),
             "symmetry='spin'",
-        ),
-        (
-            lambda: validate_indexing("invalid", None, "Pauli"),
-            "Allowed indexing",
         ),
         (
             lambda: validate_indexing("sz", None, "2vN"),
@@ -62,8 +97,6 @@ def test_validation_fallbacks_emit_qmeq_warning(call, match):
 def test_state_indexing_fallbacks_emit_qmeq_warning():
     with pytest.warns(qmeq.QmeqWarning, match="nsingle has to be even"):
         StateIndexing(3, indexing="sz")
-    with pytest.warns(qmeq.QmeqWarning, match="indexing has to be"):
-        StateIndexing(2, indexing="invalid")
 
     charge_indexing = StateIndexing(2, indexing="charge")
     with pytest.warns(qmeq.QmeqWarning, match="Returning charge list"):
