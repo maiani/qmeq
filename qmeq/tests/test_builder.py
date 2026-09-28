@@ -162,6 +162,57 @@ def test_lindblad_principal_part_has_no_default_with_phonons():
         qmeq.BuilderElPh(nsingle=0, kerntype="Lindblad")
 
 
+def _coherent_double_dot(kerntype, **kwargs):
+    return Builder(
+        nsingle=2, hsingle={(0, 0): -1.0, (1, 1): -1.2, (0, 1): 0.4},
+        coulomb={(0, 1, 1, 0): 3.0}, nleads=2,
+        tleads={(0, 0): 0.2, (1, 1): 0.1, (0, 1): 0.06, (1, 0): 0.01},
+        mulst={0: 0.5, 1: -0.5}, tlst={0: 0.3, 1: 0.3}, dband={0: 8.0, 1: 8.0},
+        kerntype=kerntype, **kwargs,
+    )
+
+
+@pytest.mark.parametrize("first", ["Pauli", "1vN", "Redfield", "2vN"])
+def test_kerntype_reassignment_to_lindblad_leaves_principal_part_unset(first):
+    """A reassigned kerntype must not inherit the previous principal_part.
+
+    A 1vN system resolves itype=0 to principal_part='quad'; carried into
+    Lindblad it would switch on a quadrature Lamb shift nobody asked for.
+    Only itype carries over, and solving refuses until the shift is chosen.
+    """
+    system = _coherent_double_dot(first)
+    system.kerntype = "Lindblad"
+
+    assert (system.itype, system.bandwidth, system.principal_part) == (
+        0, "finite", None)
+    with pytest.raises(ValueError, match="no default principal_part"):
+        system.solve()
+
+    system.principal_part = "omit"
+    system.solve()
+    fresh = _coherent_double_dot("Lindblad", itype=0, principal_part="omit")
+    fresh.solve()
+    assert np.array_equal(system.current, fresh.current)
+
+
+def test_kerntype_reassignment_from_lindblad_carries_only_itype():
+    system = _coherent_double_dot("Lindblad", itype=0, principal_part="digamma")
+    system.kerntype = "1vN"
+    fresh = _coherent_double_dot("1vN")
+
+    options = (system.itype, system.bandwidth, system.principal_part)
+    assert options == (0, "finite", "quad")
+    assert options == (fresh.itype, fresh.bandwidth, fresh.principal_part)
+
+
+def test_kerntype_reassignment_between_backends_keeps_options():
+    system = _coherent_double_dot("Lindblad", principal_part="digamma")
+    system.kerntype = "pyLindblad"
+
+    assert (system.itype, system.bandwidth, system.principal_part) == (
+        1, "infinite", "digamma")
+
+
 @pytest.mark.parametrize(
     "kwargs",
     [

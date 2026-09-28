@@ -81,5 +81,11 @@ For Lindblad, legacy `itype` controls only the bandwidth: values 0 and 2
 select `'finite'`, while 1 and 3 select `'infinite'`. It does not select the
 principal part, which must still be given with `principal_part`.
 
+Reassigning `kerntype` on an existing system carries over only `itype`, as in
+QmeQ 1.1, and re-derives `bandwidth` and `principal_part` for the new
+approach. A system reassigned to Lindblad therefore has `principal_part` unset
+until it is set explicitly. Switching between a compiled approach and its
+`py` twin keeps every option.
+
 New code should prefer the descriptive options. Supplying `itype` together
 with a conflicting descriptive value raises `ValueError`.

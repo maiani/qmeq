@@ -92,8 +92,10 @@ class Builder(BuilderBase):
         support ``'quad'``, ``'digamma'``, and ``'omit'``. For Lindblad the
         principal part is the Lamb shift and has no default: a Lindblad system
         needs it explicitly, and ``'omit'`` with ``itype=0`` reproduces
-        QmeQ 1.1. Pauli has no principal-value contribution, RTD requires
-        ``'digamma'``, and 2vN does not use this option.
+        QmeQ 1.1. Reassigning ``kerntype`` to Lindblad leaves it unset, and
+        solving raises until it is set. Pauli has no principal-value
+        contribution, RTD requires ``'digamma'``, and 2vN does not use this
+        option.
     dqawc_limit : int
         For itype=0 dqawc_limit determines the maximum number of sub-intervals
         in the partition of the given integration interval.

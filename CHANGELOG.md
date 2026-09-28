@@ -25,6 +25,18 @@
   is given. Tutorials 4 and 7 now state `principal_part='omit'`, which is what
   they were written against: the "6-13% below 1vN" that tutorial 4 quotes for
   Lindblad holds without the shift and not with it.
+- Carry only `itype` across a `kerntype` reassignment, as QmeQ 1.1 did.
+  `bandwidth` and `principal_part` resolved for one approach used to be
+  inherited by the next, and they mean different things: a 1vN system at the
+  default `itype=0` has `principal_part='quad'`, so reassigning it to Lindblad
+  switched on a quadrature Lamb shift nobody asked for, and the same model gave
+  three different Lindblad currents depending on which approach it had been
+  built with. The options are now re-derived from `itype` for the new
+  approach. A system reassigned to Lindblad has `principal_part` unset and
+  `solve()` raises until it is set. Switching between an approach and its `py`
+  twin keeps every option, and RTD, which reads `itype` directly, is unchanged.
+
+
 - Make the Lindblad Lamb shift belong to the Lindblad dissipator. QmeQ's
   Lindblad approach is not the secular (Davies) generator: following
   `KirsanskasFranckieWacker2018`, cited as Ref. [32] of the QmeQ paper, it

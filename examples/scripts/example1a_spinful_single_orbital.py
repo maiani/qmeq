@@ -52,6 +52,9 @@ print(np.sum(system.current))
 kernels = ['Redfield', '1vN', 'Lindblad', 'Pauli']
 for kerntype in kernels:
     system.kerntype = kerntype
+    if kerntype == 'Lindblad':
+        # A reassigned Lindblad system has no Lamb-shift choice until one is set.
+        system.principal_part = 'omit'
     system.solve()
     print(kerntype, ' current:')
     print(system.current)

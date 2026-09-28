@@ -247,15 +247,43 @@ class BuilderBase(object):
         if isinstance(value, str):
             if self.appr.kerntype != value:
                 approach_string = value[0].capitalize() + value[1:]
+                previous = self.appr.kerntype
                 self.Approach = self.globals['Approach'+approach_string]
+                self._carry_transport_options(previous)
                 self.change_si()
                 self.appr = self.Approach(self)
         else:
             if issubclass(value, Approach):
+                previous = self.appr.kerntype
                 self.Approach = value
+                self._carry_transport_options(previous)
                 self.change_si()
                 self.appr = self.Approach(self)
     kerntype = property(get_kerntype, set_kerntype)
+
+    def _carry_transport_options(self, previous):
+        """Re-derive the transport options for a reassigned approach.
+
+        Only the shared ``itype`` selector carries over, as in QmeQ 1.1.
+        ``principal_part`` is approach specific -- for Lindblad it selects the
+        Lamb shift -- so inheriting it would let the previous approach's
+        option choose the new approach's physics. A Lindblad system reached
+        this way therefore has ``principal_part`` unset and refuses to solve
+        until it is set. Switching between the Python and compiled forms of
+        one approach keeps every option, and RTD reads ``itype`` directly and
+        is left as it was.
+        """
+        kerntype = self.Approach.kerntype
+        approach = kerntype.removeprefix('py')
+        if approach == previous.removeprefix('py'):
+            return
+        if approach in ('RTD', 'RTDnoise'):
+            return
+        funcp = self.funcp
+        (funcp.itype, funcp.bandwidth,
+         funcp.principal_part) = resolve_transport_options(
+            funcp.itype, None, None, kerntype
+        )
 
     # indexing
     def get_indexing(self):

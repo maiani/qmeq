@@ -234,6 +234,12 @@ required, while `bandwidth` defaults to `'infinite'` when neither it nor
 `bandwidth='finite'`) reproduces QmeQ 1.1, whose Lindblad approach had no
 Lamb shift and whose default was `itype=0`.
 
+Reassigning `kerntype` to Lindblad on an existing system carries over only
+`itype`. The previous approach's `principal_part` is a different quantity (for
+1vN, the evaluation of its principal-value integrals), so it is not inherited:
+`principal_part` is left unset and `solve()` raises until it is set, for
+example with `system.principal_part = 'omit'`.
+
 `'quad'` evaluates the arithmetic principal values over the actual band,
 while retaining the wide-band geometric correction. It converges to the
 wide-band result, but is not the exact ULE for a finite spectral band: that
