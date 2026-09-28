@@ -84,6 +84,18 @@ def test_rejected_temperature_update_leaves_the_leads_untouched(update):
     np.testing.assert_array_equal(system.leads.tlst, before)
 
 
+def test_partial_temperature_dict_cannot_leave_leads_at_zero():
+    """A tlst naming some leads must not leave the others at the zero default."""
+    with pytest.raises(ValueError, match=r"tlst\[1\]=0.0 \(not given\)"):
+        qmeq.Builder(
+            nsingle=1, hsingle={(0, 0): 0.0}, nleads=2,
+            tleads={(0, 0): 0.1, (1, 0): 0.1}, mulst={0: 0.1, 1: -0.1},
+            tlst={0: 1.0}, dband={0: 10.0, 1: 10.0},
+        )
+    # An empty tlst is still accepted, for systems that never reach a solve.
+    qmeq.Builder(nsingle=1, hsingle={(0, 0): 0.0}, nleads=2)
+
+
 # --- itype=0 band edges ----------------------------------------------------
 
 @pytest.mark.parametrize("edge", [1.0, 50.0])

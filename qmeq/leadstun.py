@@ -373,7 +373,7 @@ def _supplied_lead_indices(tlst, npar):
     return ()
 
 
-def _validate_temperatures(candidate, tlst, npar):
+def _validate_temperatures(candidate, tlst, npar, complete=False):
     """Reject lead temperatures that no approach can evaluate.
 
     Every kernel divides by the lead temperature. At exactly zero the
@@ -385,17 +385,25 @@ def _validate_temperatures(candidate, tlst, npar):
     small positive temperature is well behaved, so both are refused at the
     input rather than deep inside a solve.
 
-    Only the entries the caller named are checked. ``tlst`` defaults to an
-    empty dictionary, so the stored array is all zeros for anyone constructing
-    leads to exercise ``Tba``, the 2vN grid, or option validation, and those
-    callers never reach a temperature.
+    ``tlst`` defaults to an empty dictionary, so the stored array is all zeros
+    for anyone constructing leads to exercise ``Tba``, the 2vN grid, or option
+    validation, and those callers never reach a temperature: an empty ``tlst``
+    is not checked. With ``complete=True``, used where ``tlst`` defines every
+    temperature (construction), naming any lead requires all of them to be
+    positive, so a partial dictionary cannot leave the unnamed leads at zero. Otherwise (``add`` and ``change``) only the named entries are
+    checked, since the others keep their stored values.
     """
     values = np.asarray(candidate, dtype=doublenp).ravel()
+    supplied = _supplied_lead_indices(tlst, npar)
+    checked = range(min(npar, len(values))) if complete and supplied else supplied
     invalid = [(index, float(values[index]))
-               for index in _supplied_lead_indices(tlst, npar)
+               for index in checked
                if index < len(values) and not values[index] > 0.0]
     if invalid:
-        listed = ", ".join(f"tlst[{index}]={value!r}" for index, value in invalid)
+        listed = ", ".join(
+            f"tlst[{index}]={value!r}" + ("" if index in supplied else " (not given)")
+            for index, value in invalid
+        )
         raise ValueError(
             "lead temperatures must be positive, got " + listed + ". Use a "
             "small positive temperature instead: the kernels divide by the "
@@ -474,7 +482,7 @@ class LeadsTunneling(object):
         self.tleads_array = make_tleads_array(self.tleads, si)
         self.mulst = make_array(None, mulst, si)
         self.tlst = make_array(None, tlst, si)
-        _validate_temperatures(self.tlst, tlst, si.nleads_sym)
+        _validate_temperatures(self.tlst, tlst, si.nleads_sym, complete=True)
         self.dlst = make_array_dlst(None, dlst, si)
         self.mtype = mtype
         self._init_coupling()

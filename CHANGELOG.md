@@ -88,6 +88,14 @@
 
 ### Fixed
 
+- Refuse a `tlst` that names some leads and leaves the others at the zero
+  default. Only the named entries were checked, so `tlst={0: 1.0}` on a
+  two-lead system passed validation and reached the kernels with lead 1 at
+  `T = 0`. Constructing leads now requires every temperature to be positive
+  once any is given, naming the missing ones; an empty `tlst` is still
+  accepted for systems that never reach a solve, and `change`/`add` still
+  check only what they update.
+
 - Make `get_phi0` and `get_phi1` recognise a Pauli system. They branched on
   `funcp.kerntype`, which the builder never sets, so it always held the
   `FunctionProperties` default `'2vN'`: for Pauli, `get_phi0` on a coherence
