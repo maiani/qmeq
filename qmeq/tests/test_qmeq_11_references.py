@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 
-import qmeq
 from qmeq.tests.qmeq_11_reference_models import _rtd_reference_snapshot
 from qmeq.tests.qmeq_11_reference_models import build_reference_system
 from qmeq.tests.qmeq_11_reference_models import build_rtd_reference_system
@@ -42,20 +41,6 @@ BASE_CASES = (
 )
 
 ELPH_CASES = ("Pauli", "Lindblad", "Redfield", "1vN")
-SELECTED_ELPH_CASES = (
-    "Pauli",
-    pytest.param(
-        "Lindblad",
-        marks=pytest.mark.xfail(
-            condition=qmeq.get_backend_status()["active"] == "cython",
-            reason=("Compiled electron-phonon Lindblad stationary-state parity "
-                    "is an existing P1 roadmap gap."),
-            strict=True,
-        ),
-    ),
-    "Redfield",
-    "1vN",
-)
 SNAPSHOT_FIELDS = ("current", "energy_current", "heat_current", "phi0", "kern")
 STATIONARY_FIELDS = ("current", "energy_current", "heat_current", "phi0")
 
@@ -229,7 +214,7 @@ def test_electronic_approaches_match_qmeq_11(approach, itype):
     )
 
 
-@pytest.mark.parametrize("approach", SELECTED_ELPH_CASES)
+@pytest.mark.parametrize("approach", ELPH_CASES)
 def test_electron_phonon_approaches_match_qmeq_11(approach):
     key = f"elph/{approach}/itype=2/itype_ph=2"
     system = build_reference_system(

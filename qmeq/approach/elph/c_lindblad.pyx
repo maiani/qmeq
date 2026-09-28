@@ -126,7 +126,7 @@ cdef class ApproachLindblad(ApproachElPh):
                 fct_aap = 0
                 for l in range(nbaths):
                     for q in range(2):
-                        fct_aap += tLbbp[l, b, a, q]*tLbbp[l, bp, a, q].conjugate()
+                        fct_aap += tLbbp[l, b, a, q]*tLbbp[l, bp, ap, q].conjugate()
                 kh.set_matrix_element(1j*fct_aap, b, bp, bcharge, a, ap, acharge)
         # --------------------------------------------------
         for i in range(bcount):

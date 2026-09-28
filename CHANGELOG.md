@@ -88,6 +88,19 @@
 
 ### Fixed
 
+- Correct the compiled electron-phonon Lindblad jump term. For the
+  coherence columns of the kernel it paired `L[b, a]` with `conj(L[bp, a])`
+  instead of `conj(L[bp, ap])`, so the generator no longer preserved the
+  trace: stationary states acquired negative populations (as low as -2.25
+  with the default bath) and `I_L != -I_R`, while `pyLindblad` was right. The
+  error dates from the approach's introduction and is in QmeQ 1.1. The
+  compiled kernel now equals the Python one to machine precision, the QmeQ 1.1
+  reference case that was a strict `xfail` passes, and a new backend-parity and
+  trace-preservation gate covers all four electron-phonon approaches. The
+  legacy bundle's compiled `Lindblad22` electron-phonon entries recorded the
+  error; they sit 3e-12 from the corrected result, inside that test's
+  tolerance, and are left unchanged with a provenance note.
+
 - Make assigning a lead or phonon-bath parameter array take effect on the
   compiled backend. The compiled approaches bind views of `leads.mulst`,
   `tlst` and `dlst` (and `baths.tlst_ph`, `dlst_ph`) when they are first
@@ -408,9 +421,7 @@
   the intentional post-1.1 complex-integral branch correction without changing
   the historical values. Tests never regenerate expected data implicitly, and
   the generator rejects any source revision or QmeQ version other than the
-  pinned 1.1 checkout. Compiled electron-phonon Lindblad parity remains the
-  suite's single strict, conditional `xfail`, with its existing P1 correctness
-  gap documented inline rather than hidden by a wider tolerance.
+  pinned 1.1 checkout.
 - Add a source-based Conda recipe for compiled Python 3.11-3.14 Linux x86-64,
   Linux aarch64, Intel macOS, and Apple Silicon packages, plus a tag/manual
   GitHub Actions workflow that builds each Python/platform variant

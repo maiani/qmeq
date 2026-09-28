@@ -27,13 +27,19 @@ Ground rules for anything below:
     `NotImplementedError` at construction instead of failing deep inside a
     solve.
 
-- [ ] Resolve the remaining electron-phonon backend parity failure.
-  - The QmeQ 1.1 reference suite now compares kernels, stationary states, and
-    currents for electron-phonon Pauli, Lindblad, Redfield, and 1vN within the
-    same approximation. Pauli, Redfield, and 1vN pass on both backends.
-  - Compiled electron-phonon Lindblad remains a strict, conditional `xfail`
-    with an inline reason. Diagnose and fix that numerical divergence without
-    weakening tolerances or normalizing it into the historical fixture.
+- [x] Resolve the remaining electron-phonon backend parity failure.
+  - Done: the compiled jump term used `conj(L[bp, a])` where
+    `conj(L[bp, ap])` belongs, which broke trace preservation for coherence
+    columns; with that one index fixed the compiled kernel equals the Python
+    twin and the QmeQ 1.1 reference to machine precision, and the `xfail` is
+    gone. `test_elph_backend_parity.py` now gates kernel-level parity and trace
+    preservation for all four electron-phonon approaches.
+  - Left open: compiled `generate_fct` fills `tLbbp` only for pairs in the
+    density-matrix layout while Python fills every same-charge pair. The
+    difference is unread when the phonon coupling respects the indexing
+    symmetry, but with `'ssq'` and spin-dependent `velph` the kernels differ
+    by ~1e-4. Either align the compiled loop or refuse `velph` that breaks
+    the indexing symmetry.
 
 - [ ] Support the RTD energy and heat currents for complex tunnel amplitudes.
   - Both are currently filled with `nan` and a warning while the charge current
