@@ -100,6 +100,11 @@ number because 1.1 was wrong there. The cases, each detailed below:
     same-charge states with no tunnel broadening at all.
   - RTD warns (`RTDBandwidthWarning`) at unequal temperatures when `dband` is
     not conservatively separated from the transport scales.
+  - With a finite band (`itype` 0 or 2), a `QmeqWarning` names every lead
+    whose band excludes all the transitions it couples to. Their rates are
+    then exactly zero, so moving `dband` by `1e-9` across a transition energy
+    turned a finite current into a silent `0`. Shown once per system; leads
+    with no coupling at all are not flagged.
   - `QmeqWarning` and `QmeqRuntimeWarning` are public, so all QmeQ diagnostics
     can be captured or filtered as a group; the RTD categories are exported at
     the package top level.

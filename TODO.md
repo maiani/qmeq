@@ -57,11 +57,10 @@ Ground rules for anything below:
     restriction, so it can supply the converged answer the sweep should approach,
     at least in the non-interacting limit.
 
-- [ ] Warn when the band edge silences the current.
-  - With `itype=0`, moving the cutoff by `1e-9` across a transition energy is
-    the difference between `current=1.66e-05` and a silent `current=0`. Warn
-    once when the band excludes every transition energy: that is the whole
-    class, not just the case found by hand.
+- [x] Warn when the band edge silences the current.
+  - Done: `check_band_coverage` in `qmeq/approach/diagnostics.py` runs from the
+    shared `solve` on both backends and warns once, per lead, when a finite
+    band excludes every transition that lead couples to.
 
 - [ ] Say when `dband` is being ignored.
   - `itype=1` and `itype=3` are wide-band limits and drop the cutoff entirely:

@@ -210,6 +210,53 @@ def test_itype0_refuses_a_transition_energy_on_the_band_edge(edge):
             system.solve()
 
 
+def _band_warnings(caught):
+    return [w for w in caught if "no transition these leads couple to" in str(w.message)]
+
+
+@pytest.mark.parametrize("kerntype", ["Pauli", "pyPauli", "1vN", "py1vN"])
+def test_a_band_that_excludes_every_transition_warns(kerntype):
+    """A finite band just short of the only transition silences the leads.
+
+    Across the edge the current jumps from finite to an exact zero, which
+    no other diagnostic reports; the warning is shown once per system.
+    """
+    def solve(dband):
+        system = _single_level(kerntype)
+        system.change(dlst={0: dband, 1: dband})
+        system.itype = 0
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            system.solve()
+            system.solve()
+        return system, _band_warnings(caught)
+
+    silenced, caught = solve(0.1 - 1e-9)
+    assert len(caught) == 1
+    assert issubclass(caught[0].category, qmeq.QmeqWarning)
+    assert "lead 0" in str(caught[0].message) and "lead 1" in str(caught[0].message)
+
+    carrying, caught = solve(0.1 + 1e-9)
+    assert caught == []
+    assert carrying.current[0] != 0.0
+
+
+def test_the_band_warning_ignores_wide_band_and_uncoupled_leads():
+    wide = _single_level("Pauli")
+    wide.change(dlst={0: 0.05, 1: 0.05})
+    wide.itype = 1
+    uncoupled = qmeq.Builder(
+        nsingle=1, hsingle={(0, 0): 0.1}, nleads=2, tleads={(0, 0): 0.1},
+        mulst={0: 0.3, 1: -0.3}, tlst={0: 1.0, 1: 1.0},
+        dband={0: 50.0, 1: 0.05}, kerntype="Pauli", itype=0,
+    )
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        wide.solve()
+        uncoupled.solve()
+    assert _band_warnings(caught) == []
+
+
 def test_itype0_accepts_a_band_edge_next_to_a_transition_energy():
     """Only exact coincidence is refused; a neighbouring cutoff still solves.
 

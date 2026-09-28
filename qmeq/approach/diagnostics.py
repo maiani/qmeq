@@ -23,6 +23,7 @@ import warnings
 import numpy as np
 
 from .._warnings import QmeqRuntimeWarning
+from .._warnings import QmeqWarning
 
 POPULATION_TOL = 1e-8
 """Tolerance for the smallest population: populations below ``-POPULATION_TOL``
@@ -170,3 +171,62 @@ def check_stationary_solution(appr, warn=True):
         funcp.suppress_unphysical_wrn = True
 
     return diag
+
+
+def check_band_coverage(appr):
+    """Warn once when a finite band leaves a lead no transition to tunnel through.
+
+    With a finite band (``itype`` 0 or 2) a rate is kept only for a
+    transition energy ``E_c - E_b`` strictly inside the lead's band
+    ``(dlst[l, 0], dlst[l, 1])``, so a lead whose every coupled transition
+    lies outside it has all its rates zero and carries no current. Moving
+    ``dband`` by a hair across the transition energy is then the difference
+    between a finite current and an exact, silent zero. Leads with no coupled
+    transition at all are not flagged: that is the model, not the band.
+
+    The warning is shown once per system and the check is skipped for the
+    wide-band ``itype`` values 1 and 3, which ignore the band.
+    """
+    funcp = appr.funcp
+    if funcp.itype not in (0, 2) or funcp.suppress_band_wrn:
+        return
+    si = appr.si
+    states = [b for sector in si.statesdm for b in sector]
+    if not states:
+        return
+    states = np.asarray(states, dtype=int)
+    charge = np.empty(len(states), dtype=int)
+    offset = 0
+    for n, sector in enumerate(si.statesdm):
+        charge[offset:offset + len(sector)] = n
+        offset += len(sector)
+    energy = np.asarray(appr.qd.Ea)[states]
+    # Transition c <- b adds one electron: rows c, columns b.
+    adds_one = charge[:, None] == charge[None, :] + 1
+    transition = energy[:, None] - energy[None, :]
+    Tba, dlst = np.asarray(appr.leads.Tba), np.asarray(appr.leads.dlst)
+
+    silenced = []
+    for lead in range(si.nleads):
+        coupled = adds_one & (np.abs(Tba[lead][np.ix_(states, states)]) > 0.0)
+        if not coupled.any():
+            continue
+        inside = (dlst[lead, 0] < transition) & (transition < dlst[lead, 1])
+        if not (coupled & inside).any():
+            silenced.append(lead)
+
+    if silenced:
+        listed = ", ".join(
+            f"lead {lead} (band {dlst[lead, 0]:g} to {dlst[lead, 1]:g})"
+            for lead in silenced
+        )
+        warnings.warn(
+            "With a finite band (itype=%d) no transition these leads couple to "
+            "lies inside their band: %s. Their tunnelling rates are all zero, "
+            "so they carry no current. Widen dband, or use bandwidth='infinite' "
+            "if the wide-band limit is intended. This warning is shown once "
+            "per system." % (funcp.itype, listed),
+            QmeqWarning,
+            stacklevel=3,
+        )
+        funcp.suppress_band_wrn = True
