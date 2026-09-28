@@ -34,12 +34,9 @@ Ground rules for anything below:
     twin and the QmeQ 1.1 reference to machine precision, and the `xfail` is
     gone. `test_elph_backend_parity.py` now gates kernel-level parity and trace
     preservation for all four electron-phonon approaches.
-  - Left open: compiled `generate_fct` fills `tLbbp` only for pairs in the
-    density-matrix layout while Python fills every same-charge pair. The
-    difference is unread when the phonon coupling respects the indexing
-    symmetry, but with `'ssq'` and spin-dependent `velph` the kernels differ
-    by ~1e-4. Either align the compiled loop or refuse `velph` that breaks
-    the indexing symmetry.
+  - The compiled `generate_fct` now also fills `tLbbp` for every same-charge
+    pair, as the Python one does, so the backends agree for `'ssq'` with
+    spin-dependent `velph` too.
 
 - [ ] Support the RTD energy and heat currents for complex tunnel amplitudes.
   - Both are currently filled with `nan` and a warning while the charge current

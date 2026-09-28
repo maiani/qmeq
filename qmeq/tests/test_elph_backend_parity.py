@@ -32,6 +32,33 @@ def _hybridised_double_dot(kerntype):
     )
 
 
+def _spin_dependent_ssq_double_dot(kerntype):
+    """Spinful double dot under ``'ssq'`` indexing with a spin-dependent velph.
+
+    Single-particle states 0, 1 carry spin up and 2, 3 spin down. The phonon
+    coupling differs between the two spins, so it conserves S_z but not the
+    total spin, and ``Vbbp`` couples singlet and triplet states of equal
+    charge. The ``si_elph`` layout pairs only states of equal (S, S_z), so
+    these jump-operator elements lie outside it. The model is outside the
+    validity of ``'ssq'``; the two backends must still compute the same
+    approximation.
+    """
+    return BuilderElPh(
+        nsingle=4,
+        hsingle={(0, 0): 0.2, (1, 1): -0.1, (0, 1): 0.05,
+                 (2, 2): 0.2, (3, 3): -0.1, (2, 3): 0.05},
+        coulomb={(0, 2, 2, 0): 3.0, (1, 3, 3, 1): 3.0, (0, 1, 1, 0): 1.0,
+                 (2, 3, 3, 2): 1.0, (0, 3, 3, 0): 1.0, (1, 2, 2, 1): 1.0},
+        nleads=4, tleads={(0, 0): 0.1, (1, 1): 0.07, (2, 2): 0.1, (3, 3): 0.07},
+        mulst={0: 0.5, 1: -0.5, 2: 0.5, 3: -0.5},
+        tlst={0: 0.3, 1: 0.3, 2: 0.3, 3: 0.3}, dband=20.0, nbaths=1,
+        velph={(0, 0, 0): 0.03, (0, 0, 1): 0.05,
+               (0, 2, 2): -0.03, (0, 2, 3): 0.01},
+        tlst_ph={0: 0.2}, dband_ph={0: [1e-8, 10.0]}, bath_func=[_OhmicBath()],
+        indexing="ssq", kerntype=kerntype, principal_part="omit",
+    )
+
+
 def _generator(system):
     """The unsolved kernel; a compiled solve factorises ``kern`` in place."""
     system.solve(masterq=False)
@@ -42,12 +69,14 @@ def _generator(system):
     return np.array(appr.kern, copy=True)
 
 
+@pytest.mark.parametrize("model", [_hybridised_double_dot,
+                                   _spin_dependent_ssq_double_dot])
 @pytest.mark.parametrize("kerntype", ["Pauli", "Lindblad", "Redfield", "1vN"])
-def test_electron_phonon_backend_parity(kerntype):
+def test_electron_phonon_backend_parity(kerntype, model):
     kerns, solved = {}, {}
     for implementation in (kerntype, "py"+kerntype):
-        kerns[implementation] = _generator(_hybridised_double_dot(implementation))
-        system = _hybridised_double_dot(implementation)
+        kerns[implementation] = _generator(model(implementation))
+        system = model(implementation)
         system.solve()
         solved[implementation] = system
 

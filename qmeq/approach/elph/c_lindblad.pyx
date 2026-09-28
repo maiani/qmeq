@@ -63,10 +63,15 @@ cdef class ApproachLindblad(ApproachElPh):
         cdef complex_t [:, :, :] Vbbp = self._Vbbp
         cdef double_t [:] E = self._Ea
 
-        cdef KernelHandler kh = self._kernel_handler.elph
+        # Every ordered pair of states with equal charge, as in the Python twin.
+        # A jump-operator element is needed wherever Vbbp couples two states,
+        # also when the density-matrix layout of si_elph does not carry their
+        # coherence ('sz' and 'ssq' pair only states of equal quantum numbers).
+        cdef KernelHandler kh = self._kernel_handler
         cdef long_t nbaths = kh.nbaths
+        cdef long_t [:, :] statesdm = kh.statesdm
 
-        cdef long_t b, bp, bcharge, l, i
+        cdef long_t b, bp, charge, count, l, i, j
         cdef double_t Ebbp
 
         func_pauli = FuncPauliElPh(self._tlst_ph, self._dlst_ph,
@@ -79,22 +84,24 @@ cdef class ApproachLindblad(ApproachElPh):
             func_pauli.eval(0., l)
             func_pauli_at_zero[l] = func_pauli.val
 
-        for i in range(kh.ndm0):
-            b = kh.all_bbp[i, 0]
-            bp = kh.all_bbp[i, 1]
-
-            if b == bp:
+        for charge in range(kh.ncharge):
+            count = kh.statesdm_count[charge]
+            for i in range(count):
+                b = statesdm[charge, i]
                 # Diagonal elements
                 for l in range(nbaths):
                     tLbbp[l, b, b, 0] = sqrt(0.5*func_pauli_at_zero[l])*Vbbp[l, b, b]
                     tLbbp[l, b, b, 1] = tLbbp[l, b, b, 0].conjugate()
-            else:
                 # Off-diagonal elements
-                Ebbp = E[b]-E[bp]
-                for l in range(nbaths):
-                    func_pauli.eval(Ebbp, l)
-                    tLbbp[l, b, bp, 0] = sqrt(0.5*func_pauli.val)*Vbbp[l, b, bp]
-                    tLbbp[l, b, bp, 1] = sqrt(0.5*func_pauli.val)*Vbbp[l, bp, b].conjugate()
+                for j in range(count):
+                    if j == i:
+                        continue
+                    bp = statesdm[charge, j]
+                    Ebbp = E[b]-E[bp]
+                    for l in range(nbaths):
+                        func_pauli.eval(Ebbp, l)
+                        tLbbp[l, b, bp, 0] = sqrt(0.5*func_pauli.val)*Vbbp[l, b, bp]
+                        tLbbp[l, b, bp, 1] = sqrt(0.5*func_pauli.val)*Vbbp[l, bp, b].conjugate()
 
     cdef void generate_coupling_terms(self,
                 long_t b, long_t bp, long_t bcharge,

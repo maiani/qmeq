@@ -288,7 +288,11 @@ Present in QmeQ 1.1:
   trace-preservation gate covers all four electron-phonon approaches. The
   legacy bundle's compiled `Lindblad22` entries recorded the error; they sit
   3e-12 from the corrected result, inside their test's tolerance, and keep a
-  provenance note.
+  provenance note. The compiled `generate_fct` also built jump operators only
+  for the state pairs of the `si_elph` layout, while the Python twin builds
+  them for every same-charge pair; with `'sz'`/`'ssq'` indexing and a phonon
+  coupling between states that layout does not pair, the backends differed by
+  1e-4 in the kernel. They now agree exactly.
 - **Assigning a lead or bath array was ignored by the compiled backend.** The
   compiled approaches bind views of those arrays when first prepared, and an
   assignment such as `system.mulst = values` replaced the array, so every
