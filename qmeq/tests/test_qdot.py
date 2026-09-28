@@ -1,3 +1,4 @@
+import pytest
 import numpy as np
 from numpy.linalg import norm
 
@@ -294,3 +295,38 @@ def test_QuantumDot(symmetry=None):
 
 def test_QuantumDot_spin():
     test_QuantumDot(symmetry='spin')
+
+
+def _spinful_builder(indexing, hsingle, coulomb=None):
+    import qmeq
+    return qmeq.Builder(
+        nsingle=4, hsingle=hsingle, coulomb=coulomb or {}, nleads=2,
+        tleads={(0, 0): 0.1, (1, 2): 0.1}, mulst={0: 0.1, 1: -0.1},
+        tlst={0: 1.0, 1: 1.0}, dband={0: 50.0, 1: 50.0},
+        kerntype="1vN", indexing=indexing,
+    )
+
+
+@pytest.mark.parametrize("indexing", ["sz", "ssq"])
+def test_sz_indexing_refuses_terms_that_change_sz(indexing):
+    """Orbitals 0, 1 are spin up and 2, 3 spin down under 'sz'/'ssq'.
+
+    A term that changes S_z has no partner inside its S_z block; it used to
+    fail with 'ValueError: 1 is not in list' deep in the construction.
+    """
+    with pytest.raises(ValueError, match="couples orbitals of opposite spin"):
+        _spinful_builder(indexing, {(0, 0): 0.1, (0, 2): 0.2})
+    with pytest.raises(ValueError, match="changes S_z"):
+        _spinful_builder(indexing, {(0, 0): 0.1}, {(0, 1, 2, 1): 0.5})
+    # Spin-conserving hopping and a spin-flip exchange term are fine.
+    system = _spinful_builder(
+        indexing, {(0, 0): 0.1, (0, 1): 0.2, (2, 3): 0.2},
+        {(0, 2, 2, 0): 1.0, (0, 3, 2, 1): 0.3})
+    before = dict(system.qd.hsingle)
+    with pytest.raises(ValueError, match="couples orbitals of opposite spin"):
+        system.change(hsingle={(1, 3): 0.1})
+    assert system.qd.hsingle == before
+
+
+def test_charge_indexing_keeps_terms_that_change_sz():
+    _spinful_builder("charge", {(0, 0): 0.1, (0, 2): 0.2}, {(0, 1, 2, 1): 0.5})

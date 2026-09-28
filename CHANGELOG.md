@@ -367,6 +367,11 @@ Present in QmeQ 1.1:
 - **pyRTD** cached `off_diag_corrections` at construction, which could desync
   from `funcp` and fail only on the pure-Python backend; it reads `funcp` as
   the compiled RTD does.
+- **S_z-changing dot terms under `'sz'`/`'ssq'` indexing** failed deep in the
+  Hamiltonian construction with `ValueError: 1 is not in list`, since those
+  indexings build it block by block in S_z. The term is now refused up front,
+  named, with `'charge'` indexing as the way out; a refused `change()` leaves
+  the dot untouched.
 - **`set_statesdm`** in `StateIndexingPauli` and `StateIndexingDMc` appended
   its sentinel sector to the caller's list instead of a copy, as
   `StateIndexingDM` already did, so `BuilderElPh.remove_states` left `si` and

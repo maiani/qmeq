@@ -135,6 +135,40 @@ def construct_ham_hopping(qd, hsingle, statelst, ham_=None):
     return ham_hopping
 
 
+def _refuse_sz_breaking_terms(si, hsingle, coulomb):
+    """Refuse dot terms that 'sz' and 'ssq' indexing cannot represent.
+
+    Those indexings build the many-body Hamiltonian block by block in S_z,
+    taking the first ``nsingle//2`` orbitals as spin up and the rest as spin
+    down. A term that changes S_z has no partner state inside its block, so
+    it used to fail deep in the construction with ``ValueError: ... is not in
+    list``, or would otherwise have to be dropped. Name it instead.
+    """
+    if si.indexing not in ('sz', 'ssq'):
+        return
+    half = si.nsingle//2
+
+    def spin(orbital):
+        return 1 if orbital < half else -1
+
+    for (j0, j1), value in (hsingle or {}).items():
+        if value != 0 and spin(j0) != spin(j1):
+            raise ValueError(
+                f"hsingle entry {(j0, j1)} couples orbitals of opposite spin, "
+                f"which indexing={si.indexing!r} cannot represent: it builds "
+                "the Hamiltonian block by block in S_z. Use indexing='charge' "
+                "or 'Lin'."
+            )
+    for key, value in (coulomb or {}).items():
+        created, removed = key[:len(key)//2], key[len(key)//2:]
+        if value != 0 and (sum(map(spin, created)) != sum(map(spin, removed))):
+            raise ValueError(
+                f"coulomb entry {key} changes S_z, which indexing="
+                f"{si.indexing!r} cannot represent: it builds the Hamiltonian "
+                "block by block in S_z. Use indexing='charge' or 'Lin'."
+            )
+
+
 def construct_manybody_eigenstates(qd, hsingle, coulomb, statelst, ham_=None):
     """
     Calculates eigenstates of many-body Hamiltonian (described by hsingle and coulomb).
@@ -801,6 +835,8 @@ class QuantumDot(object):
         if updateq:
             hsingle = {} if hsingle is None else make_hsingle_dict(self, hsingle)
             coulomb = {} if coulomb is None else make_coulomb_dict(self, coulomb)
+        _refuse_sz_breaking_terms(self.si, hsingle, coulomb)
+        if updateq:
             for j0 in hsingle:
                 if j0 in self.hsingle:
                     self.hsingle[j0] += hsingle[j0]
@@ -860,6 +896,8 @@ class QuantumDot(object):
         """
         hsingle = {} if hsingle is None else make_hsingle_dict(self, hsingle, True)
         coulomb = {} if coulomb is None else make_coulomb_dict(self, coulomb)
+        # Before anything is stored, so a refused change leaves the dot as it was.
+        _refuse_sz_breaking_terms(self.si, hsingle, coulomb)
         #
         hsingle_add = {}
         coulomb_add = {}
