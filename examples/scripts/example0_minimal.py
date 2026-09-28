@@ -34,6 +34,7 @@ tleads = {(0,0): tL, (1,0): tR, (2,1): tL, (3,1): tR}
 
 # Choice of approximate approach
 # For kerntype='Redfield', '1vN', 'Lindblad', or 'Pauli'
+# ('Lindblad' also needs principal_part: 'omit', or 'digamma' for the Lamb shift)
 system = qmeq.Builder(nsingle, hsingle, coulomb,
                       nleads, tleads, mulst, tlst, dband,
                       kerntype='Pauli')

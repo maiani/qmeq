@@ -32,6 +32,7 @@ def _system(temperature=0.1, dband=1e5, level=-1.0, kerntype="1vN", itype=1):
         dband=dband,
         kerntype=kerntype,
         itype=itype,
+        principal_part="digamma" if kerntype == "Lindblad" else None,
     )
 
 

@@ -69,7 +69,8 @@ def _system(kerntype, *, order=2, off_diag_corrections=False, **overrides):
 )
 def test_rtd_order_exists_only_on_rtd_approaches(kerntype):
     """A fixed-order approach must not appear to offer a truncation choice."""
-    system = qmeq.Builder(kerntype=kerntype)
+    principal_part = "omit" if kerntype == "Lindblad" else None
+    system = qmeq.Builder(kerntype=kerntype, principal_part=principal_part)
 
     assert not hasattr(system.appr, "rtd_order")
     assert not hasattr(system, "rtd_order")

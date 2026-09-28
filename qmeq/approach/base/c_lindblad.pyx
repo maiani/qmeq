@@ -33,6 +33,7 @@ from ...specfunc.c_specfunc cimport func_lambshift
 # the repeats that degenerate spectra produce.
 from ...specfunc.specfunc import func_ule_shift
 from ...specfunc.specfunc import func_lambshift_quad
+from .lindblad import PRINCIPAL_PART_UNSET
 
 from ..c_aprclass cimport Approach
 from ..c_kernel_handler cimport KernelHandler
@@ -65,6 +66,8 @@ cdef void generate_lamb_shift(Approach appr):
 
     cdef complex_t [:, :, :] HLS = appr._HLS
 
+    if appr.funcp.principal_part is None:
+        raise ValueError(PRINCIPAL_PART_UNSET)
     if appr.funcp.principal_part not in ("digamma", "quad"):
         return
 

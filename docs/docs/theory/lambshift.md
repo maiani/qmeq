@@ -11,8 +11,11 @@ where $\mathcal{D}$ is the dissipator built from the jump operators
 $T^{l}_{ba}$ of Appendix F of the
 [QmeQ paper](https://doi.org/10.1088/1361-648X/aa9c15), and $H_{LS}$ is the
 Lamb shift, i.e. the renormalisation of the many-body energies of the dot caused by
-the coupling to the leads. It is included by default and dropped with
-`principal_part='omit'`.
+the coupling to the leads. It has no default: a Lindblad system must state
+`principal_part`, which is `'digamma'` or `'quad'` to include the shift and
+`'omit'` to drop it. QmeQ 1.1 had no Lamb shift, so a default either way would
+make the same script compute different things in different versions; instead,
+building a Lindblad system without `principal_part` raises `ValueError`.
 
 The many-body eigenstates of the dot are labelled following the QmeQ convention: the
 states $b$, $b'$, $b''$ carry $N$ electrons, the states
@@ -214,16 +217,22 @@ verifies that the level renormalisation extracted from $H_{LS}$ agrees with the
 ## Switching the Lamb shift on and off
 
 `principal_part` selects the shift and `bandwidth` the dissipator; they are
-independent, and `itype` does not select the shift. See
+independent, and `itype` does not select the shift. `principal_part` is
+required, while `bandwidth` defaults to `'infinite'` when neither it nor
+`itype` is given. See
 [Transport integration options](transport-options.md) for the cross-approach table.
 
 | Option | Lamb shift | Dissipator |
 |---|---|---|
 | `bandwidth='finite'` | unchanged | outside-band transitions dropped |
 | `bandwidth='infinite'` (default) | unchanged | infinite bandwidth |
-| `principal_part='digamma'` (default) | wide-band digamma form | unchanged |
+| `principal_part='digamma'` | wide-band digamma form | unchanged |
 | `principal_part='quad'` | integrated over the band | unchanged |
 | `principal_part='omit'` | **neglected** | unchanged |
+
+`principal_part='omit'` together with `itype=0` (equivalently
+`bandwidth='finite'`) reproduces QmeQ 1.1, whose Lindblad approach had no
+Lamb shift and whose default was `itype=0`.
 
 `'quad'` evaluates the arithmetic principal values over the actual band,
 while retaining the wide-band geometric correction. It converges to the

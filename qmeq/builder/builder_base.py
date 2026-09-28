@@ -35,6 +35,7 @@ from .validation import validate_countingleads
 
 from ..approach.base.pauli import ApproachPauli as ApproachPyPauli
 from ..approach.base.lindblad import ApproachLindblad as ApproachPyLindblad
+from ..approach.base.lindblad import PRINCIPAL_PART_UNSET
 from ..approach.base.redfield import ApproachRedfield as ApproachPyRedfield
 from ..approach.base.neumann1 import Approach1vN as ApproachPy1vN
 from ..approach.base.neumann2 import Approach2vN as ApproachPy2vN
@@ -166,6 +167,10 @@ class BuilderBase(object):
             data.itype, data.bandwidth, data.principal_part,
             data.kerntype
         )
+        if (isinstance(data.kerntype, str)
+                and data.kerntype.removeprefix('py') == 'Lindblad'
+                and data.principal_part is None):
+            raise ValueError(PRINCIPAL_PART_UNSET)
         data.indexing, data.symmetry = validate_indexing(data.indexing,
                                           data.symmetry,
                                           data.kerntype)

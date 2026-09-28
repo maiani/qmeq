@@ -175,7 +175,9 @@ def test_Builder_elph_double_dot_spinful():
     # Check matrix-free methods
     for kerntype in kerns:
         itype, itype_ph = 2, 2
-        system = SpinfulDoubleDotWithElPh(kerntype=kerntype, itype=itype, itype_ph=itype_ph, mfreeq=True)
+        system = SpinfulDoubleDotWithElPh(
+            kerntype=kerntype, itype=itype, itype_ph=itype_ph, mfreeq=True,
+            principal_part=_principal_part(kerntype, itype))
 
         for i in range(repetitions):
             system.solve()
@@ -187,7 +189,9 @@ def test_Builder_elph_double_dot_spinful():
     indexings = ['Lin', 'charge', 'sz', 'ssq']
     for kerntype, indexing in itertools.product(kerns, indexings):
         itype, itype_ph = 2, 2
-        system = SpinfulDoubleDotWithElPh(kerntype=kerntype, itype=itype, itype_ph=itype_ph, indexing=indexing)
+        system = SpinfulDoubleDotWithElPh(
+            kerntype=kerntype, itype=itype, itype_ph=itype_ph, indexing=indexing,
+            principal_part=_principal_part(kerntype, itype))
 
         for i in range(repetitions):
             system.solve()

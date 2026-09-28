@@ -46,10 +46,12 @@ calculation with increasing `dband` and checking convergence of every
 reported observable.
 
 For Lindblad, the principal-value contribution is the
-[Lamb shift](lambshift.md), and it is on by default: the defaults are
-`bandwidth='infinite'` and `principal_part='digamma'`. `'quad'` evaluates the
-same principal values over the actual band instead of in the wide-band digamma
-form, and converges to `'digamma'` as `dband` grows.
+[Lamb shift](lambshift.md), and `principal_part` has no default: a Lindblad
+system without it raises `ValueError`, because QmeQ 1.1 had no Lamb shift and
+any default would change what a 1.1 script computes. `'omit'` drops the shift
+and, with `itype=0`, reproduces QmeQ 1.1. `bandwidth` defaults to `'infinite'`.
+`'quad'` evaluates the same principal values over the actual band instead of
+in the wide-band digamma form, and converges to `'digamma'` as `dband` grows.
 
 For example, an infinite-band Lindblad calculation including the Lamb shift
 uses:
@@ -77,7 +79,7 @@ The integer `itype` remains available for backwards compatibility. In the
 
 For Lindblad, legacy `itype` controls only the bandwidth: values 0 and 2
 select `'finite'`, while 1 and 3 select `'infinite'`. It does not select the
-principal part; use `principal_part` for that.
+principal part, which must still be given with `principal_part`.
 
 New code should prefer the descriptive options. Supplying `itype` together
 with a conflicting descriptive value raises `ValueError`.

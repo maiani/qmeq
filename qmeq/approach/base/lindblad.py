@@ -9,6 +9,12 @@ from ...specfunc.specfunc import func_ule_shift
 from ...specfunc.specfunc import func_lambshift_quad
 from ..aprclass import Approach
 
+PRINCIPAL_PART_UNSET = (
+    "The Lindblad approach has no default principal_part. Set "
+    "principal_part='omit' for no Lamb shift (with itype=0 this reproduces "
+    "QmeQ 1.1), or 'digamma' or 'quad' to include the Lamb shift."
+)
+
 # ---------------------------------------------------------------------------------------------------
 # Lamb shift Hamiltonian
 # ---------------------------------------------------------------------------------------------------
@@ -82,6 +88,8 @@ def generate_lamb_shift(appr):
     ncharge, nleads, statesdm = si.ncharge, si.nleads, si.statesdm
     mode, limit = appr.funcp.principal_part, appr.funcp.dqawc_limit
 
+    if mode is None:
+        raise ValueError(PRINCIPAL_PART_UNSET)
     if mode not in ("digamma", "quad"):
         return
 

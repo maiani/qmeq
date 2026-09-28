@@ -74,9 +74,11 @@ def resolve_transport_options(itype, bandwidth, principal_part, kerntype):
                 "infinite" if approach == "Lindblad" else "finite"
             )
 
-        if approach == "Lindblad":
-            principal_part = principal_part or "digamma"
-        else:
+        # The Lindblad principal_part, its Lamb shift, has no default: QmeQ 1.1
+        # had no Lamb shift, so any default would silently change what a 1.1
+        # script computes. It stays None (unset), and constructing or solving
+        # an unset Lindblad system raises.
+        if approach == "Pauli":
             if principal_part not in (None, "omit"):
                 raise ValueError(
                     "The Pauli approach has no principal-value contribution; "

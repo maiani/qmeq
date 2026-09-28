@@ -139,17 +139,27 @@ def test_transport_option_legacy_mapping(itype, bandwidth, principal_part):
 
 
 def test_transport_option_defaults():
-    """Each approach defaults to its most complete supported evaluation."""
+    """First-order defaults are those of QmeQ 1.1, whose default was itype=0."""
     first_order = Builder(nsingle=0, kerntype="Redfield")
-    lindblad = Builder(nsingle=0, kerntype="Lindblad")
 
     assert first_order.itype == 0
     assert first_order.bandwidth == "finite"
     assert first_order.principal_part == "quad"
-    # Lindblad keeps its Lamb shift by default, in the wide-band form.
-    assert lindblad.itype == 1
-    assert lindblad.bandwidth == "infinite"
-    assert lindblad.principal_part == "digamma"
+
+
+@pytest.mark.parametrize("kerntype", ["Lindblad", "pyLindblad"])
+@pytest.mark.parametrize("kwargs", [{}, {"itype": 0}, {"itype": 2},
+                                    {"bandwidth": "finite"}])
+def test_lindblad_principal_part_has_no_default(kerntype, kwargs):
+    """QmeQ 1.1 had no Lamb shift, so a default would silently change what a
+    1.1 script computes; a Lindblad system must state its principal_part."""
+    with pytest.raises(ValueError, match="no default principal_part"):
+        Builder(nsingle=0, kerntype=kerntype, **kwargs)
+
+
+def test_lindblad_principal_part_has_no_default_with_phonons():
+    with pytest.raises(ValueError, match="no default principal_part"):
+        qmeq.BuilderElPh(nsingle=0, kerntype="Lindblad")
 
 
 @pytest.mark.parametrize(
@@ -201,7 +211,7 @@ def test_lindblad_transport_options_are_independent(
 
 
 def test_transport_options_can_be_changed_on_existing_lindblad():
-    system = Builder(nsingle=0, kerntype="Lindblad")
+    system = Builder(nsingle=0, kerntype="Lindblad", principal_part="omit")
 
     system.bandwidth = "infinite"
     system.principal_part = "digamma"
@@ -365,6 +375,8 @@ def test_first_order_and_RTD_backend_parity(kerntype):
     """The compiled kernels must reproduce their pure-Python twins."""
     p = ParametersDoubleDotSpinful()
     itype = 1 if kerntype == "RTD" else 2
+    # Lindblad parity is checked with its Lamb shift, the harder case.
+    principal_part = "digamma" if kerntype == "Lindblad" else None
     systems = {}
 
     for implementation in [kerntype, "py"+kerntype]:
@@ -372,6 +384,7 @@ def test_first_order_and_RTD_backend_parity(kerntype):
             p.nsingle, p.hsingle, p.coulomb, p.nleads, p.tleads,
             p.mulst, p.tlst, p.dlst,
             kerntype=implementation, itype=itype,
+            principal_part=principal_part,
         )
         system.solve()
         systems[implementation] = system
@@ -397,8 +410,12 @@ def test_Builder_single_orbital_spinful():
     itypes = [0, 1, 2]
     p = ParametersSingleOrbitalSpinful()
     for kerntype, indexing, itype in itertools.product(kerns, indexings, itypes):
+        # The Lamb shift is spin diagonal and uniform here, so it must not
+        # move the Lindblad current off the Pauli value.
+        principal_part = "digamma" if 'Lindblad' in kerntype else None
         system = Builder(p.nsingle, p.hsingle, p.coulomb, p.nleads, p.tleads, p.mulst, p.tlst, p.dlst,
-                         kerntype=kerntype, indexing=indexing, itype=itype)
+                         kerntype=kerntype, indexing=indexing, itype=itype,
+                         principal_part=principal_part)
         system.solve()
         assert norm(system.current - data_current['Pauli']) < EPS
         assert norm(system.energy_current - data_energy_current['Pauli']) < EPS

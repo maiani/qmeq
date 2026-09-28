@@ -58,17 +58,19 @@ small correction.
 Keeps coherences in Gorini-Kossakowski-Sudarshan-Lindblad form, which
 guarantees the propagated density matrix stays positive. The principal-value
 contribution is the **Lamb shift** — the lead-induced renormalization of the
-dot's many-body energies — available via `principal_part='digamma'` (wide-band
-digamma approximation only; `'quad'` raises `ValueError`, enforced by
-`resolve_transport_options` in `qmeq/builder/validation.py` — there is no
-numerical-quadrature Lamb shift).
+dot's many-body energies — selected by `principal_part`: `'digamma'` (wide-band
+digamma form), `'quad'` (principal values integrated over the band), or
+`'omit'` (no shift). `principal_part` has **no default** for Lindblad: a
+Lindblad system without it raises `ValueError`, because QmeQ 1.1 had no Lamb
+shift and a default would silently change what a 1.1 script computes.
+`principal_part='omit'` with `itype=0` reproduces QmeQ 1.1.
 
 **Known failure mode / limitation:** the guaranteed positivity is bought by
 evaluating rates in a form that differs from Redfield/1vN — tutorial 4
 measures Lindblad running **6-13% below** Redfield/1vN in a regime where all
 three are valid. That gap is the price of the approximation, not a bug in
-either. The Lamb shift itself is wide-band-digamma only (no `'quad'` option),
-does not include a phonon-induced shift for the electron-phonon variant, and
+either. The Lamb shift does not include a phonon-induced shift for the
+electron-phonon variant, and
 stiffens the kernel — the [Lamb-shift theory page](../theory/lambshift.md) recommends
 checking the solution (e.g. `symq=False`, or comparing lead currents) for
 weakly coupled models before trusting the last digits.
@@ -227,7 +229,7 @@ branch logic in `resolve_transport_options` (`qmeq/builder/validation.py`):
 |---|---|
 | Pauli | `(finite, omit)`, `(infinite, omit)` — no principal-value term exists |
 | 1vN, Redfield | `(finite, quad)`, `(infinite, digamma)`, `(finite, omit)`, `(infinite, omit)` |
-| Lindblad | `(finite, digamma)`, `(infinite, digamma)`, `(finite, omit)`, `(infinite, omit)` — `quad` is not implemented |
+| Lindblad | every pair; `principal_part` is required |
 | RTD, RTDnoise | `(infinite, digamma)` only |
 | 2vN | neither option is used |
 

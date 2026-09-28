@@ -14,13 +14,17 @@
 
 ### Changed
 
-- The Lindblad defaults are now `principal_part='digamma'` and
-  `bandwidth='infinite'`, so a plain `Builder(..., kerntype='Lindblad')` keeps
-  the Lamb shift. Previously the shift was off unless asked for. `itype` still
-  selects only the bandwidth, so calls that passed `itype` and relied on the
-  shift being absent must now pass `principal_part='omit'`.
-
-
+- Require an explicit `principal_part` for the Lindblad approach, including
+  its electron-phonon variant. QmeQ 1.1 had no Lamb shift and 1.2.0.dev9-dev10
+  switched it on by default, so the same script computed different things in
+  different versions; since `itype` does not select the shift, any default
+  would repeat that. Building a Lindblad system without `principal_part` now
+  raises `ValueError` and names the choices: `'omit'` for no shift, which
+  with `itype=0` reproduces QmeQ 1.1, or `'digamma'` or `'quad'` to include
+  it. `bandwidth` still defaults to `'infinite'` when neither it nor `itype`
+  is given. Tutorials 4 and 7 now state `principal_part='omit'`, which is what
+  they were written against: the "6-13% below 1vN" that tutorial 4 quotes for
+  Lindblad holds without the shift and not with it.
 - Make the Lindblad Lamb shift belong to the Lindblad dissipator. QmeQ's
   Lindblad approach is not the secular (Davies) generator: following
   `KirsanskasFranckieWacker2018`, cited as Ref. [32] of the QmeQ paper, it
@@ -381,10 +385,9 @@
   many-body energies by the coupling to the leads is now built as a lead-resolved
   Hamiltonian `HLS` (a new attribute of the Lindblad approach, with the same shape
   as `Tba`) and enters the master equation through the commutator
-  `-1j*[HLS, phi0]`, beyond the secular approximation. Set
-  `principal_part='digamma'` to include it; the backwards-compatible default
-  `principal_part='omit'` leaves Lindblad results unchanged. Numerical quadrature
-  is not implemented for Lindblad. The new descriptive
+  `-1j*[HLS, phi0]`, beyond the secular approximation. It is selected with
+  `principal_part`, which a Lindblad system must state: `'digamma'` or `'quad'`
+  includes it and `'omit'` leaves results as in QmeQ 1.1. The new descriptive
   `bandwidth` and `principal_part` options replace the two meanings previously
   combined in `itype`, which remains accepted as a legacy shorthand. The new
   `qmeq.specfunc.specfunc.func_lambshift` (with a compiled twin) evaluates the
