@@ -128,7 +128,9 @@ number because 1.1 was wrong there. The cases, each detailed below:
   density-matrix element into an `IndexError` (the full suite passes under
   it). `RtdMatrix`, an `IntEnum` naming the eight RTD destination arrays, with
   a compiled mirror `RtdMatrixC` compared member-for-member in the tests.
-  Opportunistic type hints, for readability only.
+  Opportunistic type hints, for readability only. `BuilderManyBodyElPh`
+  accepts `itype_ph`, as `BuilderElPh` does, instead of only by assignment
+  after construction.
 - **Tutorials and examples.** A seven-notebook tutorial path in
   `examples/tutorials/`, each stating a prediction and asserting physical and
   numerical checks: sequential transport, Coulomb blockade, stability

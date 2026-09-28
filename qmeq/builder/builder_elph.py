@@ -206,7 +206,8 @@ class BuilderManyBodyElPh(BuilderElPh, BuilderManyBody):
                  symmetry=None, herm_hs=True, herm_c=False, m_less_n=True,
                  bath_func=None, eps_elph=1.0e-6,
                  bandwidth=None, principal_part=None,
-                 countingleads=None, off_diag_corrections=True):
+                 countingleads=None, off_diag_corrections=True,
+                 itype_ph=0):
 
         if Na is None:
             Na = [0]
@@ -226,7 +227,8 @@ class BuilderManyBodyElPh(BuilderElPh, BuilderManyBody):
             nleads=nleads, mulst=mulst, tlst=tlst, dband=dband,
             nbaths=nbaths, tlst_ph=tlst_ph, dband_ph=dband_ph, kpnt=kpnt,
             kerntype=kerntype, symq=symq, norm_row=norm_row, solmethod=solmethod,
-            itype=itype, bandwidth=bandwidth, principal_part=principal_part,
+            itype=itype, itype_ph=itype_ph,
+            bandwidth=bandwidth, principal_part=principal_part,
             dqawc_limit=dqawc_limit, mfreeq=mfreeq, phi0_init=phi0_init,
             mtype_qd=mtype_qd, mtype_leads=mtype_leads,
             symmetry=symmetry, herm_hs=herm_hs, herm_c=herm_c, m_less_n=m_less_n,

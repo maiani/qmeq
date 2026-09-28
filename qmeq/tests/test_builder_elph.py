@@ -332,3 +332,22 @@ def test_many_body_elph_input_matches_fock_input(kerntype):
     many_body.solve(**many_body_solve)
     np.testing.assert_allclose(many_body.current, fock.current,
                                rtol=1e-12, atol=1e-14)
+
+
+def test_many_body_elph_accepts_itype_ph():
+    """itype_ph is a constructor option of BuilderElPh; the many-body builder
+    only offered it by assignment after construction."""
+    fock = _elph_double_dot('Pauli')
+    fock.solve(masterq=False)
+    for itype_ph in (0, 2):
+        system = BuilderManyBodyElPh(
+            Ea=np.array(fock.Ea), Na=[0, 1, 1, 2], Tba=np.array(fock.Tba),
+            Vbbp=np.array(fock.Vbbp), mulst={0: 1.0, 1: -1.0},
+            tlst={0: 0.8, 1: 0.5}, dband={0: 20.0, 1: 20.0},
+            tlst_ph={0: 0.4}, dband_ph={0: [1e-8, 10.0]},
+            bath_func=[JFunc()], kerntype='Pauli', itype_ph=itype_ph)
+        assert system.itype_ph == itype_ph
+    with pytest.raises(ValueError, match="itype_ph must be 0 or 2"):
+        BuilderManyBodyElPh(
+            Ea=np.array(fock.Ea), Na=[0, 1, 1, 2], Tba=np.array(fock.Tba),
+            Vbbp=np.array(fock.Vbbp), kerntype='Pauli', itype_ph=1)
