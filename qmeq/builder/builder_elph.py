@@ -4,6 +4,7 @@ from .._backend import load_compiled_modules
 from .builder_base import BuilderBase
 from .builder_base import attribute_map
 from .builder_base import BuilderManyBody
+from .builder_base import set_many_body_state_indexing
 from .builder_base import _UNSET
 from ..indexing import StateIndexingDM  # noqa: F401
 from ..indexing import StateIndexingDMc
@@ -238,5 +239,14 @@ class BuilderManyBodyElPh(BuilderElPh, BuilderManyBody):
         del self._many_body_Vbbp
 
         BuilderManyBody._init_before_appr(self)
+        # si_elph was created by _init_create_setup, before si held the
+        # many-body states; rebuild it from the completed si.
+        self.create_si_elph()
 
         self.baths.Vbbp = Vbbp
+
+    def create_si_elph(self):
+        BuilderElPh.create_si_elph(self)
+        si = self.si
+        set_many_body_state_indexing(self.si_elph, si.nmany, si.ncharge,
+                                     si.statesdm[:si.ncharge])

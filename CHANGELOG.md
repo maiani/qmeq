@@ -14,7 +14,8 @@ number because 1.1 was wrong there. The cases, each detailed below:
 - **Different numbers, because 1.1 was wrong.** Compiled electron-phonon
   Lindblad (trace-violating coherence columns); any compiled calculation after
   assigning `system.mulst`, `tlst` or `dlst` (the first values were kept);
-  `BuilderManyBody` with compiled RTD; 2vN whenever a same-charge coherence
+  `BuilderManyBody` with compiled RTD; `BuilderManyBodyElPh`, which crashed
+  or returned wrong numbers; 2vN whenever a same-charge coherence
   is complex, which includes real-parameter models under bias (2.5% in the
   current of the 1.1 reference double dot); RTD with complex tunnel amplitudes
   (3e-3 relative at `dband=20`, 4e-5 at `dband=200`); RTD with lead-dependent
@@ -312,6 +313,14 @@ Present in QmeQ 1.1:
   models and `niter=1` are unchanged, and the kernel's population columns
   still reproduce QmeQ 1.1, whose 2vN stationary values record the error; a
   rephasing-covariance test gates the fix.
+- **`BuilderManyBodyElPh` solves.** Its phonon state indexing `si_elph` was
+  built for an empty Fock space before the many-body states were known and
+  never rebuilt: Pauli, Redfield and 1vN raised `IndexError` on the Python
+  backend and segfaulted on the compiled one, and compiled Lindblad returned
+  wrong results without an error. `si_elph` now mirrors the many-body states,
+  also after a `kerntype` reassignment, and the builder matches `BuilderElPh`
+  given the same `Ea`, `Tba` and `Vbbp` exactly, on all four approaches and
+  both backends.
 - **`BuilderManyBody` with compiled RTD** applied its many-body state indexing
   after the approach was built, so a per-thread kernel buffer was sized from a
   placeholder state count: wrong currents and, for larger systems,

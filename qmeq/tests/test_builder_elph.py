@@ -2,7 +2,11 @@ from numpy import sqrt, exp, pi
 from numpy.linalg import norm
 import itertools
 
+import numpy as np
+import pytest
+
 from qmeq import BuilderElPh
+from qmeq import BuilderManyBodyElPh
 from qmeq import ModelParameters
 from qmeq.specfunc import Func
 from qmeq.tests.reference_data import load_reference_bundle
@@ -258,3 +262,73 @@ def test_every_builder_runs_the_pre_approach_hook():
 
     assert hook_ran == ['Builder', 'BuilderElPh',
                         'BuilderManyBody', 'BuilderManyBodyElPh']
+
+
+def _elph_double_dot(kerntype):
+    """Spinless double dot with a complex phonon coupling between its levels."""
+    return BuilderElPh(
+        nsingle=2, hsingle={(0, 0): 0.5, (1, 1): -0.5, (0, 1): 0.3},
+        coulomb={(0, 1, 1, 0): 2.0}, nleads=2,
+        tleads={(0, 0): 0.2*exp(0.3j), (1, 1): 0.15, (0, 1): 0.05j},
+        mulst={0: 1.0, 1: -1.0}, tlst={0: 0.8, 1: 0.5},
+        dband={0: 20.0, 1: 20.0}, nbaths=1,
+        velph={(0, 0, 0): 0.1, (0, 1, 1): -0.07*exp(0.7j),
+               (0, 0, 1): 0.05*exp(1.1j), (0, 1, 0): 0.03*exp(-0.4j)},
+        tlst_ph={0: 0.4}, dband_ph={0: [1e-8, 10.0]}, bath_func=[JFunc()],
+        indexing='charge', kerntype=kerntype, principal_part='omit')
+
+
+def _many_body_input(fock, kerntype):
+    """The same model given as many-body input: Ea, Na, Tba, and Vbbp."""
+    fock.solve(masterq=False)
+    return BuilderManyBodyElPh(
+        Ea=np.array(fock.Ea), Na=[0, 1, 1, 2], Tba=np.array(fock.Tba),
+        Vbbp=np.array(fock.Vbbp),
+        mulst={0: 1.0, 1: -1.0}, tlst={0: 0.8, 1: 0.5},
+        dband={0: 20.0, 1: 20.0},
+        tlst_ph={0: 0.4}, dband_ph={0: [1e-8, 10.0]}, bath_func=[JFunc()],
+        kerntype=kerntype, principal_part='omit')
+
+
+def _generated_kernel(system, **solve_options):
+    """The unsolved kernel; a compiled solve factorises ``kern`` in place."""
+    system.solve(masterq=False, **solve_options)
+    system.appr.prepare_kern()
+    system.appr.generate_fct()
+    system.appr.generate_kern()
+    return np.array(system.appr.kern, copy=True)
+
+
+@pytest.mark.parametrize('kerntype', [
+    'Pauli', 'Lindblad', 'Redfield', '1vN',
+    'pyPauli', 'pyLindblad', 'pyRedfield', 'py1vN',
+])
+def test_many_body_elph_input_matches_fock_input(kerntype):
+    """``si_elph`` must describe the many-body states, not ``nsingle=0``.
+
+    Given the eigenenergies, tunnelling, and phonon matrices of a
+    ``BuilderElPh`` model, ``BuilderManyBodyElPh`` is the same system.
+    """
+    fock = _elph_double_dot(kerntype)
+    many_body = _many_body_input(_elph_double_dot(kerntype), kerntype)
+    many_body_solve = dict(qdq=False, rotateq=False)
+
+    np.testing.assert_allclose(
+        _generated_kernel(many_body, **many_body_solve),
+        _generated_kernel(fock), rtol=1e-12, atol=1e-14)
+    fock.solve()
+    many_body.solve(**many_body_solve)
+    for field in ('phi0', 'current', 'energy_current'):
+        np.testing.assert_allclose(getattr(many_body, field),
+                                   getattr(fock, field),
+                                   rtol=1e-12, atol=1e-14, err_msg=field)
+
+    # A kerntype reassignment rebuilds si_elph; it must keep the states.
+    prefix = 'py' if kerntype.startswith('py') else ''
+    other = prefix + ('Redfield' if kerntype == prefix + '1vN' else '1vN')
+    for system in (fock, many_body):
+        system.kerntype = other
+    fock.solve()
+    many_body.solve(**many_body_solve)
+    np.testing.assert_allclose(many_body.current, fock.current,
+                               rtol=1e-12, atol=1e-14)

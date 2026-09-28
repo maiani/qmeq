@@ -18,14 +18,10 @@ Ground rules for anything below:
 
 ## P1: correctness gaps in shipped features
 
-- [ ] Make `BuilderManyBodyElPh` work, or declare it unsupported.
-  - It constructs, but `solve(qdq=False, rotateq=False)` raises `IndexError` in
-    `get_ind_dm0`: `si_elph` is never set up for many-body input. Reproduced on
-    both backends, and unchanged by the recent initialisation-order fix, so this
-    is longstanding rather than a regression.
-  - Either fix the indexing path and add a regression test, or raise a clear
-    `NotImplementedError` at construction instead of failing deep inside a
-    solve.
+- [x] Make `BuilderManyBodyElPh` work, or declare it unsupported.
+  - Done: `si_elph` is rebuilt from the many-body states, and
+    `test_many_body_elph_input_matches_fock_input` requires the builder to
+    reproduce `BuilderElPh` exactly for all four approaches on both backends.
 
 - [x] Resolve the remaining electron-phonon backend parity failure.
   - Done: the compiled jump term used `conj(L[bp, a])` where

@@ -411,6 +411,23 @@ class BuilderBase(object):
         use_all_states(self)
 
 
+def set_many_body_state_indexing(si, nmany, ncharge, statesdm):
+    """Size a state indexing for many-body input and give it ``statesdm``.
+
+    A many-body builder creates its state indexing from ``nsingle=0``, before
+    the many-body states are known. This replaces the sizes and index arrays
+    derived from that empty Fock space. ``statesdm`` is copied, since
+    ``set_statesdm`` appends to the list it is given.
+    """
+    si.nmany = nmany
+    si.ncharge = ncharge
+    si.shiftlst0 = np.zeros(ncharge+1, dtype=longnp)
+    si.shiftlst1 = np.zeros(ncharge, dtype=longnp)
+    si.lenlst = np.zeros(ncharge, dtype=longnp)
+    si.dictdm = np.zeros(nmany, dtype=longnp)
+    si.set_statesdm([list(states) for states in statesdm])
+
+
 class BuilderManyBody(BuilderBase):
     """
     Class for building the system for stationary transport calculations,
@@ -481,10 +498,4 @@ class BuilderManyBody(BuilderBase):
             statesdm[Na[i]].append(i)
 
         self.Na = Na
-        self.si.nmany = nmany
-        self.si.ncharge = ncharge
-        self.si.shiftlst0 = np.zeros(ncharge+1, dtype=longnp)
-        self.si.shiftlst1 = np.zeros(ncharge, dtype=longnp)
-        self.si.lenlst = np.zeros(ncharge, dtype=longnp)
-        self.si.dictdm = np.zeros(nmany, dtype=longnp)
-        self.si.set_statesdm(statesdm)
+        set_many_body_state_indexing(self.si, nmany, ncharge, statesdm)

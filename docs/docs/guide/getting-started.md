@@ -18,11 +18,6 @@ constructor you call.
 directly (`qmeq/builder/builder.py`, `qmeq/builder/builder_base.py`,
 `qmeq/builder/builder_elph.py`).
 
-!!! warning "`BuilderManyBodyElPh` may not solve"
-    `BuilderManyBodyElPh` constructs successfully, but calling
-    `solve(qdq=False, rotateq=False)` raises `IndexError` in `get_ind_dm0`,
-    because `si_elph` is never set up for many-body input, on both backends.
-
 ## A minimal example
 
 ```python
