@@ -389,8 +389,9 @@ def _validate_temperatures(candidate, tlst, npar, complete=False):
     for anyone constructing leads to exercise ``Tba``, the 2vN grid, or option
     validation, and those callers never reach a temperature: an empty ``tlst``
     is not checked. With ``complete=True``, used where ``tlst`` defines every
-    temperature (construction), naming any lead requires all of them to be
-    positive, so a partial dictionary cannot leave the unnamed leads at zero. Otherwise (``add`` and ``change``) only the named entries are
+    temperature (construction and assignment), naming any lead requires all of
+    them to be positive, so a partial dictionary cannot leave the unnamed leads
+    at zero. Otherwise (``add`` and ``change``) only the named entries are
     checked, since the others keep their stored values.
     """
     values = np.asarray(candidate, dtype=doublenp).ravel()
@@ -410,6 +411,38 @@ def _validate_temperatures(candidate, tlst, npar, complete=False):
             "temperature, so zero gives nan populations and a negative value "
             "gives an unphysical stationary solution with no warning."
         )
+
+
+def _in_stored_layout(owner, name, value, convert):
+    """Read an assigned lead or bath parameter like its constructor argument.
+
+    A value already in the stored layout (for example the array read back from
+    the attribute, which spin symmetry has doubled) is taken as it is.
+    """
+    stored = owner.__dict__.get(name)
+    if (stored is not None and isinstance(value, (list, tuple, np.ndarray))
+            and np.shape(value) == stored.shape):
+        return np.array(value, dtype=doublenp)
+    return convert(value)
+
+
+def _store_in_place(owner, name, candidate):
+    """Write a parameter array into the stored one rather than replace it.
+
+    The compiled approaches bind views of these arrays when they are prepared,
+    so a replaced array would leave them computing with the old values after
+    the first solve.
+    """
+    stored = owner.__dict__.get(name)
+    if stored is None:
+        owner.__dict__[name] = candidate
+    elif stored.shape != candidate.shape:
+        raise ValueError(
+            f"{name.lstrip('_')} needs shape {stored.shape}, not "
+            f"{candidate.shape}."
+        )
+    else:
+        stored[:] = candidate
 
 
 def make_array_dlst(dlst_old, dlst, si, npar=None, use_symmetry=True):
@@ -480,12 +513,40 @@ class LeadsTunneling(object):
         self.si = si
         self.tleads = make_tleads_dict(tleads, si)
         self.tleads_array = make_tleads_array(self.tleads, si)
-        self.mulst = make_array(None, mulst, si)
-        self.tlst = make_array(None, tlst, si)
-        _validate_temperatures(self.tlst, tlst, si.nleads_sym, complete=True)
-        self.dlst = make_array_dlst(None, dlst, si)
+        self.mulst = mulst
+        self.tlst = tlst
+        self.dlst = dlst
         self.mtype = mtype
         self._init_coupling()
+
+    @property
+    def mulst(self):
+        return self._mulst
+
+    @mulst.setter
+    def mulst(self, value):
+        _store_in_place(self, '_mulst', _in_stored_layout(
+            self, '_mulst', value, lambda v: make_array(None, v, self.si)))
+
+    @property
+    def tlst(self):
+        return self._tlst
+
+    @tlst.setter
+    def tlst(self, value):
+        candidate = _in_stored_layout(
+            self, '_tlst', value, lambda v: make_array(None, v, self.si))
+        _validate_temperatures(candidate, value, self.si.nleads_sym, complete=True)
+        _store_in_place(self, '_tlst', candidate)
+
+    @property
+    def dlst(self):
+        return self._dlst
+
+    @dlst.setter
+    def dlst(self, value):
+        _store_in_place(self, '_dlst', _in_stored_layout(
+            self, '_dlst', value, lambda v: make_array_dlst(None, v, self.si)))
 
     def _init_coupling(self):
         self.Tba0 = construct_Tba(self, self.tleads)
@@ -509,13 +570,13 @@ class LeadsTunneling(object):
         """
         if lstq:
             if mulst is not None:
-                self.mulst += make_array(None, mulst, self.si)
+                self.mulst[:] += make_array(None, mulst, self.si)
             if tlst is not None:
                 candidate = self.tlst + make_array(None, tlst, self.si)
                 _validate_temperatures(candidate, tlst, self.si.nleads_sym)
                 self.tlst[:] = candidate
             if dlst is not None:
-                self.dlst += make_array_dlst(None, dlst, self.si)
+                self.dlst[:] += make_array_dlst(None, dlst, self.si)
         if tleads is not None:
             if updateq:
                 tleads = make_tleads_dict(tleads, self.si)

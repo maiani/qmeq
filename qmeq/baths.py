@@ -8,6 +8,8 @@ from .indexing import sz_to_ind
 from .leadstun import construct_full_pmtr
 from .leadstun import make_array
 from .leadstun import make_array_dlst
+from .leadstun import _in_stored_layout
+from .leadstun import _store_in_place
 
 
 def elph_construct_Vbbp(baths, velph, Vbbp_=None):
@@ -212,11 +214,32 @@ class PhononBaths(object):
         self.si = si
         self.velph = make_velph_dict(velph, si)
         self.si.nbaths = nbaths
-        self.tlst_ph = make_array(None, tlst_ph, si, nbaths, False)
-        self.dlst_ph = make_array_dlst(None, dlst_ph, si, nbaths, False)
+        self.tlst_ph = tlst_ph
+        self.dlst_ph = dlst_ph
         self.bath_func = bath_func
         self.mtype = mtype
         self._init_coupling()
+
+    # Written in place for the reason given in leadstun._store_in_place.
+    @property
+    def tlst_ph(self):
+        return self._tlst_ph
+
+    @tlst_ph.setter
+    def tlst_ph(self, value):
+        _store_in_place(self, '_tlst_ph', _in_stored_layout(
+            self, '_tlst_ph', value,
+            lambda v: make_array(None, v, self.si, self.si.nbaths, False)))
+
+    @property
+    def dlst_ph(self):
+        return self._dlst_ph
+
+    @dlst_ph.setter
+    def dlst_ph(self, value):
+        _store_in_place(self, '_dlst_ph', _in_stored_layout(
+            self, '_dlst_ph', value,
+            lambda v: make_array_dlst(None, v, self.si, self.si.nbaths, False)))
 
     def _init_coupling(self):
         self.Vbbp0 = elph_construct_Vbbp(self, self.velph)
@@ -244,9 +267,9 @@ class PhononBaths(object):
         """
         if lstq:
             if tlst_ph is not None:
-                self.tlst_ph += make_array(None, tlst_ph, self.si, self.si.nbaths, False)
+                self.tlst_ph[:] += make_array(None, tlst_ph, self.si, self.si.nbaths, False)
             if dlst_ph is not None:
-                self.dlst_ph += make_array_dlst(None, dlst_ph, self.si, self.si.nbaths, False)
+                self.dlst_ph[:] += make_array_dlst(None, dlst_ph, self.si, self.si.nbaths, False)
         if velph is not None:
             if updateq:
                 velph = make_velph_dict(velph, self.si)

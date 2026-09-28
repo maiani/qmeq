@@ -96,6 +96,101 @@ def test_partial_temperature_dict_cannot_leave_leads_at_zero():
     qmeq.Builder(nsingle=1, hsingle={(0, 0): 0.0}, nleads=2)
 
 
+def test_assigned_temperatures_are_validated_and_leave_the_leads_untouched():
+    system = _system()
+    before = np.array(system.leads.tlst)
+    with pytest.raises(ValueError, match="lead temperatures must be positive"):
+        system.tlst = [0.0, 0.1]
+    with pytest.raises(ValueError, match="needs shape"):
+        system.tlst = [0.1, 0.1, 0.1]
+    np.testing.assert_array_equal(system.leads.tlst, before)
+
+
+# --- assigned lead parameters ------------------------------------------------
+
+def _single_level(kerntype):
+    return qmeq.Builder(
+        nsingle=1, hsingle={(0, 0): 0.1}, nleads=2,
+        tleads={(0, 0): 0.1, (1, 0): 0.1}, mulst={0: 0.3, 1: -0.3},
+        tlst={0: 1.0, 1: 1.0}, dband={0: 50.0, 1: 50.0}, kerntype=kerntype,
+    )
+
+
+@pytest.mark.parametrize("kerntype", ["Pauli", "pyPauli", "1vN", "py1vN"])
+@pytest.mark.parametrize(
+    ("attribute", "value"),
+    [
+        ("mulst", [0.6, -0.6]),
+        ("tlst", [0.5, 0.5]),
+        ("dlst", [[-50.0, 50.0], [-0.05, 0.05]]),
+    ],
+)
+def test_assigned_lead_parameters_reach_a_prepared_approach(
+        kerntype, attribute, value):
+    """Assigning a lead array must act like change() after the first solve.
+
+    The compiled approaches bind views of these arrays when they prepare, so
+    replacing the array left them computing with the old values -- in QmeQ
+    1.1 as well -- while the Python approaches, which read the attribute
+    afresh, followed the assignment.
+    """
+    assigned = _single_level(kerntype)
+    assigned.solve()
+    setattr(assigned, attribute, value)
+    assigned.solve()
+    changed = _single_level(kerntype)
+    changed.leads.change(**{attribute: value})
+    changed.solve()
+
+    np.testing.assert_array_equal(assigned.current, changed.current)
+
+
+@pytest.mark.parametrize("kerntype", ["Pauli", "pyPauli", "1vN"])
+def test_assigned_bath_temperatures_reach_a_prepared_approach(kerntype):
+    """The phonon bath arrays are bound the same way as the lead arrays."""
+    def build():
+        return qmeq.BuilderElPh(
+            nsingle=2, hsingle={(0, 0): 0.1, (1, 1): -0.1, (0, 1): 0.05},
+            coulomb={(0, 1, 1, 0): 3.0}, nleads=2,
+            tleads={(0, 0): 0.05, (1, 1): 0.05}, mulst={0: 0.3, 1: -0.3},
+            tlst={0: 0.5, 1: 0.5}, dband={0: 50.0, 1: 50.0},
+            nbaths=1, velph={(0, 0, 0): 0.3, (0, 1, 1): -0.3},
+            tlst_ph={0: 0.2}, dband_ph={0: [1e-8, 10.0]},
+            kerntype=kerntype, itype=2, itype_ph=2,
+        )
+
+    assigned = build()
+    assigned.solve()
+    assigned.baths.tlst_ph = [1.0]
+    assigned.solve()
+    changed = build()
+    changed.baths.change(tlst_ph={0: 1.0})
+    changed.solve()
+
+    np.testing.assert_array_equal(assigned.current, changed.current)
+
+
+def test_lead_arrays_keep_the_spin_symmetric_layout():
+    """With spin symmetry the stored array is doubled; reading it back and
+    assigning it, or add(), must not double it again."""
+    # Under spin symmetry nleads counts both spin channels of each lead.
+    system = qmeq.Builder(
+        nsingle=2, hsingle={(0, 0): 0.1}, nleads=4,
+        tleads={(0, 0): 0.1, (1, 0): 0.1}, mulst={0: 0.3, 1: -0.3},
+        tlst={0: 1.0, 1: 1.0}, dband={0: 50.0, 1: 50.0},
+        symmetry="spin", kerntype="Pauli",
+    )
+    stored = system.leads.mulst
+    assert stored.shape == (4,)
+
+    system.mulst = np.array(stored)
+    system.leads.add(mulst={0: 0.1})
+    system.mulst = {0: 0.4, 1: -0.3}
+
+    assert system.leads.mulst is stored
+    np.testing.assert_array_equal(stored, [0.4, -0.3, 0.4, -0.3])
+
+
 # --- itype=0 band edges ----------------------------------------------------
 
 @pytest.mark.parametrize("edge", [1.0, 50.0])

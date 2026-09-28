@@ -88,6 +88,21 @@
 
 ### Fixed
 
+- Make assigning a lead or phonon-bath parameter array take effect on the
+  compiled backend. The compiled approaches bind views of `leads.mulst`,
+  `tlst` and `dlst` (and `baths.tlst_ph`, `dlst_ph`) when they are first
+  prepared, and an assignment such as `system.mulst = new_values` replaced the
+  array, so every later solve silently kept the old chemical potentials,
+  temperatures or bandwidths; the pure-Python approaches read the attribute
+  afresh and followed the assignment. In a bias sweep written this way the
+  compiled Pauli current stayed at its first value (0.0047 against 0.0168 in
+  a single-level test). Present in QmeQ 1.1. These attributes are now
+  properties that write into the stored array: an assigned value is read like
+  the constructor argument (a dictionary replaces the whole array), a value
+  already in the stored layout is taken as it is, a wrong shape raises
+  `ValueError`, and assigned temperatures are validated like constructor
+  ones. `change()` and `add()` were never affected.
+
 - Refuse a `tlst` that names some leads and leaves the others at the zero
   default. Only the named entries were checked, so `tlst={0: 1.0}` on a
   two-lead system passed validation and reached the kernels with lead 1 at
