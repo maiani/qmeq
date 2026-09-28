@@ -19,17 +19,32 @@ KERNTYPES = APPROACHES + tuple('py' + approach for approach in APPROACHES)
 
 
 def validate_kerntype(kerntype):
-    """Refuse an unknown kerntype string rather than substitute another approach.
+    """Refuse an unknown kerntype rather than substitute another approach.
 
     A misspelled name used to fall back to Pauli with a warning, so a sweep
-    meant for a coherent approach silently ran the Pauli one instead.
+    meant for a coherent approach silently ran the Pauli one instead. A class
+    is accepted if it carries the ``kerntype`` name that approaches define;
+    compiled approaches do not derive from the Python ``Approach``, so the
+    name, not the base class, is what identifies one.
     """
-    if isinstance(kerntype, str) and kerntype not in KERNTYPES:
-        raise ValueError(
-            f"Unknown kerntype {kerntype!r}. Allowed values are "
-            + ", ".join(repr(name) for name in KERNTYPES) + "."
+    if isinstance(kerntype, str):
+        if kerntype not in KERNTYPES:
+            raise ValueError(
+                f"Unknown kerntype {kerntype!r}. Allowed values are "
+                + ", ".join(repr(name) for name in KERNTYPES) + "."
+            )
+    elif not (isinstance(kerntype, type)
+              and isinstance(getattr(kerntype, 'kerntype', None), str)):
+        raise TypeError(
+            "kerntype must be an approach name or an Approach class, not "
+            f"{kerntype!r}."
         )
     return kerntype
+
+
+def kerntype_name(kerntype):
+    """The approach name of a kerntype given as a name or as a class."""
+    return kerntype if isinstance(kerntype, str) else kerntype.kerntype
 
 
 def resolve_transport_options(itype, bandwidth, principal_part, kerntype):

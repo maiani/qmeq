@@ -8,7 +8,6 @@ import numpy as np
 from .._backend import load_compiled_modules
 from ..wrappers.mytypes import longnp
 
-from ..approach.aprclass import Approach
 from .._warnings import QmeqWarning
 from ..indexing import StateIndexingDM  # noqa: F401
 from ..indexing import StateIndexingDMc  # noqa: F401
@@ -30,6 +29,7 @@ from .validation import resolve_transport_options
 from .validation import validate_indexing
 from .validation import validate_countingleads
 from .validation import validate_mfreeq
+from .validation import kerntype_name
 
 # -----------------------------------------------------------
 # Python modules
@@ -163,19 +163,19 @@ class BuilderBase(object):
     def _init_validate_data(self):
         data = self.data
         data.kerntype = validate_kerntype(data.kerntype)
-        data.mfreeq = validate_mfreeq(data.kerntype, data.mfreeq)
+        # A kerntype given as a class is validated under its approach name.
+        name = kerntype_name(data.kerntype)
+        data.mfreeq = validate_mfreeq(name, data.mfreeq)
         (data.itype, data.bandwidth,
          data.principal_part) = resolve_transport_options(
-            data.itype, data.bandwidth, data.principal_part,
-            data.kerntype
+            data.itype, data.bandwidth, data.principal_part, name
         )
-        if (isinstance(data.kerntype, str)
-                and data.kerntype.removeprefix('py') == 'Lindblad'
+        if (name.removeprefix('py') == 'Lindblad'
                 and data.principal_part is None):
             raise ValueError(PRINCIPAL_PART_UNSET)
         data.indexing, data.symmetry = validate_indexing(data.indexing,
                                           data.symmetry,
-                                          data.kerntype)
+                                          name)
         data.countingleads = validate_countingleads(
             data.countingleads, data.nleads
         )
@@ -188,9 +188,8 @@ class BuilderBase(object):
         if isinstance(kerntype, str):
             approach_string = kerntype[0].capitalize() + kerntype[1:]
             self.Approach = self.globals['Approach'+approach_string]
-        elif issubclass(kerntype, Approach):
+        else:
             self.Approach = kerntype
-            self.kerntype = self.Approach.kerntype
 
     def _init_create_setup(self):
         data = self.data
@@ -247,8 +246,8 @@ class BuilderBase(object):
 
     def set_kerntype(self, value):
         value = validate_kerntype(value)
+        validate_mfreeq(kerntype_name(value), self.funcp.mfreeq)
         if isinstance(value, str):
-            validate_mfreeq(value, self.funcp.mfreeq)
             if self.appr.kerntype != value:
                 approach_string = value[0].capitalize() + value[1:]
                 previous = self.appr.kerntype
@@ -257,12 +256,11 @@ class BuilderBase(object):
                 self.change_si()
                 self.appr = self.Approach(self)
         else:
-            if issubclass(value, Approach):
-                previous = self.appr.kerntype
-                self.Approach = value
-                self._carry_transport_options(previous)
-                self.change_si()
-                self.appr = self.Approach(self)
+            previous = self.appr.kerntype
+            self.Approach = value
+            self._carry_transport_options(previous)
+            self.change_si()
+            self.appr = self.Approach(self)
     kerntype = property(get_kerntype, set_kerntype)
 
     def _carry_transport_options(self, previous):

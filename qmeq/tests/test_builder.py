@@ -213,6 +213,36 @@ def test_kerntype_reassignment_between_backends_keeps_options():
         1, "infinite", "digamma")
 
 
+@pytest.mark.parametrize("name", ["pyPauli", "pyLindblad", "Pauli", "Lindblad"])
+def test_kerntype_accepts_an_approach_class(name):
+    """A class kerntype must build and solve like its name.
+
+    Construction used to assign ``self.kerntype`` before the approach existed,
+    and compiled approaches are not subclasses of the Python ``Approach``, so
+    no class, compiled or not, got as far as a solve.
+    """
+    from qmeq.builder import builder_base
+
+    approach_class = getattr(builder_base, "Approach" + name[0].upper() + name[1:])
+    extra = {"principal_part": "omit"} if "Lindblad" in name else {}
+    by_class = _coherent_double_dot(approach_class, **extra)
+    by_name = _coherent_double_dot(approach_class.kerntype, **extra)
+    by_class.solve()
+    by_name.solve()
+
+    assert by_class.kerntype == approach_class.kerntype
+    assert np.array_equal(by_class.current, by_name.current)
+
+
+def test_kerntype_class_is_validated_by_its_name():
+    from qmeq.approach.base.lindblad import ApproachLindblad
+
+    with pytest.raises(ValueError, match="no default principal_part"):
+        _coherent_double_dot(ApproachLindblad)
+    with pytest.raises(TypeError, match="approach name or an Approach class"):
+        _coherent_double_dot(3)
+
+
 def test_legacy_builder_aliases():
     assert qmeq.Builder_many_body is qmeq.BuilderManyBody
     assert qmeq.Builder_elph is qmeq.BuilderElPh

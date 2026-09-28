@@ -88,6 +88,16 @@
 
 ### Fixed
 
+- Accept an approach class as `kerntype`, which the documentation has long
+  offered. Construction assigned `self.kerntype` before the approach object
+  existed and raised `AttributeError`, and reassignment tested
+  `issubclass(value, Approach)`, which compiled approaches never satisfy
+  because they do not derive from the Python `Approach`; so no class could be
+  used in QmeQ 1.1 or since. A class is now recognised by the `kerntype` name
+  every approach carries, and its options are validated under that name, so a
+  Lindblad class needs `principal_part` like the string does. Any other
+  object raises `TypeError`.
+
 - Restore the legacy top-level names `qmeq.Builder_many_body` and
   `qmeq.Builder_elph`, which QmeQ 1.1 exported and development builds had
   dropped by accident.
