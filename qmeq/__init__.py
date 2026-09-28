@@ -65,4 +65,8 @@ from .leadstun import LeadsTunneling as LeadsTunneling
 from .baths import PhononBaths as PhononBaths
 from .qdot import QuantumDot as QuantumDot
 
+# Legacy class names
+from .builder.builder_base import BuilderManyBody as Builder_many_body  # noqa: F401
+from .builder.builder_elph import BuilderElPh as Builder_elph  # noqa: F401
+
 __version__ = '1.2.0.dev10'

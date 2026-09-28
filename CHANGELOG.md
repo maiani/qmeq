@@ -76,6 +76,10 @@
 
 ### Fixed
 
+- Restore the legacy top-level names `qmeq.Builder_many_body` and
+  `qmeq.Builder_elph`, which QmeQ 1.1 exported and development builds had
+  dropped by accident.
+
 - Correct the amplitude conversion in the non-interacting NEGF test oracle's
   QmeQ adapter. `model_from_qmeq` read `tleads` as `g = sqrt(2*pi)*conj(t)`;
   the conversion is normalisation only, `g = sqrt(2*pi)*t`. Conjugating flips

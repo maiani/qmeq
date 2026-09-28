@@ -213,6 +213,11 @@ def test_kerntype_reassignment_between_backends_keeps_options():
         1, "infinite", "digamma")
 
 
+def test_legacy_builder_aliases():
+    assert qmeq.Builder_many_body is qmeq.BuilderManyBody
+    assert qmeq.Builder_elph is qmeq.BuilderElPh
+
+
 @pytest.mark.parametrize(
     "kwargs",
     [
