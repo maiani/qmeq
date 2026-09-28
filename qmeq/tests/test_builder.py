@@ -259,6 +259,30 @@ def test_density_matrix_accessors_recognise_pauli(kerntype):
     assert system.get_phi1(0, 1, 0) is None
 
 
+def test_many_body_state_selection_matches_fock_input():
+    """remove_states and use_all_states act on the many-body states.
+
+    A many-body state indexing is created from nsingle=0, so its per-charge
+    state lists described one empty sector: remove_states raised IndexError
+    and use_all_states silently kept only state 0.
+    """
+    fock = _coherent_double_dot("1vN")
+    fock.solve(masterq=False)
+    many_body = qmeq.BuilderManyBody(
+        Ea=np.array(fock.Ea), Na=[0, 1, 1, 2], Tba=np.array(fock.Tba),
+        mulst={0: 0.5, 1: -0.5}, tlst={0: 0.3, 1: 0.3},
+        dband={0: 8.0, 1: 8.0}, kerntype="1vN",
+    )
+    for select in (lambda system: system.remove_states(1.0),
+                   lambda system: system.use_all_states()):
+        for system in (fock, many_body):
+            select(system)
+            system.solve(qdq=False, rotateq=False)
+        assert many_body.si.statesdm == fock.si.statesdm
+        np.testing.assert_allclose(many_body.current, fock.current,
+                                   rtol=1e-13, atol=1e-16)
+
+
 def test_legacy_builder_aliases():
     assert qmeq.Builder_many_body is qmeq.BuilderManyBody
     assert qmeq.Builder_elph is qmeq.BuilderElPh

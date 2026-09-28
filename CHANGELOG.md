@@ -321,6 +321,11 @@ Present in QmeQ 1.1:
   also after a `kerntype` reassignment, and the builder matches `BuilderElPh`
   given the same `Ea`, `Tba` and `Vbbp` exactly, on all four approaches and
   both backends.
+- **`remove_states` and `use_all_states` on many-body input.** The state
+  indexing of `BuilderManyBody` is created from `nsingle=0`, so its per-charge
+  state lists described one empty sector: `remove_states` raised
+  `IndexError`, and `use_all_states` silently kept only state 0. They now
+  select from the many-body states and match the equivalent Fock-space model.
 - **`BuilderManyBody` with compiled RTD** applied its many-body state indexing
   after the approach was built, so a per-thread kernel buffer was sized from a
   placeholder state count: wrong currents and, for larger systems,

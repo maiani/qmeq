@@ -421,6 +421,9 @@ def set_many_body_state_indexing(si, nmany, ncharge, statesdm):
     """
     si.nmany = nmany
     si.ncharge = ncharge
+    # Every state of each charge, which remove_states filters and
+    # use_all_states restores; from nsingle=0 it would hold one empty sector.
+    si.chargelst = [list(states) for states in statesdm]
     si.shiftlst0 = np.zeros(ncharge+1, dtype=longnp)
     si.shiftlst1 = np.zeros(ncharge, dtype=longnp)
     si.lenlst = np.zeros(ncharge, dtype=longnp)

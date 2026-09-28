@@ -306,7 +306,7 @@ def remove_states(self, dE):
         (Modifies) List containing indices of many-body state under consideration.
     """
     Emax = min(self.qd.Ea)+dE
-    statesdm = [[] for _ in range(self.si.nsingle+1)]
+    statesdm = [[] for _ in range(self.si.ncharge)]
     for charge in range(self.si.ncharge):
         for b in self.si.chargelst[charge]:
             if self.qd.Ea[b] < Emax:
