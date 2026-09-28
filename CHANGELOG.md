@@ -367,6 +367,10 @@ Present in QmeQ 1.1:
 - **pyRTD** cached `off_diag_corrections` at construction, which could desync
   from `funcp` and fail only on the pure-Python backend; it reads `funcp` as
   the compiled RTD does.
+- **`set_statesdm`** in `StateIndexingPauli` and `StateIndexingDMc` appended
+  its sentinel sector to the caller's list instead of a copy, as
+  `StateIndexingDM` already did, so `BuilderElPh.remove_states` left `si` and
+  `si_elph` sharing one `statesdm` that grew an empty sector on every call.
 - **Spin-symmetric input** compared strings with `is`, which failed for a
   `'spin'` built at runtime (from JSON or argparse).
 - **The Bose functions** use `expm1` for accuracy near zero, and the

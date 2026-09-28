@@ -731,7 +731,8 @@ class StateIndexingPauli(StateIndexing):
         statesdm: list
             List containing indices of many-body state under consideration.
         """
-        self.statesdm = statesdm
+        # Copied: the sentinel appended below must not grow the caller's list.
+        self.statesdm = list(statesdm)
         self.statesdm.append([])
         self.npauli_ = 0
         for j1 in range(self.ncharge):
@@ -1235,7 +1236,8 @@ class StateIndexingDMc(StateIndexing):
         statesdm: list
             List containing indices of many-body state under consideration.
         """
-        self.statesdm = statesdm
+        # Copied: the sentinel appended below must not grow the caller's list.
+        self.statesdm = list(statesdm)
         self.statesdm.append([])
         self.ndm0_, self.ndm1_, self.npauli_ = 0, 0, 0
         for j1 in range(self.ncharge):

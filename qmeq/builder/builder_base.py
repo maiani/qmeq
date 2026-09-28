@@ -416,8 +416,7 @@ def set_many_body_state_indexing(si, nmany, ncharge, statesdm):
 
     A many-body builder creates its state indexing from ``nsingle=0``, before
     the many-body states are known. This replaces the sizes and index arrays
-    derived from that empty Fock space. ``statesdm`` is copied, since
-    ``set_statesdm`` appends to the list it is given.
+    derived from that empty Fock space.
     """
     si.nmany = nmany
     si.ncharge = ncharge

@@ -1,3 +1,5 @@
+import pytest
+
 from qmeq.indexing import StateIndexing
 from qmeq.indexing import StateIndexingDM
 from qmeq.indexing import StateIndexingDMc
@@ -488,3 +490,18 @@ def test_StateIndexingDMc_ssq():
     assert si.get_ind_dm0(8, 7, 2, maptype=2) == 1
     assert si.get_ind_dm0(5, 8, 2, maptype=1) == -1
     assert si.get_ind_dm1(5, 4, 1) == 3
+
+
+@pytest.mark.parametrize("indexing_class", [StateIndexingPauli, StateIndexingDM, StateIndexingDMc])
+def test_set_statesdm_leaves_the_callers_list_alone(indexing_class):
+    """set_statesdm appends a sentinel sector; it must append to its own copy.
+
+    StateIndexingPauli and StateIndexingDMc used to append to the caller's
+    list, so BuilderElPh.remove_states left si and si_elph sharing one
+    statesdm that gained an empty sector on every call.
+    """
+    si = indexing_class(2, indexing='charge')
+    requested = [[0], [1, 2], [3]]
+    si.set_statesdm(requested)
+    assert requested == [[0], [1, 2], [3]]
+    assert si.statesdm == [[0], [1, 2], [3], []]
