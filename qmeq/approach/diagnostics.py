@@ -230,3 +230,92 @@ def check_band_coverage(appr):
             stacklevel=3,
         )
         funcp.suppress_band_wrn = True
+
+
+SYMMETRY_TOL = 1e-10
+"""Relative size below which a symmetry-breaking coupling is taken as roundoff."""
+
+
+def check_indexing_symmetry(appr):
+    """Warn once when the couplings break the symmetry 'sz'/'ssq' indexing assumes.
+
+    'sz' indexing keeps density-matrix coherences only between states of equal
+    S_z, and 'ssq' additionally of equal total spin, reducing each multiplet to
+    one representative. That is exact only if tunnelling and phonon couplings
+    respect the symmetry; otherwise couplings or coherences the model has are
+    dropped without notice, which moved the current of a spin-dependent double
+    dot under 'ssq' by 8%, and by factors in other models. The checks are on
+    the single-particle
+    couplings, with the first ``nsingle//2`` orbitals spin up:
+
+    * 'sz': no lead channel or phonon coupling connects orbitals of opposite
+      spin;
+    * 'ssq': in addition, the lead channels that share a chemical potential,
+      temperature and band couple spin up and spin down identically, and so
+      does every phonon bath.
+
+    Pauli under 'sz' is skipped: it keeps no coherences, so the indexing does
+    not change it. The dot Hamiltonian is not checked here; S_z-changing dot
+    terms are refused when the dot is built.
+    """
+    si = appr.si
+    funcp = appr.funcp
+    if si.indexing not in ('sz', 'ssq') or funcp.suppress_symmetry_wrn:
+        return
+    if si.indexing == 'sz' and appr.kerntype.removeprefix('py') == 'Pauli':
+        return
+    half = si.nsingle//2
+    problems = []
+
+    amplitudes = np.asarray(appr.leads.tleads_array)
+    for lead in range(amplitudes.shape[0]):
+        row = np.abs(amplitudes[lead])
+        if row[:half].any() and row[half:].any():
+            problems.append(f"lead {lead} couples to both spins")
+    if si.indexing == 'ssq':
+        leads = appr.leads
+        channels = {}
+        for lead in range(amplitudes.shape[0]):
+            key = (float(leads.mulst[lead]), float(leads.tlst[lead]),
+                   *map(float, leads.dlst[lead]))
+            channels.setdefault(key, []).append(lead)
+        for members in channels.values():
+            gamma = sum(np.outer(amplitudes[l].conj(), amplitudes[l])
+                        for l in members)
+            scale = np.abs(gamma).max()
+            if scale > 0 and (np.abs(gamma[:half, :half] - gamma[half:, half:]).max()
+                              > SYMMETRY_TOL*scale):
+                problems.append(
+                    f"leads {members} couple spin up and spin down differently")
+
+    baths = getattr(appr, 'baths', None)
+    if baths is not None and si.nbaths:
+        coupling = np.zeros((si.nbaths, si.nsingle, si.nsingle), dtype=complex)
+        for (bath, i, j), value in baths.velph.items():
+            coupling[bath, i, j] += value
+        for bath in range(si.nbaths):
+            v = coupling[bath]
+            scale = np.abs(v).max()
+            if scale == 0:
+                continue
+            cross = max(np.abs(v[:half, half:]).max(), np.abs(v[half:, :half]).max())
+            if cross > SYMMETRY_TOL*scale:
+                problems.append(f"phonon bath {bath} couples opposite spins")
+            elif (si.indexing == 'ssq'
+                  and np.abs(v[:half, :half] - v[half:, half:]).max()
+                  > SYMMETRY_TOL*scale):
+                problems.append(
+                    f"phonon bath {bath} couples spin up and spin down differently")
+
+    if problems:
+        conserved = "S_z" if si.indexing == 'sz' else "S_z and total spin"
+        warnings.warn(
+            "indexing=%r assumes the leads and phonon baths conserve %s, but "
+            "%s. Couplings or coherences the model has are then dropped, which "
+            "can change the results well beyond numerical error; use "
+            "indexing='charge'. This warning is shown once per system."
+            % (si.indexing, conserved, "; ".join(problems)),
+            QmeqWarning,
+            stacklevel=3,
+        )
+        funcp.suppress_symmetry_wrn = True

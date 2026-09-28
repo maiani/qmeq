@@ -108,6 +108,15 @@ number because 1.1 was wrong there. The cases, each detailed below:
     then exactly zero, so moving `dband` by `1e-9` across a transition energy
     turned a finite current into a silent `0`. Shown once per system; leads
     with no coupling at all are not flagged.
+  - Under `'sz'` or `'ssq'` indexing, a `QmeqWarning` names the lead channels
+    and phonon baths that break the symmetry the indexing assumes: a channel
+    reaching both spins breaks S_z, and channels sharing a chemical potential,
+    temperature and band that couple the two spins differently break total
+    spin. The indexing then drops couplings or coherences the model has; with
+    spin-dependent tunnelling, `'ssq'` moved a double-dot current by 8% while
+    `'sz'` and `'charge'` agreed to machine precision. SU(2)-symmetric
+    spin-resolved leads, including `symmetry='spin'`, stay silent, and Pauli is
+    not flagged under `'sz'`, which does not change it.
   - `QmeqWarning` and `QmeqRuntimeWarning` are public, so all QmeQ diagnostics
     can be captured or filtered as a group; the RTD categories are exported at
     the package top level.

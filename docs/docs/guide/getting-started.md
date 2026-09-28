@@ -182,7 +182,11 @@ approaches. RTD/RTDnoise require `indexing='charge'` and do not support the
 spin shortcut; 2vN supports only `'Lin'` and `'charge'`. Unsupported
 combinations emit `QmeqWarning` and select a supported indexing, so inspect
 `system.indexing` when adapting an existing model; an unknown `indexing` or
-`symmetry` value raises `ValueError`. The internal packed-layout
+`symmetry` value raises `ValueError`. `'sz'` and `'ssq'` assume that the
+tunnelling and phonon couplings conserve S_z (and, for `'ssq'`, total spin),
+taking the first `nsingle//2` orbitals as spin up: a coupling that breaks this
+emits a `QmeqWarning`, and a dot term that changes S_z is refused, since the
+indexing would otherwise drop what it does. The internal packed-layout
 contract is documented separately in [State indexing](../conventions/state-indexing.md).
 
 ## Editing an existing model

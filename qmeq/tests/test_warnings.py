@@ -165,3 +165,67 @@ def test_rtdnoise_solver_failure_warns_without_dumping_kernel(
 
     captured = capsys.readouterr()
     assert captured.out == ""
+
+
+def _spinful_double_dot(indexing, t_up, t_down, kerntype="1vN", mixing=0.0):
+    """Orbitals 0, 1 spin up and 2, 3 spin down; leads 0, 1 (up), 2, 3 (down).
+
+    ``mixing`` lets lead 0 also reach the spin-down orbital 2, which breaks
+    S_z conservation of the tunnelling.
+    """
+    tleads = {(0, 0): t_up, (1, 1): t_up, (2, 2): t_down, (3, 3): t_down}
+    if mixing:
+        tleads[(0, 2)] = mixing
+    return qmeq.Builder(
+        nsingle=4,
+        hsingle={(0, 0): 0.0, (1, 1): 0.2, (0, 1): 0.1,
+                 (2, 2): 0.0, (3, 3): 0.2, (2, 3): 0.1},
+        coulomb={(0, 2, 2, 0): 2.0, (1, 3, 3, 1): 2.0, (0, 1, 1, 0): 1.0,
+                 (2, 3, 3, 2): 1.0, (0, 3, 3, 0): 1.0, (1, 2, 2, 1): 1.0},
+        nleads=4, tleads=tleads,
+        mulst={0: 1.0, 1: -1.0, 2: 1.0, 3: -1.0},
+        tlst={lead: 0.5 for lead in range(4)},
+        dband={lead: 20.0 for lead in range(4)},
+        kerntype=kerntype, indexing=indexing,
+    )
+
+
+def _symmetry_warnings(system):
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        system.solve()
+        system.solve()
+    return [w for w in caught if "assumes the leads" in str(w.message)]
+
+
+@pytest.mark.parametrize(
+    ("indexing", "t_down", "mixing", "kerntype", "expected"),
+    [
+        ("ssq", 0.1, 0.0, "1vN", False),     # SU(2) symmetric
+        ("ssq", 0.05, 0.0, "1vN", True),     # spin-dependent tunnelling
+        ("ssq", 0.05, 0.0, "Pauli", True),   # ssq reduces multiplets even for Pauli
+        ("sz", 0.05, 0.0, "1vN", False),     # S_z is still conserved
+        ("sz", 0.1, 0.03, "1vN", True),      # a lead couples to both spins
+        ("sz", 0.1, 0.03, "Pauli", False),   # Pauli keeps no coherences
+    ],
+)
+def test_couplings_that_break_the_indexing_symmetry_warn(
+        indexing, t_down, mixing, kerntype, expected):
+    """'sz'/'ssq' indexing silently drops what symmetry-breaking couplings do.
+
+    With spin-dependent tunnelling 'ssq' moved this current by 8% while
+    'sz' and 'charge' agreed to machine precision; nothing said so.
+    """
+    system = _spinful_double_dot(indexing, 0.1, t_down, kerntype, mixing)
+    caught = _symmetry_warnings(system)
+    assert len(caught) == (1 if expected else 0)
+    if expected:
+        assert issubclass(caught[0].category, qmeq.QmeqWarning)
+
+
+def test_spin_dependent_phonons_break_ssq():
+    from qmeq.tests.test_elph_backend_parity import _spin_dependent_ssq_double_dot
+
+    caught = _symmetry_warnings(_spin_dependent_ssq_double_dot("pyLindblad"))
+    assert len(caught) == 1
+    assert "phonon bath 0" in str(caught[0].message)

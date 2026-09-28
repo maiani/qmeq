@@ -56,6 +56,9 @@ class FunctionProperties(object):
         Multiplication factor used in neumann2py.get_grid_ext(sys), when determining emin and emax.
     suppress_err : bool
         Determines whether to print the warning when the inversion of the kernel failed.
+    suppress_symmetry_wrn : bool
+        Determines whether to warn when lead or phonon couplings break the
+        symmetry that 'sz' or 'ssq' indexing assumes; shown at most once.
     suppress_band_wrn : bool
         Determines whether to warn when a finite band excludes every
         transition a lead couples to; the warning is shown at most once.
@@ -112,6 +115,8 @@ class FunctionProperties(object):
         self.suppress_unphysical_wrn = False
         # Shown once: a finite band that leaves a lead no transition.
         self.suppress_band_wrn = False
+        # Shown once: couplings that break the symmetry of 'sz'/'ssq' indexing.
+        self.suppress_symmetry_wrn = False
         #
         self.off_diag_corrections = off_diag_corrections
         #

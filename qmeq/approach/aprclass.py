@@ -14,6 +14,7 @@ from .kernel_handler import KernelHandler
 from .kernel_handler import KernelHandlerMatrixFree
 from .counting import generate_counting_statistics, validate_counting_request
 from .diagnostics import check_band_coverage
+from .diagnostics import check_indexing_symmetry
 from .diagnostics import check_stationary_solution
 
 
@@ -453,6 +454,7 @@ class Approach(object):
         #
         if masterq:
             check_band_coverage(self)
+            check_indexing_symmetry(self)
             self.prepare_kern()
             self.generate_fct()
             if not self.funcp.mfreeq:
