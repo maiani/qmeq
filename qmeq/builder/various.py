@@ -107,7 +107,7 @@ def get_phi0(self, b_, bp_):
     bcharge = sum(self.si.get_state(b))
     bpcharge = sum(self.si.get_state(bp))
     phi0bbp = 0.0
-    if self.funcp.kerntype == 'Pauli':
+    if self.kerntype.removeprefix('py') == 'Pauli':
         if b == bp:
             ind = self.si.get_ind_dm0(b, b, bcharge, maptype=1)
             phi0bbp = self.phi0[ind]
@@ -149,7 +149,7 @@ def get_phi1(self, l, c_, b_):
     phi0bbp : complex
         A matrix element of the reduced density matrix (complex number).
     """
-    if self.funcp.kerntype == 'Pauli':
+    if self.kerntype.removeprefix('py') == 'Pauli':
         return None
     else:
         c = self.si.states_order[c_]

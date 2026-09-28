@@ -243,6 +243,22 @@ def test_kerntype_class_is_validated_by_its_name():
         _coherent_double_dot(3)
 
 
+@pytest.mark.parametrize("kerntype", ["Pauli", "pyPauli"])
+def test_density_matrix_accessors_recognise_pauli(kerntype):
+    """Pauli carries populations only: no coherence and no phi1.
+
+    The accessors keyed on funcp.kerntype, which the builder never sets (it
+    keeps the FunctionProperties default '2vN'), so a Pauli coherence indexed
+    past the end of phi0.
+    """
+    system = _coherent_double_dot(kerntype)
+    system.solve()
+
+    assert system.get_phi0(1, 1) == system.phi0[1]
+    assert system.get_phi0(1, 2) == 0.0
+    assert system.get_phi1(0, 1, 0) is None
+
+
 def test_legacy_builder_aliases():
     assert qmeq.Builder_many_body is qmeq.BuilderManyBody
     assert qmeq.Builder_elph is qmeq.BuilderElPh

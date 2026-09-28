@@ -88,6 +88,13 @@
 
 ### Fixed
 
+- Make `get_phi0` and `get_phi1` recognise a Pauli system. They branched on
+  `funcp.kerntype`, which the builder never sets, so it always held the
+  `FunctionProperties` default `'2vN'`: for Pauli, `get_phi0` on a coherence
+  indexed past the end of `phi0` and raised `IndexError`, and `get_phi1`
+  looked for current amplitudes Pauli does not have instead of returning
+  `None`. They now ask the approach for its kerntype. Present in QmeQ 1.1.
+
 - Accept an approach class as `kerntype`, which the documentation has long
   offered. Construction assigned `self.kerntype` before the approach object
   existed and raised `AttributeError`, and reassignment tested
