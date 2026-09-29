@@ -210,14 +210,34 @@ def build_first_order_counting_kernel(approach, countingleads):
     )
 
 
-def stationary_projected_pseudoinverse(
-        kernel, stationary_state, trace_vector):
-    """Return the stationary projector and projected kernel pseudoinverse."""
-    stationary_state = np.asarray(stationary_state)
-    size = stationary_state.size
-    kernel = np.asarray(kernel)[:size, :size]
-    trace_vector = np.asarray(trace_vector)[:size]
+def stationary_kernel_pseudoinverse(kernel):
+    """Return the Moore-Penrose pseudoinverse of a kernel with nullity one.
 
+    The null space is certified from the singular values at the tolerance
+    ``n*eps*sigma_max``, and the pseudoinverse is then formed from the
+    singular value decomposition with exactly that one singular triple
+    excluded. A relative cutoff is not used: the decomposition's null singular
+    value is roundoff whose size depends on the LAPACK path, and at
+    ``1e-15*sigma_max`` it can be kept. Its triple then enters with weight
+    ``1/sigma_null ~ 1/eps``, and the stationary projections cancel it only to
+    ``eps/sigma_null``, an ``O(1/sigma_max)`` error in every cumulant.
+
+    Parameters
+    ----------
+    kernel : array
+        Square kernel with a one-dimensional null space.
+
+    Returns
+    -------
+    array
+        The pseudoinverse, with the shape of ``kernel``.
+
+    Raises
+    ------
+    numpy.linalg.LinAlgError
+        If the null space of ``kernel`` is not one-dimensional.
+    """
+    kernel = np.asarray(kernel)
     singular_values = np.linalg.svd(kernel, compute_uv=False)
     scale = singular_values[0] if singular_values.size else 0.0
     tolerance = max(kernel.shape) * np.finfo(float).eps * scale
@@ -228,6 +248,20 @@ def stationary_projected_pseudoinverse(
             f"the kernel has nullity {nullity}."
         )
 
+    left, values, right = np.linalg.svd(kernel)
+    return (right[:-1].conj().T / values[:-1]) @ left[:, :-1].conj().T
+
+
+def stationary_projected_pseudoinverse(
+        kernel, stationary_state, trace_vector):
+    """Return the stationary projector and projected kernel pseudoinverse."""
+    stationary_state = np.asarray(stationary_state)
+    size = stationary_state.size
+    kernel = np.asarray(kernel)[:size, :size]
+    trace_vector = np.asarray(trace_vector)[:size]
+
+    kernel_pseudoinverse = stationary_kernel_pseudoinverse(kernel)
+
     trace = trace_vector @ stationary_state
     if not np.isclose(trace, 1.0, rtol=1e-10, atol=1e-12):
         raise np.linalg.LinAlgError(
@@ -237,9 +271,7 @@ def stationary_projected_pseudoinverse(
     right = stationary_state[:, None]
     left = trace_vector[None, :]
     projector = np.eye(size) - right @ left
-    pseudoinverse = (
-        projector @ np.linalg.pinv(kernel, rcond=1e-15) @ projector
-    )
+    pseudoinverse = projector @ kernel_pseudoinverse @ projector
     return right, left, projector, pseudoinverse
 
 

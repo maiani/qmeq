@@ -34,6 +34,7 @@ from .RTD import ApproachPyRTD
 from .RTD import _warn_if_rtd_coherence_is_not_resolved
 from .RTD import _warn_if_unequal_temperature_cutoff_is_small
 from ..counting import nonmarkovian_current_noise_matrix
+from ..counting import stationary_kernel_pseudoinverse
 from ..counting import stationary_projected_pseudoinverse
 from ..diagnostics import check_stationary_solution
 from ..kernel_handler import KernelHandlerRTDnoise
@@ -593,7 +594,7 @@ class ApproachPyRTDnoise(ApproachPyRTD):
         size = P.size
         kern_first_square = kern_first[:size, :size]
         kern_second_square = kern_second[:size, :size]
-        Rm1 = np.linalg.pinv(kern_first_square)
+        Rm1 = stationary_kernel_pseudoinverse(kern_first_square)
         R0 = -Rm1 @ kern_second_square @ Rm1
         # derivatives of noise kernel
         Jp_1 = 1j*(Lp1_1 - Lm1_1 + 2*Lp2_1 - 2*Lm2_1)

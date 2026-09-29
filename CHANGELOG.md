@@ -411,6 +411,18 @@ In features added since QmeQ 1.1 (development builds only):
   no longer rejected, which had made `off_diag_corrections=True` raise for
   dots with more than two levels. Each is gated by an independent reference;
   their effects on the noise are `O(Gamma**2)` to `O(Gamma**3)`.
+- **Counting-statistics pseudoinverse.** The projected pseudoinverse behind
+  every `current_noise` and `current_noise_matrix`, and RTDnoise's order
+  decomposition, called `np.linalg.pinv` with its `rcond=1e-15`, while the
+  nullity check certifies the stationary null space at `n*eps*sigma_max`.
+  Above a few states the null singular value is roundoff between the two, and
+  whether it fell above `1e-15` depended on the LAPACK path; when it did, its
+  `1/sigma_null ~ 1/eps` triple survived the stationary projections at
+  `O(1/sigma_max)`. In a spinful double dot under Lindblad this broke
+  `S_L == S_R` and the zero row sums of the all-lead covariance matrix by up
+  to 1e-3 relative, and put the two backends 2e-4 apart with the Lamb shift
+  on. The pseudoinverse now excludes exactly the certified null triple, gated
+  by a planted-singular-value test and an all-lead conservation test.
 - **Lindblad Lamb shift.** The weight first paired QmeQ's dissipator with the
   Bloch-Redfield principal-value shift, and then had the spectral function and
   argument orientation of the correction swapped between the two intermediate

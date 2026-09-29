@@ -8,6 +8,7 @@ from scipy.special import expit
 import qmeq
 from qmeq.approach.counting import markovian_current_noise
 from qmeq.approach.counting import markovian_current_noise_matrix
+from qmeq.approach.counting import stationary_kernel_pseudoinverse
 from qmeq.approach.counting import stationary_projected_pseudoinverse
 from qmeq.tests.reference_data import load_reference_bundle
 
@@ -400,6 +401,103 @@ def test_weak_but_nonzero_coupling_remains_well_defined():
     assert np.all(np.isfinite(system.current_noise))
     np.testing.assert_allclose(
         system.current_noise[0], system.current[0], rtol=1e-11, atol=1e-32
+    )
+
+
+def test_pseudoinverse_excludes_a_roundoff_null_singular_value():
+    # A trace-preserving rate kernel with its null singular value planted at
+    # 5e-15*sigma_max: numerically zero, since the nullity tolerance is
+    # n*eps*sigma_max = 8.9e-15*sigma_max, but above a 1e-15 relative cutoff.
+    size = 40
+    rates = np.random.default_rng(20260929).uniform(0.1, 1.0, (size, size))
+    np.fill_diagonal(rates, 0.0)
+    kernel = rates - np.diag(rates.sum(axis=0))
+    normalized = np.vstack([kernel[:-1], np.ones(size)])
+    stationary = np.linalg.solve(normalized, np.eye(size)[-1])
+    sigma_max = np.linalg.norm(kernel, 2)
+    planted = kernel + 5e-15 * sigma_max * np.outer(
+        np.ones(size) / np.sqrt(size), stationary / np.linalg.norm(stationary)
+    )
+
+    _, _, projector, group_inverse = stationary_projected_pseudoinverse(
+        planted, stationary, np.ones(size)
+    )
+    atol = 1e-12 * sigma_max * np.linalg.norm(group_inverse, 2)
+    np.testing.assert_allclose(kernel @ group_inverse, projector, atol=atol)
+    np.testing.assert_allclose(group_inverse @ kernel, projector, atol=atol)
+
+    # The Moore-Penrose conditions, for the order decomposition of RTDnoise.
+    pseudoinverse = stationary_kernel_pseudoinverse(planted)
+    atol = 1e-12 * sigma_max * np.linalg.norm(pseudoinverse, 2)
+    np.testing.assert_allclose(
+        kernel @ pseudoinverse @ kernel, kernel, atol=atol * sigma_max
+    )
+    np.testing.assert_allclose(
+        pseudoinverse @ kernel @ pseudoinverse, pseudoinverse,
+        atol=atol * np.linalg.norm(pseudoinverse, 2),
+    )
+    np.testing.assert_allclose(
+        kernel @ pseudoinverse, (kernel @ pseudoinverse).T, atol=atol
+    )
+    np.testing.assert_allclose(
+        pseudoinverse @ kernel, (pseudoinverse @ kernel).T, atol=atol
+    )
+
+
+@pytest.mark.parametrize("principal_part", ["omit", "digamma"])
+def test_all_lead_covariance_conserves_charge_in_a_coherence_blockade(
+        principal_part):
+    # Spinful double dot, spin orbitals (1up, 1dn, 2up, 2dn), with nearly
+    # degenerate orbitals and a right lead that couples only to d_2 - d_1,
+    # which leaves d_1 + d_2 dark. Leads are (L up, R up, L dn, R dn).
+    energies = (3.2e-4, -3.2e-4)
+    fields = (0.004, 0.0032)
+    hsingle = {}
+    for orbital in (0, 1):
+        hsingle[(2 * orbital, 2 * orbital)] = (
+            energies[orbital] + fields[orbital] / 2
+        )
+        hsingle[(2 * orbital + 1, 2 * orbital + 1)] = (
+            energies[orbital] - fields[orbital] / 2
+        )
+    coulomb = {(0, 1, 1, 0): 5.0, (2, 3, 3, 2): 5.0}
+    for first in (0, 1):
+        for second in (2, 3):
+            coulomb[(first, second, second, first)] = 5.0
+    amplitude = 0.04 / np.sqrt(2 * np.pi)
+    tleads = {}
+    for spin in (0, 1):
+        tleads[(2 * spin, spin)] = amplitude
+        tleads[(2 * spin, 2 + spin)] = amplitude
+        tleads[(2 * spin + 1, spin)] = -amplitude
+        tleads[(2 * spin + 1, 2 + spin)] = amplitude
+    system = qmeq.Builder(
+        nsingle=4,
+        hsingle=hsingle,
+        coulomb=coulomb,
+        nleads=4,
+        tleads=tleads,
+        mulst={0: 0.2, 1: -0.2, 2: 0.2, 3: -0.2},
+        tlst={0: 0.02, 1: 0.02, 2: 0.02, 3: 0.02},
+        kerntype="Lindblad",
+        indexing="charge",
+        bandwidth="infinite",
+        principal_part=principal_part,
+        countingleads=(0, 1, 2, 3),
+    )
+    system.solve()
+
+    # Every lead's transfer has zero covariance growth with the bounded total
+    # transfer into the dot, so each row of the covariance matrix sums to zero.
+    covariance = np.asarray(system.current_noise_matrix)
+    np.testing.assert_allclose(
+        covariance.sum(axis=1), 0.0, atol=1e-10 * np.max(np.abs(covariance))
+    )
+    charge = np.array([1.0, 0.0, 1.0, 0.0]), np.array([0.0, 1.0, 0.0, 1.0])
+    np.testing.assert_allclose(
+        charge[0] @ covariance @ charge[0],
+        charge[1] @ covariance @ charge[1],
+        rtol=1e-10,
     )
 
 
