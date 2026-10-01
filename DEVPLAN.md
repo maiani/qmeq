@@ -61,9 +61,9 @@ observable through `clamped_coherences`.
 - **Name.** The package stays `qmeq`. Ask the original author for publish
   rights to the existing PyPI project, so that 1.2 reaches every existing user
   as an ordinary upgrade (E1).
-- **Repository.** The repository moves from `maiani/qmeq` to the `qmeq`
-  organisation, as `qmeq/qmeq`, after the next push. Every link in the tree
-  already points there, and 1.2 is released from it.
+- **Repository.** The repository is `qmeq/qmeq`, transferred from
+  `maiani/qmeq`, which redirects to it as long as no repository of that name
+  is created again. GitHub still lists it as a fork of `gedaskir/qmeq`.
 - **Python.** 1.2 requires Python 3.12 or newer, the oldest version the
   current NumPy and SciPy support.
 - **Conda.** 1.2 ships on the prefix.dev channel `andmai/science`. A
@@ -92,10 +92,10 @@ observable through `clamped_coherences`.
     remove the warning that `pip install qmeq` installs 1.1.
   - Install from PyPI into a clean environment and check
     `qmeq.get_backend_status()`.
-- **E2. Confirm the Conda channel.** The channel was last confirmed at
-  1.2.0.dev9, and the dev10 upload predates the OIDC publishing change. Check
-  whether dev11 arrived, and confirm that the release candidate reaches
-  `andmai/science`.
+- **E2. Re-point the Conda trusted publisher.** The prefix.dev channel
+  `andmai/science` received 1.2.0.dev12 through trusted publishing from
+  `maiani/qmeq`. Change the publisher's repository to `qmeq/qmeq` before the
+  next tag, and confirm that the release candidate arrives.
 - **E3. Publish the built documentation** from CI on a tag, as the GitHub
   Pages site of `qmeq/qmeq`. Point the documentation links in `README.md`,
   `pyproject.toml`, `recipe/recipe.yaml` and the docs pages at it. Notebook
