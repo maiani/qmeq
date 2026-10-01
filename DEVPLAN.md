@@ -72,23 +72,6 @@ observable through `clamped_coherences`.
 
 ## 4. Open work
 
-### C. Tests
-
-- **C1. Pin the numerical edge cases that no test covers.** The cases that
-  were verified only by hand are:
-  - exact and near degeneracies;
-  - complex amplitudes, on every approach;
-  - `remove_states`;
-  - empty spin sectors;
-  - very hot and very cold leads; and
-  - the special functions at their limits.
-
-  Some now have tests: the lead-temperature limits in `test_numerical_edges.py`
-  and `remove_states` on many-body input. Map the suite first and add only the
-  uncovered cases. Each new test asserts an invariant or an independent value,
-  such as rephasing covariance for complex amplitudes or a limiting form for a
-  special function. It never asserts the code's current output.
-
 ### D. Documentation
 
 - **D1. Correct statements that contradict the code.**

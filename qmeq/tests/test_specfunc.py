@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from numpy.linalg import norm
 from numpy import exp
 from scipy.integrate import quad
@@ -168,21 +169,51 @@ def test_polygamma():
         assert abs(temp.real) < EPS
         assert abs(temp.imag) < EPS
 
-def test_phi():
-    for f in [phi, c_phi]:
-        assert (f(10, 10000, 10000) - 6.925720809890757) < EPS
+PHI_IMPLEMENTATIONS = [
+    pytest.param(phi, delta_phi, diff_phi, diff2_phi, id="python"),
+    pytest.param(c_phi, c_delta_phi, c_diff_phi, c_diff2_phi, id="selected"),
+]
 
-def test_delta_phi():
-    for f in [delta_phi, c_delta_phi]:
-        assert (f(10, -5, 1000, 1000) - 0.7599463446332866) < EPS
 
-def test_diff_phi():
-    for f in [diff_phi, c_diff_phi]:
-        assert abs(c_diff_phi(-.10, 1000) - 42.54546520657971) < 1.5*EPS
+@pytest.mark.parametrize("f, delta_f, diff_f, diff2_f", PHI_IMPLEMENTATIONS)
+def test_phi_matches_its_closed_form_and_asymptote(f, delta_f, diff_f, diff2_f):
+    """``phi(x) = -Re psi(1/2 + i x/2 pi) + ln(D/2 pi)`` at its two limits.
 
-def test_diff2_phi():
-    for f in [diff2_phi, c_diff2_phi]:
-        assert abs(f(-.10, 1000) - -423.8096493945452) < 15*EPS
+    ``psi(1/2) = -gamma - 2 ln 2`` fixes the value at zero. The expansion
+    ``Re psi(1/2 + i y) = ln y - 1/(24 y**2) + O(y**-4)`` gives
+    ``phi(x) = ln(D/|x|) + pi**2/(6 x**2) + O(x**-4)``, so the remainder
+    times ``x**4`` stays bounded. ``phi`` is even in ``x`` and falls with
+    ``|x|``, which fixes the sign of ``delta_phi``.
+    """
+    D = 1e3
+    closed_form = np.euler_gamma + 2*np.log(2) + np.log(D/(2*np.pi))
+    assert abs(f(0.0, D, D) - closed_form) < 10*EPS
+    for x in (50.0, 200.0, 1000.0):
+        remainder = f(x, D, D) - np.log(D/x) - np.pi**2/(6*x**2)
+        assert abs(remainder)*x**4 < 50.0, x
+        assert abs(f(-x, D, D) - f(x, D, D)) < EPS*abs(f(x, D, D))
+    assert delta_f(10.0, -5.0, D, D) == f(10.0, D, D) - f(-5.0, D, D)
+    assert delta_f(10.0, -5.0, D, D) < 0.0
+
+
+@pytest.mark.parametrize("f, delta_f, diff_f, diff2_f", PHI_IMPLEMENTATIONS)
+def test_phi_derivatives_are_derivatives(f, delta_f, diff_f, diff2_f):
+    """``diff_phi`` and ``diff2_phi`` are the derivatives of ``phi``.
+
+    They are evaluated from the trigamma and tetragamma functions, ``phi``
+    from the digamma function, so a centred difference of the parent checks
+    each against an independent path. The step error is ``O(h**2)``, about
+    ``1e-8`` relative here; ``diff_phi`` vanishes at zero, where ``phi`` is
+    even.
+    """
+    D = 1e3
+    assert diff_f(0.0) == 0.0
+    for x in (-20.0, -0.1, 0.0, 0.7, 3.0):
+        h = 1e-4*max(1.0, abs(x))
+        first = (f(x + h, D, D) - f(x - h, D, D))/(2*h)
+        second = (diff_f(x + h) - diff_f(x - h))/(2*h)
+        assert abs(diff_f(x) - first) <= 1e-7*abs(first) + 1e-12, x
+        assert abs(diff2_f(x) - second) <= 1e-7*abs(second), x
 
 def test_bose():
     for f in [bose, c_bose]:

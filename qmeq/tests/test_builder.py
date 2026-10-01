@@ -283,6 +283,33 @@ def test_many_body_state_selection_matches_fock_input():
                                    rtol=1e-13, atol=1e-16)
 
 
+def test_density_matrix_accessors_read_many_body_input():
+    """get_phi0 and get_phi1 address many-body states by their given labels.
+
+    A many-body state carries no Fock occupation, so the accessors take its
+    charge from ``chargelst`` and keep its label. The same 1vN model given as
+    Fock input, whose labels map through ``states_order``, is the reference.
+    """
+    fock = _coherent_double_dot("1vN")
+    fock.solve()
+    many_body = qmeq.BuilderManyBody(
+        Ea=np.array(fock.Ea), Na=[0, 1, 1, 2], Tba=np.array(fock.Tba),
+        mulst={0: 0.5, 1: -0.5}, tlst={0: 0.3, 1: 0.3},
+        dband={0: 8.0, 1: 8.0}, kerntype="1vN",
+    )
+    many_body.solve(qdq=False, rotateq=False)
+    order = fock.si.states_order
+    assert abs(fock.get_phi0(1, 2)) > 1e-3
+    for i, j in itertools.product(range(4), repeat=2):
+        np.testing.assert_allclose(
+            many_body.get_phi0(order[i], order[j]), fock.get_phi0(i, j),
+            rtol=1e-12, atol=1e-15)
+        for lead in range(2):
+            np.testing.assert_allclose(
+                many_body.get_phi1(lead, order[i], order[j]),
+                fock.get_phi1(lead, i, j), rtol=1e-12, atol=1e-15)
+
+
 def test_legacy_builder_aliases():
     assert qmeq.Builder_many_body is qmeq.BuilderManyBody
     assert qmeq.Builder_elph is qmeq.BuilderElPh

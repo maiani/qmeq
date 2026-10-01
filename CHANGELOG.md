@@ -352,6 +352,11 @@ Present in QmeQ 1.1:
   state lists described one empty sector: `remove_states` raised
   `IndexError`, and `use_all_states` silently kept only state 0. They now
   select from the many-body states and match the equivalent Fock-space model.
+- **`get_phi0` and `get_phi1` on many-body input** looked a state up in
+  `states_order` and took its charge from its Fock occupation, neither of
+  which a `BuilderManyBody` system has, so both raised `IndexError`. A
+  many-body state now keeps the label it was given, and its charge comes from
+  the per-charge state lists.
 - **`BuilderManyBody` with compiled RTD** applied its many-body state indexing
   after the approach was built, so a per-thread kernel buffer was sized from a
   placeholder state count: wrong currents and, for larger systems,

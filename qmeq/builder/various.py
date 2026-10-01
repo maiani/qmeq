@@ -85,6 +85,18 @@ def sort_eigenstates(self, srt=None):
         self.si.states_order = range(self.si.nmany)
 
 
+def _state_charge(si, b):
+    """Charge of many-body state ``b``, for Fock and many-body input alike.
+
+    ``si.chargelst`` lists every state of each charge in both cases, while a
+    Fock occupation exists only for Fock input.
+    """
+    for charge, states in enumerate(si.chargelst):
+        if b in states:
+            return charge
+    raise ValueError(f"State {b} belongs to no charge sector.")
+
+
 def get_phi0(self, b_, bp_):
     """
     Get the reduced density matrix element corresponding to
@@ -104,8 +116,8 @@ def get_phi0(self, b_, bp_):
     """
     b = self.si.states_order[b_]
     bp = self.si.states_order[bp_]
-    bcharge = sum(self.si.get_state(b))
-    bpcharge = sum(self.si.get_state(bp))
+    bcharge = _state_charge(self.si, b)
+    bpcharge = _state_charge(self.si, bp)
     phi0bbp = 0.0
     if self.kerntype.removeprefix('py') == 'Pauli':
         if b == bp:
@@ -154,8 +166,8 @@ def get_phi1(self, l, c_, b_):
     else:
         c = self.si.states_order[c_]
         b = self.si.states_order[b_]
-        ccharge = sum(self.si.get_state(c))
-        bcharge = sum(self.si.get_state(b))
+        ccharge = _state_charge(self.si, c)
+        bcharge = _state_charge(self.si, b)
         phi1cb = 0.0
         if ccharge == bcharge+1:
             ind = self.si.get_ind_dm1(c, b, bcharge)
