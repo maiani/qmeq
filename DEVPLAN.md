@@ -78,13 +78,6 @@ immutable records, and `pyRTD`, `pyRTDnoise` and `RTDnoise` evaluate them.
 The compiled `c_RTD.pyx` keeps its hand-written loops, held to the records by
 `test_compiled_rtd_matches_the_record_based_python_rtd`.
 
-- **B1. Delete the legacy Python loops.** The `_legacy_*` methods of
-  `ApproachPyRTD` and `ApproachPyRTDnoise` keep the nested loops only for
-  `test_rtd_diagram_shadow.py`. That test requires every array assembled from
-  the records to equal the loops' arrays bit for bit, on the seven RTD
-  reference scenarios, the eight RTDnoise live scenarios under both names,
-  and the three arbitrary-system stress cases. Delete the methods and the
-  test together, in a change of their own after the routing change.
 - **B2. Decide whether to compile a record evaluator.** Measured on the record
   path for a spinful double dot (16 states, four channels):
 
