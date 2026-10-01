@@ -40,7 +40,7 @@ requirements:
       then:
         - llvm-openmp
   run:
-    - python >=3.11
+    - python >=3.12
     - numpy
     - scipy
     - if: osx
@@ -64,9 +64,9 @@ tests:
           - set QMEQ_BACKEND=cython && python -c "import qmeq; status = qmeq.get_backend_status(); print(status); assert status['active'] == 'cython'"
 
 about:
-  homepage: https://github.com/maiani/qmeq
-  repository: https://github.com/maiani/qmeq
-  documentation: https://github.com/maiani/qmeq/tree/master/docs
+  homepage: https://github.com/qmeq/qmeq
+  repository: https://github.com/qmeq/qmeq
+  documentation: https://github.com/qmeq/qmeq/tree/master/docs
   license: BSD-2-Clause
   license_file: LICENSE.md
   summary: Quantum master equations for transport through quantum-dot devices

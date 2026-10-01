@@ -34,7 +34,7 @@ exclude_docs: |
 validation:
   nav:
     omitted_files: warn
-    # mkdocs accepts only warn/info/ignore here, so this cannot fail a build.
+    # mkdocs offers no level above warn; --strict turns these warnings into failures.
     not_found: warn
     absolute_links: warn
   links:
@@ -59,7 +59,7 @@ plugins:
           options:
             docstring_style: numpy
             docstring_options:
-              # Silences pre-existing docstring-style warnings.
+              # Docstring-style warnings are off; unresolved references still fail --strict.
               warnings: false
               warn_unknown_params: false
               warn_missing_types: false
@@ -120,7 +120,6 @@ nav:
       - Approaches: api/approach.md
       - Model construction: api/model.md
       - Special functions: api/specfunc.md
-      - Wrappers: api/wrappers.md
   - Conventions:
       - Overview: conventions/index.md
       - Density-matrix layout: conventions/density-matrix-layout.md

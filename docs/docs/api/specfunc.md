@@ -1,6 +1,8 @@
 # Special functions
 
-Special functions used by the transport approaches.
+Special functions and lead integrals used by the transport approaches. They are
+internal: the approaches call them, and a calculation does not need them
+directly.
 
 ## `qmeq.specfunc`
 
@@ -17,9 +19,8 @@ Special functions used by the transport approaches.
 
 ## Compiled extensions
 
-The `c_*` modules carry no documentation of their own, by design: each opens
-with *"For docstrings see documentation of module `<name>`"*, pointing at the
-pure-Python module it mirrors. Read that module's entry above. The canonical
-source is the `.pyx`/`.pxd` file, not the generated C.
+The compiled `c_*` modules have no generated entries: each mirrors the
+pure-Python module of the same name above, whose docstrings document both. The
+canonical source is the `.pyx`/`.pxd` file, not the generated C.
 
 `qmeq.specfunc.c_specfunc`, `qmeq.specfunc.c_specfunc_elph`.

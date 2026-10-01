@@ -36,8 +36,8 @@ beyond the numerical floor and the path being replaced serves as the gate.
 |---|---|
 | Full-coherence RTD: `L0+W1` and `L0+W1+W2` on the complete `dm0`, with coherent counting | RTD and RTDnoise eliminate same-charge coherences. `RTDCoherenceWarning` and `rtd_coherence_diagnostics`, including `clamped_coherences`, flag where the elimination fails |
 | RTD energy and heat currents for complex tunnel amplitudes | `nan` with a warning. The particle current is unaffected |
-| A helper that sweeps `dband` for thermal-bias RTD | A documented convergence recipe (D4) |
-| A 2vN `kpnt` convergence check | The documented `kpnt`/`niter` requirement, with a measured example (D4) |
+| A helper that sweeps `dband` for thermal-bias RTD | A convergence recipe in the approaches guide |
+| A 2vN `kpnt` convergence check | The documented `kpnt`/`niter` requirement, with a measured example, in the approaches guide |
 | A public non-interacting reference solver | The NEGF solver stays test-only, in `qmeq/tests/noninteracting_negf_solver.py` |
 | Higher cumulants, energy-current noise, finite-frequency noise | The first two zero-frequency particle-current cumulants |
 | A compiled RTDnoise traversal or record evaluator | A Python traversal over the shared diagram records, with compiled scalar integrals. A compiled evaluator would gain at most about 2x; see `docs/docs/conventions/where-the-time-goes.md` |
@@ -61,55 +61,26 @@ observable through `clamped_coherences`.
 - **Name.** The package stays `qmeq`. Ask the original author for publish
   rights to the existing PyPI project, so that 1.2 reaches every existing user
   as an ordinary upgrade (E1).
-- **Repository.** 1.2 is released from `maiani/qmeq`. After the handoff the
-  repository moves to a GitHub organisation. A transfer redirects repository
-  links, but not GitHub Pages URLs (E3).
+- **Repository.** The repository moves from `maiani/qmeq` to the `qmeq`
+  organisation, as `qmeq/qmeq`, after the next push. Every link in the tree
+  already points there, and 1.2 is released from it.
+- **Python.** 1.2 requires Python 3.12 or newer, the oldest version the
+  current NumPy and SciPy support.
 - **Conda.** 1.2 ships on the prefix.dev channel `andmai/science`. A
   conda-forge feedstock, built from the PyPI sdist, follows after 1.2.0
   (section 6).
-- **Still open: the next maintainer.** Name them before E5, so that
-  `AUTHORS.md`, `README.md` and the publishing configuration are written once.
+- **Maintainers.** Simon Wozny is a maintainer. Name any others before E5, so
+  that the organisation owners, `AUTHORS.md`, `README.md` and the publishing
+  configuration are written once.
 
 ## 4. Open work
 
 ### D. Documentation
 
-- **D1. Correct statements that contradict the code.**
-  - `docs/docs/theory/counting-statistics.md` calls `kerntype='RTDnoise'` an
-    alias of the pure-Python implementation. In fact `ApproachRTDnoise`
-    selects compiled scalar integrals on the Cython backend, as
-    `approaches.md` says.
-  - Tutorial 7's validity table says that RTD off-diagonal counting
-    corrections are not implemented. `off_diag_corrections=True` is supported,
-    and it is the default.
-  - `CHANGELOG.md` claims Conda packages for Intel macOS, but `release.yml`
-    builds only `linux-64`, `linux-aarch64` and `osx-arm64`. Either build
-    `osx-64` or correct the claim.
-  - The URLs in `pyproject.toml` point at `gedaskir/qmeq`; point them at
-    `maiani/qmeq`.
-  - The changelog compare links resolve only in `gedaskir/qmeq`, because
-    `maiani/qmeq` has no `1.1` tag. Push that tag to the fork at the upstream
-    commit, or keep the 1.1 links pointing at upstream.
-- **D2. Write the RTD validation envelope into the permanent documentation.**
-  Put it on the counting-statistics page and under RTD/RTDnoise in the
-  approaches guide, citing test names. It should state:
-  - what is graded at `U = 0`, against the exact NEGF solver: with
-    `off_diag_corrections=True`, the current and noise residuals are cubic in
-    the coupling, and without the correction they are quadratic; this holds
-    for real amplitudes and for generic plaquette flux; the observables are
-    invariant under orbital rephasing and `2π`-periodic in the flux;
-  - what is graded at `U ≠ 0`: in a deep-blockade Anderson dot, the
-    elastic-cotunnelling current within 0.02% and the bidirectional-Poisson
-    noise within 1%;
-  - what is not graded: interacting systems outside deep blockade, splittings
-    `≲ Γ` (where the elimination is invalid by construction), and the energy
-    current at complex amplitudes.
-- **D4. Convergence recipes in place of the dropped helpers.** In the
-  approaches guide:
-  - a short `dband` sweep for thermal-bias RTD and RTDnoise, including what
-    "converged" means for the current and for each noise entry; and
-  - the measured 2vN example: at `dband=10` and `niter=3` the current moves
-    from `3.90e-05` at `kpnt=2**9` to `1.71e-05` at `kpnt=2**5`.
+- **D1. Push the release tags.** The `[Unreleased]` compare link needs a `1.1`
+  tag in `qmeq/qmeq`. Upstream's annotated `1.0` and `1.1` tags are fetched
+  into the local repository, on commits in this history; push them
+  (`git push origin 1.0 1.1`).
 
 ### E. Distribution and handoff
 
@@ -125,27 +96,13 @@ observable through `clamped_coherences`.
   1.2.0.dev9, and the dev10 upload predates the OIDC publishing change. Check
   whether dev11 arrived, and confirm that the release candidate reaches
   `andmai/science`.
-- **E3. Publish the built documentation** from CI on a tag. A GitHub Pages
-  site under `maiani` stops resolving when the repository moves to the
-  organisation. Either host the site at its final address from the start, or
-  plan the link update as a 1.2.x change. Point the `README.md` and
-  `pyproject.toml` documentation links at the published site. Notebook
+- **E3. Publish the built documentation** from CI on a tag, as the GitHub
+  Pages site of `qmeq/qmeq`. Point the documentation links in `README.md`,
+  `pyproject.toml`, `recipe/recipe.yaml` and the docs pages at it. Notebook
   execution stays in the example test jobs, not in the documentation build.
-- **E4. Write the development and release guide** as `CONTRIBUTING.md`. It
-  covers:
-  - editable installs, and backend and OpenMP selection;
-  - regenerating the Cython output;
-  - the fast and slow suites, and the documentation build;
-  - artifact validation;
-  - the files that must change together when a `.py`/`.pyx` pair, or the RTD
-    diagram enumeration and its compiled twin in `c_RTD.pyx`, is touched;
-  - the reference-data policy; and
-  - the release procedure: version bump, tag, what each workflow publishes
-    where, the trusted publishers, and who receives the scheduled `slow.yml`
-    failures.
-
-  `AGENTS.md` keeps only the rules specific to agents, and links to the guide
-  instead of repeating it.
+- **E4. Complete the release section of `CONTRIBUTING.md`** once E1 and E3
+  land: the PyPI and documentation publishing steps, the trusted publishers
+  they use, and who receives the scheduled `slow.yml` failures.
 - **E5. Hand off.**
   - Add a maintenance-status paragraph to `README.md`, and the next maintainer
     to `AUTHORS.md`.
@@ -156,26 +113,15 @@ observable through `clamped_coherences`.
 
 ## 5. Release gate
 
-1.2.0 is ready only when all of the following hold:
+1.2.0 is ready when the release checklist in `CONTRIBUTING.md` holds, and in
+addition:
 
-- [ ] Every item in section 4 is closed, or is a documented limitation listed
-      in section 6.
-- [ ] A release candidate, `v1.2.0rc1`, has passed through every publishing
+- [ ] every item in section 4 is closed, or is a documented limitation listed
+      in section 6; and
+- [ ] a release candidate, `v1.2.0rc1`, has passed through every publishing
       path: the GitHub release with wheels and sdist, PyPI, the Conda channel
       and the documentation site. Pre-release tags build only `linux-64` for
       Conda, so run `release.yml` with `full-matrix: true`.
-- [ ] The fast pure-Python and compiled suites pass across the CI matrix.
-- [ ] The `--runslow` example and notebook suites pass (`slow.yml`).
-- [ ] The documentation builds strictly from a clean checkout.
-- [ ] The wheel and sdist contents have been inspected, and both artifacts have
-      been installed outside the source tree. The installed-copy tests pass on
-      both forced backends, and `qmeq.get_backend_status()` reports the
-      expected implementation.
-- [ ] `[Unreleased]` in `CHANGELOG.md` is one coherent `[1.2.0]` section, and
-      its upgrade notes from 1.1 are complete.
-- [ ] The package, documentation and tag versions agree.
-- [ ] The release artifacts come from the tested revision, and are published
-      only after these checks pass.
 
 ## 6. Maintenance after 1.2
 

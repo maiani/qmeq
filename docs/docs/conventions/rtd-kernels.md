@@ -1,10 +1,10 @@
 # RTD kernel matrices
 
-The RTD approach historically accumulated into eight separate arrays through
-two handler methods whose integer argument selected the destination. The
-`RtdMatrix` enum now names that compatibility interface. New block families use
-explicit arrays instead of extending the historical selector. This page records
-both conventions and where the two backends differ.
+The RTD approach accumulates into eight arrays through two handler methods
+whose last argument selects the destination, named by the `RtdMatrix` enum.
+Block families outside those eight, such as the Laplace-derivative blocks, use
+explicit arrays instead. This page records both conventions, the shared diagram
+enumeration, and where the two backends differ.
 
 ## The `mi` selector
 
@@ -22,14 +22,7 @@ argument named `mi` that picks the destination array:
 | 6 | `ImWnd` | $\Im\,W_{nd}^{(1)}$ |
 | 7 | `Lnn_inv` | inverse coherence propagator — see below |
 
-Call sites used to look like this:
-
-```python
-kh.add_matrix_element(temp1, l, a2, b2, charge, a1, a1, charge, 5)
-```
-
-Nine positional arguments ending in a bare `5`, knowable only from the method's
-docstring. They now name the destination:
+Call sites name the destination:
 
 ```python
 kh.add_matrix_element(temp1, l, a2, b2, charge, a1, a1, charge, RtdMatrix.ReWnd)
@@ -43,18 +36,15 @@ members — a `cdef enum` has no namespace.
 !!! tip "The mirror is tested, not trusted"
     `RtdMatrixC` is declared `cpdef` rather than `cdef` specifically so that it
     is visible from Python and the two copies can be compared member-for-member
-    in the test suite. A plain `cdef` enum would let them drift silently, which
-    is the failure mode this whole exercise keeps running into.
+    in the test suite. A plain `cdef` enum would let them drift silently.
 
-61 call sites were converted: 30 in `RTD.py` and 31 in `c_RTD.pyx`.
+## `Lnn_inv` does not hold a Liouvillian
 
-## `Lnn` does not hold a Liouvillian
-
-The array historically called `Lnn` holds the **inverse** of the bare coherence
-energy splitting, not the coherence-sector Liouvillian. It is populated as
+`Lnn_inv` holds the **inverse** of the bare coherence energy splitting, not
+the coherence-sector Liouvillian. It is populated as
 
 ```python
-add_element_Lnn(a1, b1, charge, 1.0 / E1)
+kh.add_element_Lnn_inv(a1, b1, charge, 1.0/E1)
 ```
 
 and consumed as the middle factor of the elimination
@@ -62,9 +52,7 @@ and consumed as the middle factor of the elimination
 $$W_{\text{corr}} \mathrel{+}= W_{dn}^{(1)} \, L_{nn}^{-1} \, W_{nd}^{(1)}$$
 
 so it is the propagator used to eliminate coherences, with a clamp on small
-splittings. The name is actively misleading and must not be reused ambiguously
-in a coherence-retaining engine. Reference fixtures therefore record it under
-the honest key `inverse_Lnn`.
+splittings. Reference fixtures record it under the key `inverse_Lnn`.
 
 ## The two backends route it differently
 
@@ -72,8 +60,8 @@ the honest key `inverse_Lnn`.
     | | pure Python | Cython |
     |---|---|---|
     | shape | 2-D, `(kern_size2, kern_size2)` | 1-D, `(kern_size2,)` |
-    | written by | `add_element_Lnn`, a dedicated method | `add_matrix_element(..., 7)` |
-    | element written | `Lnn[indx, indx]` | `Lnn[indx2]` |
+    | written by | `add_element_Lnn_inv`, a dedicated method | `add_matrix_element(..., MAT_LNN_INV)` |
+    | element written | `Lnn_inv[indx, indx]` | `Lnn_inv[indx2]` |
 
     So the pure-Python side stores a full, almost entirely zero matrix whose
     diagonal is the propagator, while the compiled side stores just that
@@ -98,12 +86,13 @@ like a missing term.
 
 ## The second-order `.real` is a partner sum, not a truncation
 
-`generate_col_diag_kern_2nd_order` stores `tempD.real` and `tempX.real` at
-sixteen sites, and `xcb` takes the real part of a two-amplitude product.
-Neither discards flux-dependent physics from the charge current.
+`generate_col_diag_kern_2nd_order` evaluates each `SecondOrderDiagram` record
+and passes the real part of its value to `add_element_2nd_order`, and
+`generate_fct` takes the real part `xcb` of a two-amplitude product. Neither
+discards flux-dependent physics from the charge current.
 
-The traversal fixes `eta1 = 1`, `p1 = 1` and `p4 = 1` and recovers the omitted
-half from a symmetry. `add_element_2nd_order` opens with `fct = 2*fct`, so a
+The enumeration fixes `eta1 = 1`, `p1 = 1` and `p4 = 1` (the paper's
+numbering) and recovers the omitted half from a symmetry. `add_element_2nd_order` opens with `fct = 2*fct`, so a
 stored `Re(t)` reaches the kernel as `t + conj(t)`. The omitted `eta0 = -1`
 partner is the complex conjugate of the *complete* four-vertex contribution,
 integral included -- not the vertex-by-vertex conjugate, which is a different
@@ -167,8 +156,8 @@ Records are yielded in a fixed order, and both approaches accumulate in that
 order, so the assembled arrays do not depend on which approach consumed the
 stream. The compiled `c_RTD.pyx` enumerates the same diagrams with
 hand-written loops. A change to the enumeration must be applied there too.
-`test_compiled_rtd_matches_the_record_based_python_rtd` and the QmeQ 1.1 RTD
-reference bundle hold the two together.
+`test_compiled_rtd_matches_the_record_based_python_rtd` and the RTD reference
+bundle in `qmeq/tests/data/qmeq_11/` hold the two together.
 
 ## Coherence axis
 
@@ -178,11 +167,12 @@ layout used everywhere else. See rule L9 in
 
 ## Counting-resolved coherence elimination
 
-`qmeq.approach.rtd_blocks` owns the shared traversal and composition boundary
-for the pure-Python population RTD and RTDnoise implementations. The diagram
-formulas still live on `ApproachPyRTD`, but their `nd`/`dn` coordinates are
-generated once and consumed either as the ordinary zero-field correction or as
-a counting-resolved block. This is deliberately separate from `RtdMatrix`:
+`qmeq.approach.rtd_blocks` owns the traversal and composition of the
+first-order population-coherence blocks for the pure-Python RTD and RTDnoise.
+The block formulas are `ApproachPyRTD.generate_col_nondiag_kern_1st_order_dn`
+and `generate_col_nondiag_kern_1st_order_nd`; their coordinates are generated
+once and consumed either as the ordinary zero-field correction or as a
+counting-resolved block. This is deliberately separate from `RtdMatrix`:
 Laplace-derivative blocks are inserted into explicit arrays through the same
 canonical packed-coordinate mapping.
 
@@ -192,7 +182,7 @@ $$q=N_{\mathrm{final}}-N_{\mathrm{initial}},$$
 
 so $q=+1$ denotes an electron entering the dot. Lead and transfer resolved
 blocks are written $W_{dn}^{\alpha,q}$ and $W_{nd}^{\beta,q'}$. RTDnoise stores
-$q=-1,0,+1$ on its historical three-entry axes; code indexes those axes with
+$q=-1,0,+1$ on three-entry transfer axes; code indexes those axes with
 the signed integers themselves, so Python index `-1` addresses the final slot.
 
 Combining each stored real/imaginary channel as `Re + 1j*Im`, the effective
@@ -206,9 +196,9 @@ W_{dn}^{\alpha,q}G_{nn}^{(0)}W_{nd}^{\beta,q'}
 $$
 
 Summing over $\beta,q,q'$ gives the correction attributed to lead $\alpha$ in
-`Wdd`; summing also over $\alpha$ gives the ordinary population kernel. This
-sum is tested directly against `ApproachPyRTD.add_off_diag_corrections`'s
-historical real-channel expression.
+`Wdd`; summing also over $\alpha$ gives the ordinary population kernel, which
+`test_counting_resolved_coherence_correction_reduces_to_standard_rtd` checks
+against ordinary RTD.
 
 ### The Laplace derivative of the correction
 
@@ -230,9 +220,8 @@ kernels real, `_dz` arrays purely imaginary -- which is not cosmetic:
 depends on it ([Emary2009, Eqs. (40)-(41)]).
 
 Taking $\operatorname{Im}$ of the *derivative*, by apparent symmetry with the
-value, keeps the identically zero channel and silently discards the whole term.
-That was the state of this code before the derivation above; the resulting
-`coherence_correction_dz` was zero to machine precision.
+value, keeps the identically zero channel and silently discards the whole term:
+`coherence_correction_dz` would then be zero to machine precision.
 
 The composition itself is the product rule,
 
@@ -321,65 +310,24 @@ $$h=\sqrt[3]{\epsilon_{\rm mach}}\,
 
 which balances centered-truncation and floating-point roundoff error. A
 full-kernel test compares it with an independently stepped five-point stencil.
-The counting-field structure follows
-[Emary's non-Markovian formulation](https://arxiv.org/abs/0902.3544), while the
-population/coherence block elimination follows the real-time diagrammatic
-construction of
-[Leijnse and Wegewijs](https://arxiv.org/abs/0807.4027).
+The counting-field structure follows Emary's non-Markovian formulation
+[Emary2009], while the population/coherence block elimination follows the
+real-time diagrammatic construction of [LeijnseWegewijs2008].
 
-## Three coupled asymmetries, not one
+## The backends store the correction blocks differently
 
-The off-diagonal-correction block differs between the backends in three ways at
-once, so none of them is separately decidable:
+The off-diagonal-correction blocks differ between the backends in three ways:
 
 | | pure Python | Cython |
 |---|---|---|
-| `ReWnd`, `ImWnd` | `(nleads, n_nn, n_dd)` — lead-resolved | `(n_nn, n_dd)` — lead-summed at insertion |
-| `Lnn_inv` | `(n_nn, n_nn)` dense diagonal | `(n_nn,)` bare diagonal |
-| mutation | none; `np.sum(ImWnd, 0)` at use | `diag_matrix_multiply` scales `ReWnd`/`ImWnd` **in place** |
+| `ReWnd`, `ImWnd` | `(nleads, n_nn, n_dd)`, lead-resolved | `(n_nn, n_dd)`, lead-summed at insertion |
+| `Lnn_inv` | `(n_nn, n_nn)`, nonzero only on the diagonal | `(n_nn,)`, the diagonal |
+| after `add_off_diag_corrections` | unchanged; leads are summed at use | `diag_matrix_multiply` scales `ReWnd` and `ImWnd` **in place** |
 
-The last one has the widest reach: after `add_off_diag_corrections`, the
-compiled `ReWnd` no longer holds the raw kernel — it holds
-$L_{nn}^{-1} W_{nd}$.
-
-### Measured facts
-
-- `Lnn_inv` is **exactly diagonal** on every pinned RTD scenario: nothing
-  writes off the diagonal, so the dense form carries no information the vector
-  does not.
-- `ReWdn @ diag(v) @ Wnd` and `(ReWdn * v) @ Wnd` are **bitwise equal**, checked
-  on the fixture scenarios and on random matrices up to $812\times812$. Summing
-  exact zeros is exact in IEEE arithmetic regardless of BLAS ordering.
-- There is **no** robustness difference for non-finite values: with an infinity
-  in `ReWdn` both forms produce `nan`, because `inf * 0.0` is `nan` either way.
-- The memory at stake is small. $n_{nn} = 2(\mathrm{ndm0} - \mathrm{npauli})$,
-  which is 54 for a four-orbital dot, so the dense array is about 23 KB. The
-  case for changing it is legibility and backend symmetry, **not** performance.
-
-### How to decide it
-
-The reusable block boundary requires comparisons *element by element and lead
-by lead*. Only the pure-Python layout has a lead axis to compare against, and
-the compiled arrays are destroyed in place. So the answer is mixed:
-
-1. **`Lnn_inv` → adopt the Cython convention** (1-D) in pure Python. Bitwise
-   safe, per above.
-2. **`ReWnd`/`ImWnd` → keep the pure-Python convention** (lead-resolved).
-   Cython's lead-summing trades away the axis a counting or coherent consumer
-   needs.
-3. **Remove the in-place mutation**, so the raw kernel survives a solve.
-
-### The acceptance criterion writes itself
-
-`test_qmeq_11_references.py` already carries one compensating branch per
-asymmetry — `np.diag(inverse_lnn)` for the compiled layout, and
-`reference = inverse_lnn @ np.sum(reference, axis=0)` for the compiled
-`ReWnd`/`ImWnd`. Those branches exist *because* of the asymmetries, so each
-change is done when its branch can be deleted and the fixtures still pass
-untouched. A test that gets shorter is the proof.
-
-Sequence them separately: (1) is low-risk and provable now; (3) changes what
-`ReWnd` means after a solve and needs its own verification; (2) is a
-$\times n_{\text{leads}}$ memory increase in the compiled path and should be
-measured before it is chosen. The current counted correction is pure Python and
-does not require that memory increase in the compiled population solver.
+After a compiled solve `ReWnd` and `ImWnd` therefore hold
+$L_{nn}^{-1} W_{nd}$, not the raw kernel. Code comparing the two backends must
+compensate for all three: `test_qmeq_11_references.py` does so with one branch
+per difference, `np.diag(inverse_lnn)` for the compiled `Lnn_inv` and
+`inverse_lnn @ np.sum(reference, axis=0)` for the compiled `ReWnd`/`ImWnd`.
+Only the pure-Python layout keeps the lead axis that the counting-resolved
+correction needs.

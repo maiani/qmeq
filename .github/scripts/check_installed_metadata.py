@@ -26,7 +26,7 @@ if fields["Name"].lower().replace("_", "-") != "qmeq":
     failures.append(f"unexpected distribution name {fields['Name']!r}")
 
 requires = fields["Requires-Python"]
-if not requires or "3.11" not in requires:
+if not requires or "3.12" not in requires:
     failures.append(f"unexpected Requires-Python {requires!r}")
 
 print(f"qmeq {declared} | Requires-Python {requires}")

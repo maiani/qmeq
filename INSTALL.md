@@ -7,7 +7,7 @@ documentation and whose results differ in the cases listed at the top of
 [CHANGELOG.md](CHANGELOG.md). Install it in one of these ways instead:
 
 * **Conda or pixi**, from the [prefix.dev][prefix] channel, with compiled,
-  OpenMP-enabled packages for Linux (x86-64, aarch64) and macOS:
+  OpenMP-enabled packages for Linux (x86-64, aarch64) and Apple Silicon macOS:
 
   ```bash
   $ pixi add --channel https://prefix.dev/andmai/science qmeq
@@ -15,12 +15,12 @@ documentation and whose results differ in the cases listed at the top of
   ```
 
 * **pip, from a release.** Every [release][releases] carries compiled wheels
-  for Python 3.11-3.14 on Linux, macOS and Windows, and the source
+  for Python 3.12-3.14 on Linux, macOS and Windows, and the source
   distribution. Download the wheel for your platform and `pip install` it, or
   build a tag from source (this needs a C compiler; see below):
 
   ```bash
-  $ pip install "qmeq @ git+https://github.com/maiani/qmeq.git@v1.2.0.dev11"
+  $ pip install "qmeq @ git+https://github.com/qmeq/qmeq.git@v1.2.0.dev11"
   ```
 
   A project that must reproduce its results should pin a tag like this rather
@@ -30,7 +30,7 @@ documentation and whose results differ in the cases listed at the top of
 
 To be able to use and build QmeQ you need to have:
 
-* [Python][Python] 3.11 or newer,
+* [Python][Python] 3.12 or newer,
 * [NumPy][NumPy] package,
 * [SciPy][SciPy] package.
 
@@ -67,23 +67,8 @@ directory and run
 $ pip install .
 ```
 
-To work on QmeQ itself, install it in editable mode instead
-
-```bash
-$ pip install -e .
-```
-
-Optional feature sets are available as extras and can be requested in
-brackets from the source directory (`qmeq[test]` without a path would again
-fetch the upstream 1.1 from PyPI):
-
-```bash
-$ pip install ".[test]"          # pytest for running the test suite
-$ pip install ".[docs]"          # mkdocs + material, for the docs/ site
-$ pip install -e ".[dev]"        # tests, docs, cython, build, and twine
-```
-
-We note that the binaries **pip** and **python** have to be in the system path.
+The binaries **pip** and **python** have to be in the system path. To work on
+QmeQ itself, follow [CONTRIBUTING.md](CONTRIBUTING.md) instead.
 
 Backend selection
 -----------------
@@ -146,64 +131,38 @@ numpy.show_config()
 
 and check the reported **blas** / **lapack** backend.
 
-Tests
------
+Validating an installation
+--------------------------
 
-To run the [tests][qmeqtest] included with QmeQ we use
-
-* [pytest][pytest] testing framework.
-
-To install it, use the `test` extra from the source directory
+The [tests][qmeqtest] ship inside the installed package and use the
+[pytest][pytest] framework. Install the `test` extra from the source directory
+(`qmeq[test]` without a path would fetch the upstream 1.1 from PyPI), then
+validate an installed build from any directory:
 
 ```bash
 $ pip install ".[test]"
-```
-
-From the source directory the tests can be performed by calling
-
-```bash
-$ pytest
-```
-
-The tests are also shipped inside the installed package, so a compiled,
-installed build can be validated from any directory with
-
-```bash
 $ pytest --pyargs qmeq.tests
 ```
 
 Documentation
 -------------
 
-QmeQ's documentation lives in `docs/` and is built with [MkDocs][MkDocs] and
-the [Material][mkdocs-material] theme. Install its dependencies with the
-`docs` extra and build with
-
-```bash
-$ pip install ".[docs]"
-$ mkdocs build --strict -f 'path to qmeq source'/docs/mkdocs.yml
-```
-
-The generated site lands in *'path to qmeq source'/docs/site/index.html*.
-Public API details are generated from the source docstrings.
+The documentation lives in `docs/`; [docs/README.md](docs/README.md) describes
+how to build it.
 
 [Python]: https://www.python.org
-[Cython]: https://cython.org
 [NumPy]: https://numpy.org
 [SciPy]: https://scipy.org
 [Matplotlib]: https://matplotlib.org
 [Jupyter]: https://jupyter.org
-[MkDocs]: https://www.mkdocs.org
-[mkdocs-material]: https://squidfunk.github.io/mkdocs-material/
 [pytest]: https://docs.pytest.org
 
 [setuptools]: https://setuptools.pypa.io
-[pip]: https://pip.pypa.io
 [gcc]: https://gcc.gnu.org
 [cext]: https://github.com/cython/cython/wiki/CythonExtensionsOnWindows
 [examples]: examples
 
 [prefix]: https://prefix.dev
-[releases]: https://github.com/maiani/qmeq/releases
-[qmeqsrc]: https://github.com/maiani/qmeq/archive/refs/heads/master.zip
-[qmeqtest]: https://github.com/maiani/qmeq/tree/master/qmeq/tests
+[releases]: https://github.com/qmeq/qmeq/releases
+[qmeqsrc]: https://github.com/qmeq/qmeq/archive/refs/heads/master.zip
+[qmeqtest]: https://github.com/qmeq/qmeq/tree/master/qmeq/tests

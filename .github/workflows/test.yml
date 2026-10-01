@@ -18,7 +18,7 @@ jobs:
         # declared support range is actually exercised. This is the cheap job,
         # which is why the version sweep lives here rather than on the compiled
         # matrix below.
-        python-version: ["3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.12", "3.13", "3.14"]
 
     steps:
       - uses: actions/checkout@v7
@@ -53,7 +53,7 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install the MkDocs dependencies
         run: QMEQ_BACKEND=python python -m pip install -e ".[docs]"
@@ -83,7 +83,7 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install the selected Cython and test dependencies
         run: |

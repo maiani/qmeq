@@ -1,7 +1,11 @@
 # QmeQ documentation
 
-QmeQ's documentation is built with MkDocs. It combines the user guide,
-tutorials, theory notes, generated API reference, and internal conventions.
+QmeQ calculates stationary transport through interacting quantum dots with
+approximate master equations. This documentation combines the user guide,
+tutorials, theory notes, the API reference generated from the docstrings, and
+the internal conventions. To install QmeQ see
+[INSTALL.md](https://github.com/qmeq/qmeq/blob/master/INSTALL.md); to work on
+it see [CONTRIBUTING.md](https://github.com/qmeq/qmeq/blob/master/CONTRIBUTING.md).
 
 ## Contents
 

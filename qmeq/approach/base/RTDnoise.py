@@ -52,11 +52,11 @@ class RTDNoiseLaplaceProjectionWarning(QmeqRuntimeWarning):
 
 #: Largest ``max|Re| / max|Im|`` accepted as roundoff when projecting the
 #: Laplace derivative onto its analytically allowed imaginary channel.
-#: Calibrated against the test suite: with real tunnel amplitudes the observed
-#: ratio never exceeds 1.2e-5.  Before conjugate-partner completion was fixed,
-#: complex amplitudes produced ratios of 0.30 to 0.95; the completed traversal
-#: is analytically imaginary for them too.  A ratio above this bound now flags
-#: a partner or derivative regression rather than a supported physical channel.
+#: Calibrated against the test suite: the observed ratio stays below 1.2e-5,
+#: and the completed traversal is analytically imaginary for complex
+#: amplitudes too.  A conjugate-partner error gives ratios of order one, so a
+#: ratio above this bound flags a partner or derivative error rather than a
+#: supported physical channel.
 _LAPLACE_REAL_PROJECTION_RTOL = 1e-3
 
 

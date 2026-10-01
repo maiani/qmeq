@@ -56,8 +56,8 @@ $$
 
 and $\tilde{\Lambda}_{l}(E)=\Lambda_{l}(E)|_{\mu_l\to-\mu_l}$, where
 $\psi$ is the digamma function. The right hand side is the standard wide-band
-expansion, the same approximation that `itype=1` uses for the principal parts of the
-1vN, Redfield and RTD kernels.
+expansion, the same approximation that `principal_part='digamma'` (the legacy
+`itype=1`) uses for the principal parts of the 1vN, Redfield and RTD kernels.
 
 ## Derivation with the corrected source indices
 
@@ -132,16 +132,17 @@ $$
 Thus `func_ule_shift` has one Fermi branch. Its lower-intermediate arguments
 are $(E_a-E_b+\mu)/T$ and $(E_a-E_{b'}+\mu)/T$; its upper-intermediate
 arguments are $(E_c-E_b-\mu)/T$ and $(E_c-E_{b'}-\mu)/T$.
-**$S$ is even, but $\delta_f$ is not.** If a separate hole correction is
-introduced, it obeys $\delta_h(x_1,x_2)=-\delta_f(-x_1,-x_2)$ and must
-be SUBTRACTED for the lower intermediate. Adding $\delta_f(x)$ below and
-$\delta_h(y)$ above passes every diagonal test but gives the wrong ULE.
+**$S$ is even, but $\delta_f$ is not.** A separate hole correction would obey
+$\delta_h(x_1,x_2)=-\delta_f(-x_1,-x_2)$ and enter the lower intermediate with
+a minus sign. Adding $\delta_f(x)$ below and $\delta_h(y)$ above instead
+leaves every diagonal element right and the off-diagonal ULE shift wrong.
 
 The correction vanishes for equal arguments, is symmetric under argument
 exchange, and is quadratic in a small mismatch. These structural checks
-are necessary, not sufficient. Tests evaluate the two direct geometric
-principal-value integrals independently at asymmetric arguments, nonzero
-chemical potential, and with complex tunneling amplitudes.
+are necessary, not sufficient. `test_ule_weight_against_direct_spectral_integral`
+and `test_assembled_ule_shift_against_direct_integrals` evaluate the two direct
+geometric principal-value integrals independently, at asymmetric arguments,
+nonzero chemical potential, and with complex tunneling amplitudes.
 
 ## Independent sign anchors
 

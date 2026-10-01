@@ -1,8 +1,7 @@
 # Typing
 
-QmeQ is adding type hints **opportunistically**: when a file is touched for
-another reason and its signatures are unclear, they get annotated. There is no
-big-bang conversion.
+QmeQ adds type hints **opportunistically**: when a file is touched for another
+reason and its signatures are unclear, they get annotated.
 
 ## Policy
 
@@ -16,8 +15,8 @@ Consequences worth being explicit about:
 - **An unchecked hint can be wrong.** Nothing verifies these. Treat a hint as a
   strong comment, not a guarantee — and if you find one that disagrees with the
   code, the code is right and the hint is a bug to fix.
-- **Coverage will be uneven for a long time.** An unannotated signature means
-  nobody has needed it yet, not that it is dynamically typed on purpose.
+- **Coverage is uneven.** An unannotated signature carries no type contract;
+  it is not dynamically typed on purpose.
 - **Do not annotate speculatively.** Annotate what you are already changing.
 
 ## Conventions
@@ -34,7 +33,7 @@ def __init__(self, si: StateIndexingDM | StateIndexingDMc) -> None:
 
 `StateIndexingDM` alone would read better and would be **false** — the 2vN
 approaches pass a `StateIndexingDMc`, which is why `c_kernel_handler.pyx`
-branches on `isinstance(si, StateIndexingDMc)`.
+tests `isinstance(si, StateIndexingDMc)`.
 
 The union cannot be collapsed to a common ancestor either. `StateIndexingDMc`
 is a *sibling* of `StateIndexingDM`, not a subclass, and their shared base
@@ -58,18 +57,18 @@ instead of at the end of the body.
 
 ## Relationship to the Cython twins
 
-The compiled `.pyx` implementations already carry real static types in their
+The compiled `.pyx` implementations carry real static types in their
 `.pxd` headers, and those types are enforced by the compiler. Python
 annotations on the pure-Python twin do **not** enforce anything and are not
 kept in sync automatically. When the two disagree, the `.pxd` is authoritative
 for the compiled path.
 
-## Annotated so far
+## Annotated modules
 
-- `qmeq.approach.dm_layout` — fully annotated (new module).
+- `qmeq.approach.dm_layout` — fully annotated.
 - `qmeq.approach.kernel_handler` — constructors, predicates, and the insertion
   and accessor methods.
 - `qmeq.indexing` — the three `get_ind_dm0` overloads and the two named
-  accessors. Note the return type `int | bool | None`, which is the honest
-  signature of the `maptype` overload described in
+  accessors. The return type `int | bool` is the signature of the `maptype`
+  overload described in
   [State indexing](state-indexing.md).

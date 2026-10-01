@@ -164,10 +164,9 @@ where $m_i$ counts the physical diagonal elements sharing stored index $i$.
   `{0:1, 1:2, 2:2, 3:3, 4:1, 5:1, 6:1, 7:2, 8:2, 9:1}`, summing to `nmany = 16`
   across `npauli = 10` stored indices.
 
-`Approach.generate_norm_vec` already builds this correctly — its
-`norm_vec[bb] += 1` per many-body state accumulates exactly those
-multiplicities. The rule was simply never written down, and a reimplementation
-that "simplified" it to a plain sum would break `ssq` silently.
+`Approach.generate_norm_vec` builds this: its `norm_vec[bb] += 1` per many-body
+state accumulates exactly those multiplicities. A plain sum would break `ssq`
+silently.
 
 !!! danger "Consequence for new solvers"
     Any independent trace constraint, normalization check, or stationary-state
@@ -188,7 +187,7 @@ subspace. An adapter API must not promise a round trip in general.
 
 ## RTD uses a different coherence packing (rule L9)
 
-`KernelHandlerRTD` inserts into `Wdn`, `Wnd` and `Lnn`, whose coherence axis is
+`KernelHandlerRTD` inserts into `Wdn`, `Wnd` and `Lnn_inv`, whose coherence axis is
 **not** the `ndm0r` layout. There a coherence with reduced index `i` sits at
 `i - npauli`, with its imaginary part at `i - npauli + imag_offset`, giving an
 axis of length `2*(ndm0 - npauli)` and no population entries at all.
@@ -198,12 +197,5 @@ consulting `conjdm0`. Under `indexing='charge'` — the only mode RTD supports �
 the two agree, because `conjdm0` is true exactly when `b < bp` in `statesdm`
 order.
 
-Kept as-is and documented: legacy RTD depends on it.
-
-## Open questions
-
-- Whether the matrix-free row sign should be normalized to match the assembled
-  kernel. It is currently harmless and pinned by a test; changing it touches
-  both backends for no functional gain.
-- Whether `booldm0` and `conjdm0` should be renamed. They are public,
-  documented attributes, so named accessors were added instead of a rename.
+The RTD arrays keep this packing; it is a separate contract from the `ndm0r`
+layout, documented in [RTD kernel matrices](rtd-kernels.md).

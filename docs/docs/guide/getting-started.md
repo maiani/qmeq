@@ -2,9 +2,9 @@
 
 ## The four builder classes
 
-`qmeq.Builder` is the entry point for constructing and solving a system. It
-is a thin wrapper: which underlying class it becomes is decided by which
-constructor you call.
+`qmeq.Builder` is the entry point for constructing and solving a system from
+single-particle input. Three further classes take many-body input, a phonon
+bath, or both.
 
 | class | input | use when |
 |---|---|---|
@@ -42,17 +42,17 @@ system.heat_current    # array of length nleads
 system.phi0            # stationary reduced density matrix, packed
 ```
 
-Under the compiled `cython` backend, this example produces
+On either backend this example produces
 `current = [0.0309954, -0.0309954]`, `energy_current = [0.0, 0.0]`,
 `heat_current = [-0.0309954, -0.0309954]`, `phi0 = [0.5, 0.5]`, and a truthy
-`system.success`. (`energy_current` is exactly zero here only because a
-single spinless level carries one transition energy per lead direction; that
-is a property of this toy model, not of the Pauli approach in general.)
+`system.success`. The energy current vanishes because the level sits at zero
+energy, so each tunnelling electron carries none; the heat current is
+`energy_current - mulst*current`.
 
 ## Choosing `kerntype`
 
 `kerntype` selects the [approach](approaches.md): `'Pauli'` (default),
-`'Lindblad'`, `'Redfield'`, `'1vN'`, `'2vN'`, `'RTD'` (alias `'pyRTD'`), or
+`'Lindblad'`, `'Redfield'`, `'1vN'`, `'2vN'`, `'RTD'` (or `'pyRTD'`, its pure-Python form), or
 `'RTDnoise'` (Python traversal with compiled scalar integrals when the Cython
 backend is active), or `'pyRTDnoise'` (all Python). A `'py'`-prefixed name
 forces the pure-Python implementation for that approach regardless of
@@ -87,9 +87,10 @@ are derived on the [counting-statistics theory page](../theory/counting-statisti
 `off_diag_corrections` (default `True`) includes RTD's off-diagonal
 corrections in the population kernel. It has no effect for approaches other
 than RTD/RTDnoise. RTDnoise resolves the same correction by lead and transferred
-charge so that it contributes consistently to current and noise. Set it to
-`False` only to reproduce the historical population-only RTDnoise kernel; see
-[The approaches](approaches.md#rtdnoise) for the remaining validity limits.
+charge so that it contributes consistently to current and noise. `False`
+omits the correction and keeps only the two- and four-vertex population
+blocks, which is incomplete at second order; see
+[The approaches](approaches.md#what-validates-rtd-and-rtdnoise).
 
 ## `rtd_order`: RTD-specific
 
@@ -225,14 +226,11 @@ After `system.solve()`:
 | `kern` | the assembled kernel (Liouvillian) matrix |
 | `success` | whether the solve succeeded. Under the pure-Python backend this is a genuine `bool`; under the compiled backend it comes back as Python `int` `0`/`1` (a Cython `bint` crossing into Python) — truthy either way, but not `is True` |
 | `niter`, `iters` | 2vN only: iteration count and per-iteration `Iterations2vN` records |
+| `appr.stationary_diagnostics` | the physicality check of the stationary state; see [Runtime diagnostics](approaches.md#runtime-diagnostics) |
 
 Each attribute name is routed to the object that actually owns it (`qd`,
 `leads`, `appr`, or `funcp`) via `attribute_map` in `BuilderBase`
-(`qmeq/builder/builder_base.py`). The pure-Python backend sets `success` in
-`Approach.solve_kern` as a plain `self.success = True`
-(`qmeq/approach/aprclass.py`); the compiled backend stores it as a
-Cython-typed `_success` property in `qmeq/approach/c_aprclass.pyx`, which is
-what produces the bool-vs-int split noted above.
+(`qmeq/builder/builder_base.py`).
 
 ## Solving
 

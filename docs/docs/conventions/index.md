@@ -1,8 +1,7 @@
 # Conventions
 
-Internal rules the code relies on. Each page carries the evidence for its
-claims, because most of these were recovered by reading and measuring rather
-than from any existing document.
+Internal rules the code relies on. Each page states the contract and the
+evidence behind it: the code, the tests that pin it, or a measurement.
 
 ## Pages
 
@@ -16,10 +15,12 @@ than from any existing document.
   signatures carry a union rather than the obvious class.
 - **[Docstrings](docstrings.md)** — portable source-docstring conventions and
   how they feed the generated API reference.
-- **[RTD kernel matrices](rtd-kernels.md)** — the `mi` selector, why `Lnn` is
-  not a Liouvillian, and where the two backends diverge.
-- **[Where the time goes](where-the-time-goes.md)** — measured density and
-  profiles. The kernels are dense and assembly dominates; this is not a sparse
+- **[RTD kernel matrices](rtd-kernels.md)** — the `mi` selector, why `Lnn_inv`
+  is not a Liouvillian, the shared diagram enumeration, and where the two
+  backends diverge.
+- **[Where the time goes](where-the-time-goes.md)** — measured density,
+  profiles and cache behaviour, and why RTDnoise has no compiled traversal.
+  The kernels are dense and assembly dominates; this is not a sparse
   linear-algebra problem.
 
 ## Cross-cutting facts
@@ -30,8 +31,7 @@ A few things worth knowing before reading any of the above.
 Lindblad, Redfield, 1vN and RTD reduce by Hermiticity and solve in a packed
 *real* vector of length `si.ndm0r`. The 2vN approaches keep both orientations
 of every element and solve in a *complex* vector of length `si.ndm0`
-(`ApproachBase2vN` sets `dtype = complexnp`). This is a deliberate split, not
-historical residue; see
+(`ApproachBase2vN` sets `dtype = complexnp`). The split is deliberate; see
 [why the layout is real](density-matrix-layout.md#why-real-and-not-complex).
 
 **A specification module exists.** `qmeq.approach.dm_layout` states the packed

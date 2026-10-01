@@ -27,6 +27,9 @@ The current tutorials are:
    thermovoltage, tight coupling, and unit conversions.
 6. **Cotunnelling and second-order methods** — RTD and 2vN, convergence and
    scaling tests, a quantum-dot heat engine, and many-body input.
+7. **Current noise from counting statistics** — the mean current and its
+   zero-frequency noise, cross correlations and spin noise, a gate sweep, and
+   the RTD result forms.
 
 The scripts can be run directly with Python, e.g.
 
@@ -47,7 +50,7 @@ Then start it from this directory and open `tutorials/`:
 $ jupyter notebook
 ```
 
-[QmeQ]: https://github.com/gedaskir/qmeq
+[QmeQ]: ../README.md
 [Jupyter]: https://jupyter.org
 [scripts]: scripts
 [appendix]: appendix

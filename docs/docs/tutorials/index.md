@@ -30,7 +30,7 @@ the energy that the charge carries, and second-order tunnelling.
 - [7. Current noise from counting statistics](../notebooks/tutorials/07_counting_statistics.ipynb)
 
 The notebooks are rendered directly from `examples/tutorials/`. Short,
-self-contained programs suitable for copying into a new project remain in
+self-contained programs suitable for copying into a new project are in
 `examples/scripts/`. Electron-phonon transport is not covered by the
 tutorials; see `qmeq.BuilderElPh` and the API documentation.
 

@@ -45,9 +45,9 @@ publication, repository history, and merged forks.
 
 ## Current integration and maintenance
 
-- **Andrea Maiani** maintains
-  [maiani/qmeq](https://github.com/maiani/qmeq) as an integration and
-  modernization fork.
+- **Andrea Maiani** maintains this repository,
+  [qmeq/qmeq](https://github.com/qmeq/qmeq), which integrates and modernizes
+  the histories above.
 
 ## Examples and documentation
 

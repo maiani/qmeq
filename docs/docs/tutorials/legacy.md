@@ -1,6 +1,6 @@
 # Legacy tutorials
 
-These notebooks are preserved from the former QmeQ examples repository. They
+These notebooks are the original QmeQ tutorials. They
 contain useful advanced calculations, but they assume more background and do
 not follow the step-by-step learning path of the current tutorials.
 

@@ -3,13 +3,9 @@
 QmeQ implements seven master-equation approaches, selected through the
 `kerntype` argument to `Builder` (see [Getting started](getting-started.md)).
 This page collects what each one approximates, what it solves for, its
-validity domain, and its known failure modes.
+validity domain, how it is validated, and its known failure modes.
 
 ## Overview table
-
-Adapted from tutorial 4
-(`examples/tutorials/04_coherence_and_approximations.ipynb`, "Choosing an
-approximation"), with 2vN and RTDnoise added.
 
 | approach | `kerntype` | keeps coherences | order in $\Gamma$ | solves for | use it when |
 |---|---|---|---|---|---|
@@ -22,8 +18,10 @@ approximation"), with 2vN and RTDnoise added.
 | RTDnoise | `'RTDnoise'` / `'pyRTDnoise'` | eliminated, not propagated | second | populations + first two current cumulants | the above, plus the zero-frequency current noise |
 
 Valid `kerntype` strings are validated by `validate_kerntype`
-(`qmeq/builder/validation.py`); the pure-Python/compiled name pairing (e.g.
-`'RTD'` vs `'pyRTD'`) is set up in `qmeq/builder/builder_base.py`.
+(`qmeq/builder/validation.py`). Every approach has a pure-Python form, named
+with a `py` prefix (`'pyRTD'`, `'pyLindblad'`, ...), and the unprefixed name
+selects the compiled form when the Cython backend is active; see
+[INSTALL.md](https://github.com/qmeq/qmeq/blob/master/INSTALL.md#backend-selection).
 
 ## Shared limitation: first-order methods need $\Gamma\ll T$
 
@@ -51,7 +49,10 @@ $2\Omega\lesssim\Gamma$), dropping the coherence between them is
 uncontrolled — tutorial 4 measures the Pauli current at up to **40 times**
 the coherent (Redfield/1vN/Lindblad) result at $2\Omega=0.08\Gamma$ in a
 coherently-coupled double dot, which is a real qualitative failure, not a
-small correction.
+small correction. At an exact degeneracy the Pauli result depends on which
+basis of the degenerate subspace the diagonaliser returns;
+`test_the_basis_of_a_degenerate_subspace_does_not_change_the_current` uses
+this as its control, while every coherent approach is basis independent there.
 
 ### Lindblad
 
@@ -61,9 +62,9 @@ contribution is the **Lamb shift** — the lead-induced renormalization of the
 dot's many-body energies — selected by `principal_part`: `'digamma'` (wide-band
 digamma form), `'quad'` (principal values integrated over the band), or
 `'omit'` (no shift). `principal_part` has **no default** for Lindblad: a
-Lindblad system without it raises `ValueError`, because QmeQ 1.1 had no Lamb
-shift and a default would silently change what a 1.1 script computes.
-`principal_part='omit'` with `itype=0` reproduces QmeQ 1.1.
+Lindblad system without it raises `ValueError`. `principal_part='omit'` with
+`itype=0` gives the kernel without a Lamb shift, which is QmeQ 1.1's Lindblad
+kernel.
 
 **Known failure mode / limitation:** the guaranteed positivity is bought by
 evaluating rates in a form that differs from Redfield/1vN — tutorial 4
@@ -86,8 +87,10 @@ the reservoir energy dependence than Redfield. In the regime tutorial 4 tests,
 the two agree with each other to about 1%.
 
 **Known failure mode:** positivity violation and against-bias currents are
-possible outside their validity domain — the disclaimer names this
-explicitly, and no runtime check in QmeQ currently flags it.
+possible outside their validity domain. QmeQ warns when the stationary state
+has a negative population or a trace away from one (see
+[Runtime diagnostics](#runtime-diagnostics)). A violation inside those
+tolerances, or a current against the bias, is not flagged.
 
 ### 2vN
 
@@ -100,18 +103,31 @@ every density-matrix element as independent complex unknowns
 (`StateIndexingDMc`, `dtype = complexnp`) rather than reducing by Hermiticity,
 so it does not need RTD's diagonal-density-matrix approximation.
 
-**Validity / convergence controls:** two numerical controls must be checked
-independently of the physics — convergence in `niter` and in `kpnt` (grid
-density) — plus a physical requirement that `dband` be wide enough to resolve
-the temperature scale across the band (tutorial 6). None of these convergence
-checks certifies the *physical* accuracy of the second-order expansion
-itself: tutorial 6 notes that "a converged 2vN result at $\Gamma\sim T$ is a
-precisely computed approximation, not a precise answer."
+**Convergence controls.** `niter` and `kpnt` are numerical controls, checked
+independently of the physics. The grid spans the band, so at fixed `kpnt` its
+spacing grows with `dband`: the band must be wide against the temperature and
+the transition energies, and the grid fine against the temperature and the
+level widths. Converge `kpnt` first, then `niter`. On the spinless double dot
+of the 2vN equilibrium test (`hsingle={(0, 0): -0.3, (1, 1): 0.4, (0, 1):
+0.2}`, $U=2$, $\Gamma=2\pi\cdot0.3^2\approx0.57$, $T=1$, `dband=20`, bias
+$\pm0.5$), the left current measured against its converged value is:
+
+| `kpnt` (`niter=8`) | 32 | 64 | 128 | 256 | 512 |
+|---|---|---|---|---|---|
+| relative error | 4.7% | 0.75% | 0.34% | 0.07% | 0.013% |
+
+| `niter` (`kpnt=512`) | 1 | 2 | 3 |
+|---|---|---|---|
+| relative error | 2% | 0.08% | below $10^{-6}$ |
+
+None of these convergence checks certifies the *physical* accuracy of the
+second-order expansion itself: tutorial 6 notes that "a converged 2vN result
+at $\Gamma\sim T$ is a precisely computed approximation, not a precise answer."
 
 **Known failure mode: an equilibrium current at finite interaction.** At
 equal chemical potentials and temperatures, 2vN carries a small current when
-$U\neq0$. It is not a numerical error. On a spinless double dot with
-$\Gamma=2\pi t^2\approx0.57\,T$ and $U=2T$, the current:
+$U\neq0$. It is not a numerical error. On the model above at zero bias, the
+measured current:
 
 - is converged in `niter` (by 8 iterations), in `kpnt` (it changes by 0.2%
   when the grid doubles) and in `dband` (it approaches its limit as
@@ -125,9 +141,10 @@ It scales as $\Gamma^3$, against $\Gamma$ for the biased current. In that
 model it is $4.3\times10^{-3}$ of the current at a bias of $T$, and the ratio
 falls by 12.8, 15.6 and 15.9, approaching 16, for successive factors of 4 in
 $\Gamma$. It is therefore attributed to the 2vN truncation at finite
-interaction. The attribution rests on these measurements, not on a
-derivation. 2vN does not resolve a current that is not large compared with the
-equilibrium current of the same model.
+interaction. The attribution rests on these measurements, of which the test
+suite pins only the non-interacting half, not on a derivation. 2vN does not
+resolve a current that is not large compared with the equilibrium current of
+the same model.
 
 **Supported options:** neither `bandwidth` nor `principal_part` is used by
 2vN (`resolve_transport_options` raises `ValueError` if either is supplied
@@ -139,22 +156,30 @@ explicitly for `kerntype='2vN'`); indexing is restricted to `'Lin'` or
 Second-order Real Time Diagrammatics. Unlike 2vN, RTD **eliminates** rather
 than propagates same-charge coherences — it solves only for populations
 (`get_kern_size` returns `si.npauli`, same as Pauli), using an inverse
-same-charge energy splitting (misleadingly named `Lnn`/`Lnn_inv` — see
-[RTD kernel matrices](../conventions/rtd-kernels.md#lnn-does-not-hold-a-liouvillian))
-to integrate the coherences out. It always uses `bandwidth='infinite'`,
-`principal_part='digamma'` (`itype=1`) — enforced by
-`resolve_transport_options`, which raises if a caller asks for anything
-else — and only `indexing='charge'`.
+same-charge energy splitting (`Lnn_inv`; see
+[RTD kernel matrices](../conventions/rtd-kernels.md#lnn_inv-does-not-hold-a-liouvillian))
+to integrate the coherences out. It uses `bandwidth='infinite'` with
+`principal_part='digamma'` (the legacy `itype=1`) and `indexing='charge'`.
+Other explicit `bandwidth` or `principal_part` values raise `ValueError`; an
+explicit `itype` other than 1, another indexing or `symmetry='spin'` is
+replaced with a `QmeqWarning`; `mfreeq=True` raises `ValueError`.
 
-**Validity domain**, per tutorial 6's "Validity, in one place" table:
+`'pyRTD'` evaluates the shared enumeration of the population diagrams in
+`qmeq.approach.rtd_diagrams`, which RTDnoise also uses. The compiled `'RTD'`
+enumerates the same diagrams with its own loops in `c_RTD.pyx`, held to the
+records by `test_compiled_rtd_matches_the_record_based_python_rtd`; the two
+differ only in speed. See
+[RTD kernel matrices](../conventions/rtd-kernels.md#one-diagram-enumeration-for-rtd-and-rtdnoise).
+
+**Validity domain:**
 
 | requirement | why |
 |---|---|
 | $\Gamma\ll T$ | perturbative in $\Gamma$; not Kondo physics |
 | features scale as $\Gamma^2$ | otherwise dominated by neglected orders |
-| `itype=1` / `dband` $\gg$ all energies | the kernel is derived in the wide-band limit |
-| no near-degenerate states on one lead | RTD propagates a diagonal density matrix, i.e. it needs the eliminated-coherence approximation to hold |
-| `indexing='charge'`, no `mfreeq`/`symmetry` | unsupported combinations |
+| `dband` $\gg$ all energies | the kernel is derived in the wide-band limit |
+| no same-charge pair split by less than about five times its sequential escape broadening | RTD propagates a diagonal density matrix, i.e. it needs the eliminated-coherence approximation to hold |
+| `indexing='charge'`, no `mfreeq` or `symmetry='spin'` | unsupported combinations |
 | agreement with 2vN | different expansions agreeing is real evidence; either alone is not |
 
 **Known failure modes:**
@@ -163,52 +188,49 @@ else — and only `indexing='charge'`.
   integrals use `dband` as a finite wide-band *regulator* even though
   `bandwidth='infinite'` is selected. With unequal lead temperatures, QmeQ
   warns (`RTDBandwidthWarning`) when the smallest cutoff is below 1000x the
-  largest transport scale. The warning does not supply the converged answer:
-  rerun with increasing `dband` until the observables stop changing. QmeQ does
-  not automate that sweep.
+  largest transport scale. The warning does not supply the converged answer;
+  see [Checking `dband` convergence](#checking-dband-convergence-at-a-thermal-bias).
 - **Near-degenerate same-charge states.** RTD warns (`RTDCoherenceWarning`)
   when the closest same-charge splitting is within a factor of 5 of the
-  Fermi-weighted sequential escape broadening. The diagnostic also reports
-  `gamma_upper_bound`, the older occupation-independent spectral-width scale,
-  but does not warn from that deliberately conservative bound. Separately,
+  Fermi-weighted sequential escape broadening, and records the case in
+  `approach.rtd_coherence_diagnostics`, which also reports
+  `gamma_upper_bound`, an occupation-independent spectral-width scale that
+  does not trigger the warning, and `clamped_coherences`, the number of
+  splittings small enough for the inverse to be clamped. Separately,
   `RTDNoBroadeningWarning` reports when no sequential escape broadening exists
   for the active states — in that case the stationary kernel may be singular.
 - **Complex tunnel amplitudes.** RTD does not compute the energy and heat
   currents for models with complex tunnel amplitudes, such as models with a
-  flux or with interference. Both are filled with `nan`, and a warning is
-  raised. The particle current is unaffected.
-- **Discarded imaginary parts.** The population kernel assembly discards the
-  imaginary part of a four-amplitude product at several sites. For the
-  *particle* current this is benign: against an exact non-interacting result at
-  generic plaquette flux, RTD converges at the expected third order in the
-  coupling, matching the zero-flux case. It has not been checked away from the
-  non-interacting limit, or for the energy current.
-
-The validity table above is from tutorial 6.
+  flux or with interference. Both are filled with `nan`, and a
+  `QmeqRuntimeWarning` is raised. The particle current is unaffected.
+- **Many-body input.** Two of the three energy-current kernels use the
+  single-particle amplitudes. With `BuilderManyBody` input they are dropped,
+  with a `QmeqRuntimeWarning`, and the energy and heat currents are wrong
+  whenever a single-particle state couples to more than one lead. Assign
+  `nsingle` and `tleads_array` on the system to restore them (tutorial 6).
+- **Real parts of the four-amplitude contributions.** The population kernel
+  adds twice the real part of each enumerated four-vertex contribution. This
+  is the sum with its inverted partner, not a truncation; see
+  [RTD kernel matrices](../conventions/rtd-kernels.md#the-second-order-real-is-a-partner-sum-not-a-truncation).
 
 ### RTDnoise
 
 The zero-frequency counting-statistics companion to RTD (`kerntype='RTDnoise'`
-/ `'pyRTDnoise'`). Both use the same Python diagram traversal;
+/ `'pyRTDnoise'`). Both evaluate the shared diagram enumeration in Python;
 `'RTDnoise'` selects compiled direct/exchange scalar functions when the Cython
-backend is active, while the explicit `'pyRTDnoise'` name stays all-Python.
-After
-`solve()`, `system.current_noise` is `[I, S]` from the full fourth-order (in
-$H_T$, i.e. second order in $\Gamma$) kernel; `current_noise_first` is the
-sequential (lowest-order) result; `current_noise_o4trunc` gives both current
-and noise at both orders for comparison; `current_noise_matrix` /
-`current_noise_matrix_first` are the lead-resolved covariance matrices.
+backend is active, while `'pyRTDnoise'` stays all-Python. After `solve()`,
+`system.current_noise` is `[I, S]` from the full fourth-order (in $H_T$, i.e.
+second order in $\Gamma$) kernel; `current_noise_first` is the sequential
+(lowest-order) result; `current_noise_o4trunc` gives both current and noise at
+both orders for comparison; `current_noise_matrix` /
+`current_noise_matrix_first` are the lead-resolved covariance matrices. Their
+formulas and conventions are on the
+[counting-statistics theory page](../theory/counting-statistics.md).
 
 **Known limitations:**
 
-- **Complex particle-counting amplitudes are supported.** Direct and exchange
-  diagrams use their separately derived Hermitian partner products, and the
-  packed real/imaginary coherence correction is resolved by lead and
-  transferred charge. Generic-flux non-interacting controls retain the
-  expected cubic residual after the second-order correction. Energy and heat
-  currents remain a separate limitation, described under RTD above.
-- **Requires a nonempty `countingleads`** and raises `ValueError` without one;
-  matrix-free solving (`mfreeq=True`) raises `NotImplementedError`.
+- **Requires a nonempty `countingleads`**; `solve()` raises `ValueError`
+  without one. `mfreeq=True` raises `ValueError` on construction.
 - **Laplace derivatives use two controlled paths.** The first-order blocks and
   bare coherence propagator are differentiated analytically, per-lead in
   `1/T`, with the reduction to the diagonal first-order kernel as the
@@ -223,37 +245,109 @@ and noise at both orders for comparison; `current_noise_matrix` /
   Appendix-D wide-band real component as stationary RTD. Their individual
   `ln(dband)` terms cancel in the assembled zero-field kernel, so its
   stationary state, current, and noise are invariant under an auxiliary
-  bandwidth sweep up to numerical roundoff; the independent non-interacting
-  residual is already cubic at practical `dband`. Unequal-temperature
-  integrals still use the Ozaki representation and must be checked for cutoff
-  convergence.
-- Inherits every RTD limitation above -- including RTD's own complex-amplitude
-  limitation on the *energy* and *heat* currents, which is separate from the
-  above: `WE1`/`WE2` keep only `gamma.real`, so with any significant
-  `gamma.imag` both are filled with `nan` and a warning is raised rather than a
-  wrong number returned -- and including the unequal-temperature
-  `dband` requirement (RTDnoise counting calculations must also be repeated at
-  increasing `dband` until convergence).
+  bandwidth sweep up to numerical roundoff. Unequal-temperature integrals use
+  the Ozaki representation and must be checked for cutoff convergence; the
+  noise converges more slowly than the current.
+- Inherits every RTD limitation above, including the `nan` energy and heat
+  currents for complex amplitudes.
 - Counting is not implemented for 2vN, electron-phonon approaches, or
   matrix-free solvers (any approach, not just RTDnoise).
 
-The output-array semantics above (`current_noise_o4trunc` etc.) are set out
-on the [counting-statistics theory page](../theory/counting-statistics.md).
+### What validates RTD and RTDnoise
 
-## Transport integration options, by approach
+Tests in `qmeq/tests/test_rtdnoise_physics_validation.py` grade the
+second-order kernel against an exact non-interacting (NEGF) solver,
+`qmeq/tests/noninteracting_negf_solver.py`, by the order in $\Gamma$ of the
+residual rather than by a tolerance:
 
-The `bandwidth` (`'finite'`/`'infinite'`) and `principal_part`
-(`'quad'`/`'digamma'`/`'omit'`) options (or the legacy `itype` shorthand) are
-part of what each approach's validity domain means in practice, per the
-branch logic in `resolve_transport_options` (`qmeq/builder/validation.py`):
+- with `off_diag_corrections=True`, the current residual is cubic in the
+  coupling for real amplitudes; without the correction the current and noise
+  residuals are quadratic
+  (`test_noninteracting_residuals_have_the_expected_coupling_orders`);
+- the corrected noise residual is cubic at a practical `dband` of 50
+  (`test_corrected_noise_is_cubic_at_practical_bandwidth`), and at half the
+  temperature
+  (`test_temperature_half_noise_has_cubic_residual_in_calibrated_window`);
+- at a generic plaquette flux, the RTD and RTDnoise currents and the noise
+  have cubic residuals
+  (`test_complex_flux_rtdnoise_observables_have_cubic_residuals`), and an
+  orbital rephasing or a full $2\pi$ flux period changes no observable
+  (`test_complex_flux_observables_are_invariant_under_orbital_rephasing`).
 
-| approach | supported `(bandwidth, principal_part)` |
-|---|---|
-| Pauli | `(finite, omit)`, `(infinite, omit)` — no principal-value term exists |
-| 1vN, Redfield | `(finite, quad)`, `(infinite, digamma)`, `(finite, omit)`, `(infinite, omit)` |
-| Lindblad | every pair; `principal_part` is required |
-| RTD, RTDnoise | `(infinite, digamma)` only |
-| 2vN | neither option is used |
+With interaction, a particle-hole-symmetric, spin-degenerate Anderson dot deep
+in Coulomb blockade reproduces the elastic-cotunnelling current within
+$2\times10^{-3}$
+(`test_interacting_deep_blockade_matches_elastic_cotunnelling_current`). Its
+noise is only checked to be finite: without an intrinsic spin-relaxation
+bath the dot is in the strong-cotunnelling regime, where no Poisson identity
+applies. Structural identities (column sums, conservation, equilibrium,
+symmetric covariances, charge conservation of the counting labels) hold on
+interacting and multi-lead systems (`test_rtdnoise_structural_invariants.py`,
+`test_rtd_diagrams.py`).
 
-Further reading on these options, including the legacy `itype` mapping and
-worked examples: [Transport integration options](../theory/transport-options.md).
+Not graded: interacting systems outside deep blockade, splittings of order
+$\Gamma$ or below (where the elimination is invalid by construction), noise
+values at finite interaction, and the energy current for complex amplitudes.
+
+### Checking `dband` convergence at a thermal bias
+
+At unequal lead temperatures repeat the calculation at increasing `dband`
+until every reported quantity stops changing. For a spin-degenerate level
+between two pairs of leads at temperatures 0.1 and 0.3:
+
+```python
+import qmeq
+
+t = 0.05
+system = qmeq.Builder(
+    nsingle=2, hsingle={(0, 0): 0.2, (1, 1): 0.2}, coulomb={(0, 1, 1, 0): 1.0},
+    nleads=4, tleads={(0, 0): t, (1, 0): 0.8*t, (2, 1): t, (3, 1): 0.8*t},
+    mulst={0: 0.1, 1: -0.1, 2: 0.1, 3: -0.1},
+    tlst={0: 0.1, 1: 0.3, 2: 0.1, 3: 0.3},
+    dband=1e2, kerntype="RTDnoise", countingleads=[0],
+)
+for dband in (1e2, 1e3, 1e4, 1e5):
+    system.change(dlst=dband)
+    system.solve()
+    current, noise = system.current_noise
+    print(f"dband={dband:.0e}  I={current.real:.7e}  S={noise.real:.7e}")
+```
+
+```text
+dband=1e+02  I=-1.6892651e-05  S=1.8363638e-03
+dband=1e+03  I=-1.6896548e-05  S=1.8344732e-03
+dband=1e+04  I=-1.6896598e-05  S=1.8341920e-03
+dband=1e+05  I=-1.6896599e-05  S=1.8341544e-03
+```
+
+Each decade of `dband` moves the current by $2\times10^{-4}$, then
+$3\times10^{-6}$; the noise moves by $10^{-3}$, then $1.5\times10^{-4}$ and
+$2\times10^{-5}$, so it sets the bandwidth needed. At equal temperatures the
+result does not depend on `dband`, and no sweep is needed.
+
+## Runtime diagnostics
+
+QmeQ reports, rather than hides, results it cannot vouch for. Every
+diagnostic is a `QmeqWarning` or `QmeqRuntimeWarning`, so filtering
+`qmeq.QmeqWarning` silences them as a group.
+
+- **Unphysical stationary states**, every approach: a negative population, a
+  trace away from one, or a non-finite entry warns once per approach and is
+  recorded in `approach.stationary_diagnostics`, with a `physical` flag.
+- **RTD regime warnings**: `RTDBandwidthWarning`, `RTDCoherenceWarning` and
+  `RTDNoBroadeningWarning`, described under [RTD](#rtd).
+- **A finite band that silences a lead**: with `bandwidth='finite'`, a lead
+  whose band excludes every transition it couples to carries no current.
+- **A band the wide-band options ignore**: with `bandwidth='infinite'`, a band
+  that excludes a transition its lead couples to is not applied. RTD and
+  RTDnoise are exempt, because `dband` is their regulator.
+- **Indexing that drops couplings**: under `'sz'` or `'ssq'` indexing,
+  couplings that break the spin symmetry the indexing assumes.
+- **RTDnoise Laplace projection**: `RTDNoiseLaplaceProjectionWarning` when a
+  discarded real part of a Laplace derivative is not roundoff.
+
+## Transport integration options
+
+The `bandwidth` and `principal_part` options, which combinations each approach
+supports, and the legacy `itype` mapping are described in
+[Transport integration options](../theory/transport-options.md).

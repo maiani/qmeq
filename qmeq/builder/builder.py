@@ -107,8 +107,9 @@ class Builder(BuilderBase):
         the lead-resolved noise covariance matrix for supported approaches;
         ``None`` disables counting.
     off_diag_corrections : bool
-        Include RTD off-diagonal corrections. These corrections are not
-        implemented for ``RTDnoise``, which requires this option to be false.
+        Include the first-order coherence-elimination correction in the RTD
+        and RTDnoise population kernels (default ``True``). RTDnoise resolves
+        it by lead and transferred charge; ``False`` omits it.
     phi0_init : array
         For mfreeq=True the initial value of zeroth order density matrix elements.
     mtype_qd : float or complex

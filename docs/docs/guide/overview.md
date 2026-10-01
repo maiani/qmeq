@@ -44,11 +44,13 @@ therefore in their validity domain, their computational cost, and their
 failure modes. See [The approaches](approaches.md) for the full account —
 this page only introduces the idea.
 
-Every approach subclasses one of three base classes — `Approach`,
-`ApproachElPh`, or `ApproachBase2vN` (`qmeq/approach/aprclass.py`) — and
-exists in two forms where compiled extensions are built: a pure-Python
-implementation and an optional Cython twin selected through `QMEQ_BACKEND`
-(see the repository's `AGENTS.md`); both are meant to agree numerically.
+The pure-Python approaches subclass one of three base classes — `Approach`,
+`ApproachElPh`, or `ApproachBase2vN` (`qmeq/approach/aprclass.py`). Most also
+have a compiled Cython twin with the same interface, selected through
+`QMEQ_BACKEND` (see
+[INSTALL.md](https://github.com/qmeq/qmeq/blob/master/INSTALL.md#backend-selection));
+the two forms agree numerically, and `qmeq.get_backend_status()` reports which
+one is active.
 
 ## The package's own physics disclaimer
 
@@ -63,9 +65,7 @@ Quoted verbatim from the `qmeq/__init__.py` module docstring:
 > different methods, or simply discover new kind of physics using different
 > approximate master equations.
 
-The positivity warning above applies to Redfield, 1vN, 2vN, and RTD alike;
-`qmeq/approach/diagnostics.py` names all four. Pauli, Lindblad, Redfield,
-1vN, 2vN, RTD, and RTDnoise are all implemented, tested, importable, and
-accepted `kerntype` values (`validate_kerntype` in
-`qmeq/builder/validation.py`) — see [The approaches](approaches.md) for each
-one's validity domain.
+QmeQ checks every stationary state it returns and warns when one has a
+negative population or a trace away from one; see
+[Runtime diagnostics](approaches.md#runtime-diagnostics). The validity domain
+of each approach is on [The approaches](approaches.md).

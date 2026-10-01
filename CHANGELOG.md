@@ -10,7 +10,7 @@ number because 1.1 was wrong there. The cases, each detailed below:
   `itype=0` gives the 1.1 result); an unknown `kerntype`, `indexing`,
   `symmetry`, `itype` or `itype_ph`; `mfreeq=True` with RTD; a lead temperature
   that is zero, negative, or missing from a partial `tlst`; `get_ind_dm0` with
-  an unsupported `maptype`. Python 3.11 or newer is required.
+  an unsupported `maptype`. Python 3.12 or newer is required.
 - **Different numbers, because 1.1 was wrong.** Compiled electron-phonon
   Lindblad (trace-violating coherence columns); any compiled calculation after
   assigning `system.mulst`, `tlst` or `dlst` (the first values were kept);
@@ -182,9 +182,9 @@ number because 1.1 was wrong there. The cases, each detailed below:
   - A Ruff gate on Ruff's default rule set, except `E741`, for Python files
     and notebooks.
 - **Packaging and release.** A source-based Conda recipe for compiled Python
-  3.11-3.14 on Linux x86-64 and aarch64 and on Intel and Apple Silicon macOS,
-  published to a prefix.dev channel only after every variant builds and passes
-  the fast suite. GitHub releases carry the source distribution beside the
+  3.12-3.14, published for Linux x86-64 and aarch64 and for Apple Silicon macOS
+  to a prefix.dev channel only after every variant builds and passes the fast
+  suite. GitHub releases carry the source distribution beside the
   wheels, each checked with `twine`, the artifact inventory, and an install
   outside the checkout. An installed-artifact CI gate runs the reference suites
   from installed wheels and sdists on both forced backends. Optional extras
@@ -235,9 +235,10 @@ number because 1.1 was wrong there. The cases, each detailed below:
   `add_element_Lnn_inv`): it holds the inverse of the bare coherence splitting,
   not the coherence-sector Liouvillian. The two backends still store it in
   different shapes.
-- **Python 3.11 or newer, and a modern build.** Static metadata lives in
+- **Python 3.12 or newer, and a modern build.** Static metadata lives in
   `pyproject.toml` with a dynamic version, automatic package discovery and
-  `requires-python = ">=3.11"`; `setup.py` only builds the extensions,
+  `requires-python = ">=3.12"`, the oldest Python the current NumPy and
+  SciPy support; `setup.py` only builds the extensions,
   guarded by `if __name__ == '__main__'`. Extensions are generated with
   Cython 3 (`>=3.0,<4`) with explicit language level and exception semantics,
   always from the `.pyx`/`.pxd` sources, into `build/cython/`. OpenMP is
@@ -248,12 +249,12 @@ number because 1.1 was wrong there. The cases, each detailed below:
   built with Apple clang and without OpenMP (see Fixed); the Conda packages
   keep it. NumPy's `emath` namespace provides the complex logarithm, and the
   suite emits no deprecation warnings on NumPy 2.5 and SciPy 1.18.
-- **CI.** The pure-Python suite runs on 3.11-3.14 and the compiled one on
+- **CI.** The pure-Python suite runs on 3.12-3.14 and the compiled one on
   Linux, Windows and macOS (`test.yml`, formerly `test_cython.yml`, split into
   a single `python` job and a Cython-version matrix); the documentation builds
   strictly in CI; `slow.yml` runs the examples weekly as a compiled-backend
   gate (a pure-Python leg measured only how slow uncompiled 2vN/RTD sweeps
-  are); `build_wheels.yml` uses cibuildwheel 4.2 for `cp311`-`cp314`, checks
+  are); `build_wheels.yml` uses cibuildwheel 4.2 for `cp312`-`cp314`, checks
   the tag against `qmeq.__version__`, and publishes from a separate job;
   `publish_conda.yml` is now `release.yml`. `example1c` is reported as a
   skipped example: its 81000-solve stability diagram exceeds any reasonable
@@ -267,7 +268,9 @@ number because 1.1 was wrong there. The cases, each detailed below:
   and warns that `pip install qmeq` still gives the upstream 1.1. It uses
   `pip install .` instead of the deprecated `python setup.py install`,
   documents `pytest --pyargs qmeq.tests` for an installed build, and with
-  `README.md` links to the vendored `examples/`.
+  `README.md` links to the vendored `examples/`. `CONTRIBUTING.md` collects the
+  development setup, the rules for changing the code, the test gates and the
+  release procedure.
 - **Internal clean-ups with no numerical effect**, the historical reference
   corpora reproducing unchanged on both backends: the "no index" sentinel is
   named `NO_INDEX` at 61 sites; the packed-real offset is one precomputed
@@ -526,6 +529,6 @@ Packaging, CI and documentation:
   * First order von Neumann (1vN)
   * Second order von Neumann (2vN)
 
-[unreleased]: https://github.com/gedaskir/qmeq/compare/1.1...HEAD
+[unreleased]: https://github.com/qmeq/qmeq/compare/1.1...HEAD
 [1.1]: https://github.com/gedaskir/qmeq/releases/tag/1.1
 [1.0]: https://github.com/gedaskir/qmeq/releases/tag/1.0

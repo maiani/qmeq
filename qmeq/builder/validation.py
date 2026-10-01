@@ -21,8 +21,8 @@ KERNTYPES = APPROACHES + tuple('py' + approach for approach in APPROACHES)
 def validate_kerntype(kerntype):
     """Refuse an unknown kerntype rather than substitute another approach.
 
-    A misspelled name used to fall back to Pauli with a warning, so a sweep
-    meant for a coherent approach silently ran the Pauli one instead. A class
+    Substituting a default would run a different approximation than the one
+    asked for, with nothing in the result to show it. A class
     is accepted if it carries the ``kerntype`` name that approaches define;
     compiled approaches do not derive from the Python ``Approach``, so the
     name, not the base class, is what identifies one.

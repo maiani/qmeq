@@ -113,9 +113,11 @@ $S$ by $e^2$.
 
 ## RTD results and approximation order
 
-Use `kerntype='pyRTDnoise'` for Real Time Diagrammatic counting statistics.
-`kerntype='RTDnoise'` is a documented alias for that same pure-Python
-implementation:
+Use `kerntype='RTDnoise'` or `'pyRTDnoise'` for Real Time Diagrammatic
+counting statistics. Both evaluate the shared enumeration of the population
+diagrams in `qmeq.approach.rtd_diagrams`; `'RTDnoise'` evaluates the direct
+and exchange scalar integrals with compiled functions when the Cython backend
+is active, and `'pyRTDnoise'` is all Python:
 
 ```python
 system = qmeq.Builder(
@@ -151,22 +153,21 @@ non-Markovian energy-derivative terms of Emary's formulation.
 
 ## Limitations
 
-Only the first two zero-frequency particle-current cumulants are implemented.
-There are no arbitrary higher cumulants or energy-current noise. The auxiliary
+QmeQ provides the first two zero-frequency particle-current cumulants; it
+computes no higher cumulants and no energy-current noise. The
 `current_noise_o4trunc` order decomposition has no matrix-valued companion.
 Counting is not implemented for 2vN, electron-phonon approaches, or matrix-free
-solvers. RTD counting includes the same first-order coherence-elimination
-correction as ordinary RTD when `off_diag_corrections=True` (the default).
-The compatibility mode `False` remains available and reproduces the historical
-RTDnoise kernel. The counted correction and second-order population traversal
-have been validated against exact non-interacting transport for both real
-amplitudes and generic plaquette flux. Direct and exchange diagrams retain
-their distinct Hermitian partner products instead of dropping the imaginary
-channel.
+solvers.
 
-The published unequal-temperature RTD integrals retain `dband` as a finite
-wide-band regulator. Thermal-bias RTD counting calculations must therefore be
-repeated with increasing `dband` until every reported current and noise
-cumulant converges. QmeQ emits `RTDBandwidthWarning` when the cutoff is below
-the conservative diagnostic ratio described in
-[Transport integration options](transport-options.md).
+RTD counting includes the same first-order coherence-elimination correction as
+ordinary RTD when `off_diag_corrections=True` (the default), resolved by lead
+and transferred charge; `False` omits it. Direct and exchange diagrams use
+their distinct Hermitian partner products. What the tests grade, and against
+which references, is listed in
+[What validates RTD and RTDnoise](../guide/approaches.md#what-validates-rtd-and-rtdnoise).
+
+At unequal lead temperatures the RTD integrals keep `dband` as a finite
+wide-band regulator, so every reported current and noise cumulant must be
+converged in `dband`; the noise converges more slowly than the current. See
+[Checking `dband` convergence](../guide/approaches.md#checking-dband-convergence-at-a-thermal-bias)
+and, for `RTDBandwidthWarning`, [Transport integration options](transport-options.md).

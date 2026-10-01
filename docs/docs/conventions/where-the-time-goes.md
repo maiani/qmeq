@@ -115,22 +115,22 @@ question. Five reasons, in decreasing order of force:
    arrays.
 4. **The inner reductions are tiny.** `for l in range(nleads)` with two leads.
    NumPy's per-call overhead exceeds the work.
-5. **The project's answer for hot paths was Cython, not NumPy** — a `c_` twin per
+5. **The project's answer for hot paths is Cython, not NumPy** — a `c_` twin per
    hot module. For irregular, branchy scalar work that is arguably the better
    tool: no temporaries, no branch segmentation, and the loops keep the shape of
    the published equations, which is how the physics gets checked.
 
-### The loops are not currently the binding constraint
+### The memoisation bound
 
 `MAX_CACHE` in `qmeq/specfunc/specfunc.py` bounds the `lru_cache` on every
-memoised special function. It was 100; it is now 10000. Measured by editing the
-constant, RTD, pure Python, best of three:
+memoised special function, at 10000. Measured by editing the constant, RTD,
+pure Python, best of three:
 
 | bound | nsingle=4 | nsingle=5 | speed-up |
 |---|---|---|---|
-| 100 (was) | 0.776 s / 80.9 % | 11.81 s / 74.8 % | 1.00× |
+| 100 | 0.776 s / 80.9 % | 11.81 s / 74.8 % | 1.00× |
 | 1 000 | 0.396 s / 94.4 % | 6.20 s / 90.9 % | ~1.9× |
-| **10 000** (now) | **0.384 s / 97.1 %** | **5.06 s / 95.7 %** | **2.0–2.3×** |
+| **10 000** (`MAX_CACHE`) | **0.384 s / 97.1 %** | **5.06 s / 95.7 %** | **2.0–2.3×** |
 | 50 000 | 0.368 s / 99.1 % | 5.00 s / 96.8 % | 2.1–2.4× |
 | unbounded | 0.344 s / 99.1 % | 4.52 s / 99.2 % | 2.3–2.6× |
 
@@ -167,8 +167,8 @@ small Lindblad bonus.
 
 ### Cacheability falls off with arity
 
-Which is why only some functions are memoised. Measured hit rates at the old
-bound, against the number of *independent continuous* arguments:
+Which is why only some functions are memoised. Measured hit rates at a bound of
+100, against the number of *independent continuous* arguments:
 
 | function | independent float args | hit rate |
 |---|---|---|
@@ -180,29 +180,25 @@ bound, against the number of *independent continuous* arguments:
 | `integralD(p1, eta1, E1, E2, E3, T1, T2, mu1, mu2, D, b_and_R, ImGamma)` | 3 of 12 args | **0.3 %** |
 
 So the memoised set is exactly the low-arity tail, and that is not an accident.
-**Caching `integralD`/`integralX` was tried and rejected**: at a 0.3 % hit rate
-the twelve-argument key costs more to hash than the call saves, and the solve got
-*slower* — 0.406 s to 0.449 s at `nsingle = 4`.
+`integralD` and `integralX` are not memoised: at a 0.3 % hit rate the
+twelve-argument key costs more to hash than the call saves, and caching them
+makes the solve *slower*, 0.406 s against 0.449 s at `nsingle = 4`.
 
 Nothing else is a candidate. `func_pauli`, `func_1vN`, `func_lambshift` and
 `fermi_lpm` return arrays; `hilbert_fredriksen` takes arrays and is unhashable;
 `kernel_fredriksen`, `Ozaki` and `BW_Ozaki` are called once per setup rather than
 per element.
 
-Two properties of the change worth keeping in mind: it is **pure-Python only**,
-since the compiled path uses its own `c_specfunc`; and it is **bit-identical by
-construction**, because memoisation is exact — verified by solving the whole RTD
-reference matrix at both bounds and comparing all 21 arrays with
-`np.array_equal`.
+The bound affects the **pure-Python path only**, since the compiled path uses
+its own `c_specfunc`, and it does not change results: memoisation is exact.
 
-## What this means for optimisation
+## Where the cost lies, in order
 
-The levers, in the order the profile suggests:
-
-1. **The special functions** — memoisation or vectorisation of `phi`,
-   `delta_phi`, `integralD`, `integralX`. Dominant for RTD by a wide margin.
-2. **Diagram enumeration** — the second-order loop nest, which is what generates
-   those millions of calls in the first place.
+1. **The special functions** — `phi`, `delta_phi`, `integralD`, `integralX`.
+   Dominant for RTD by a wide margin.
+2. **Diagram enumeration** — the second-order diagrams of
+   `qmeq.approach.rtd_diagrams`, which generate those millions of calls in the
+   first place.
 3. **Index lookup and insertion** — 640 000 `get_ind_dm*` calls per five 1vN
    solves. This is the cost the packed-real layout imposes; see
    [Density-matrix layout](density-matrix-layout.md).
