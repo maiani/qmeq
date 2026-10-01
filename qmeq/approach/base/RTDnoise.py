@@ -38,6 +38,10 @@ from ..counting import stationary_kernel_pseudoinverse
 from ..counting import stationary_projected_pseudoinverse
 from ..diagnostics import check_stationary_solution
 from ..kernel_handler import KernelHandlerRTDnoise
+from ..rtd_diagrams import DIRECT
+from ..rtd_diagrams import GAIN
+from ..rtd_diagrams import first_order_diagrams
+from ..rtd_diagrams import second_order_diagrams
 from ..rtd_blocks import counting_resolved_coherence_correction
 from ..rtd_blocks import generate_population_coherence_blocks
 
@@ -641,6 +645,89 @@ class ApproachPyRTDnoise(ApproachPyRTD):
             (Modifies) The kernel connecting diagional density-matrix elements. This Kernel
             has npauli * npauli entries.
         """
+        kh = self.kernel_handler
+        countingleads = self.funcp.countingleads
+        itype = self.funcp.itype
+        mulst, tlst, dlst = self.leads.mulst, self.leads.tlst, self.leads.dlst
+
+        # The four branches keep each diagram's own argument orientation; see
+        # the eta = -xi note in rtd_diagrams. A gain diagram from the lower
+        # state adds an electron (L+), one from the upper state removes it
+        # (L-), and a loss diagram is the escape through its other state.
+        for d in first_order_diagrams(self, b, bcharge):
+            l, dE, gamma, bb = d.lead, d.energy, d.gamma, d.row
+            mu, Tr = mulst[l], tlst[l]
+            if d.kind == GAIN and d.lower:
+                aa = d.column
+                # p0=1,p1=-1,eta=1
+                lamb_p = dE - mu
+                fermi_p = func_pauli(lamb_p, 0, Tr, dlst[l, 0], dlst[l, 1], itype)[0]
+                # p0=-1,p1=1,eta=-1
+                lamb_m = -dE + mu
+                fermi_m = func_pauli(-lamb_m, 0, Tr, dlst[l, 0], dlst[l, 1], itype)[0]
+                # d(phi)/d(energy): see the 1/Tr note on the class.
+                phi_eps = diff_phi(lamb_p/Tr)/Tr
+                kh.set_matrix_element_lpm_first(l,gamma/2*(fermi_p+fermi_m), 2j*gamma*phi_eps, 1, bb, aa)
+                if l in countingleads:
+                    kh.set_matrix_element_lpm_pauli(gamma/2*(fermi_p+fermi_m), 2, bb, aa)
+                    kh.set_matrix_element_lpm_pauli(2j*gamma*phi_eps, 7, bb, aa)
+                else:
+                    kh.set_matrix_element_lpm_pauli(gamma/2*(fermi_p+fermi_m), 0, bb, aa)
+                    kh.set_matrix_element_lpm_pauli(2j*gamma*phi_eps, 5, bb, aa)
+            elif d.kind == GAIN:
+                cc = d.column
+                # p0=-1,p1=1,eta=1
+                lamb_m = dE - mu
+                fermi_m = func_pauli(-lamb_m, 0, Tr, dlst[l, 0], dlst[l, 1], itype)[0]
+                # p0=1,p1=-1,eta=-1
+                lamb_p = -dE + mu
+                fermi_p = func_pauli(lamb_p, 0, Tr, dlst[l, 0], dlst[l, 1], itype)[0]
+                phi_eps = diff_phi(lamb_p/Tr)/Tr
+                kh.set_matrix_element_lpm_first(l,gamma/2*(fermi_p+fermi_m), 2j*gamma*phi_eps, -1, bb, cc)
+                if l in countingleads:
+                    kh.set_matrix_element_lpm_pauli(gamma/2*(fermi_p+fermi_m),1,bb,cc)
+                    kh.set_matrix_element_lpm_pauli(2j*gamma*phi_eps, 6, bb, cc)
+                else:
+                    kh.set_matrix_element_lpm_pauli(gamma/2*(fermi_p+fermi_m),0,bb,cc)
+                    kh.set_matrix_element_lpm_pauli(2j*gamma*phi_eps, 5, bb, cc)
+            elif d.lower:
+                # p0=-1,p1=-1,eta=1
+                lamb_m = dE - mu
+                fermi_m = func_pauli(-lamb_m, 0, Tr, dlst[l, 0], dlst[l, 1], itype)[0]
+                # p0=1,p1=1,eta=-1
+                lamb_p = -dE + mu
+                fermi_p = func_pauli(lamb_p, 0, Tr, dlst[l, 0], dlst[l, 1], itype)[0]
+                phi_eps = diff_phi(lamb_p/Tr)/Tr
+                kh.set_matrix_element_lpm_first(l,-gamma/2*(fermi_p+fermi_m), -2j*gamma*phi_eps, 0, bb, bb)
+                kh.set_matrix_element_lpm_pauli(-gamma/2*(fermi_m+fermi_p), 0, bb, bb)
+                kh.set_matrix_element_lpm_pauli(-2j*gamma*phi_eps, 5, bb, bb)
+            else:
+                # p0=1,p1=1,eta=1
+                lamb_p = dE - mu
+                fermi_p = func_pauli(lamb_p, 0, Tr, dlst[l, 0], dlst[l, 1], itype)[0]
+                # p0=-1,p1=-1,eta=-1
+                lamb_m = -dE + mu
+                fermi_m = func_pauli(-lamb_m, 0, Tr, dlst[l, 0], dlst[l, 1], itype)[0]
+                phi_eps = diff_phi(lamb_p/Tr)/Tr
+                kh.set_matrix_element_lpm_first(l,-gamma/2*(fermi_p+fermi_m), -2j*gamma*phi_eps, 0, bb, bb)
+                kh.set_matrix_element_lpm_pauli(-gamma/2*(fermi_p+fermi_m), 0, bb, bb)
+                kh.set_matrix_element_lpm_pauli(-2j*gamma*phi_eps, 5, bb, bb)
+
+    def _legacy_generate_row_1st_order_kernel_lpm(self, b, bcharge):
+        """Generates a row in the first order diagonal kernel :math:`W_{dd}^{(1)}`.
+
+        Parameters
+        ----------
+        b : int
+            the final state (row)
+
+        bcharge : int
+            charge of state b
+
+        self.Wdd : ndarray
+            (Modifies) The kernel connecting diagional density-matrix elements. This Kernel
+            has npauli * npauli entries.
+        """
         si, kh = self.si, self.kernel_handler
         nleads, statesdm = si.nleads, si.statesdm
         countingleads = self.funcp.countingleads
@@ -729,6 +816,54 @@ class ApproachPyRTDnoise(ApproachPyRTD):
                 kh.set_matrix_element_lpm_pauli(-2j*gamma*phi_eps, 5, bb, bb)
 
     def generate_col_diag_kern_2nd_order_lpm(self, a0, charge):
+        """Partly generates a column in the second order kernel for the diagonal density matrix :math:`W_{dd}^{(2)}`.
+        Due to symmetries among the diagrammatic contributions for different matrix elements also contributions to
+        other columns are generated. Assumes that the wide band limit is valid.
+
+        Parameters
+        ----------
+        a0 : int
+            initial state. Sets the column
+
+        charge : int
+            charge of state a0
+
+        self.Wdd : ndarray
+            (Modifies) diagonal lead-resolved kernel.
+
+        self.Lpm : ndarray
+            (Modifies) noise kernels.
+
+        """
+        # Each record is one independent eta0 = +1 diagram. Its eta0 = -1
+        # partner is not evaluated: _complete_second_order_conjugate_partners
+        # constructs it from the whole-diagram symmetry once every column
+        # exists, keeping the record's counting labels.
+        integralD_lpm = self.integralD_lpm
+        integralD_lpm_derivative = self.integralD_lpm_derivative
+        integralX_lpm = self.integralX_lpm
+        integralX_lpm_derivative = self.integralX_lpm_derivative
+        kh = self.kernel_handler
+        b_and_R = self.Ozaki_poles_and_residues
+        lpm_imaginary_2nd = self.lpm_imaginary_2nd
+
+        for d in second_order_diagrams(self, a0, charge):
+            t = d.tunnel_product
+            args = (lpm_imaginary_2nd, d.p1, 1, d.eta1, d.E1, d.E2, d.E3,
+                    d.T1, d.T2, d.mu1, d.mu2, d.D, b_and_R, True)
+            if d.topology == DIRECT:
+                value = t * integralD_lpm(*args)
+                value_dz = t * integralD_lpm_derivative(*args)
+                dx = 'd'
+            else:
+                value = -t * integralX_lpm(*args)
+                value_dz = -t * integralX_lpm_derivative(*args)
+                dx = 'x'
+            kh.add_element_2nd_order(d.r0, d.r1, 1, d.eta1, d.p1, d.p2, value, value_dz,
+                                     d.initial, d.initial_flipped, d.flipped_state,
+                                     d.flipped_charge, d.final_state, d.final_charge, dx)
+
+    def _legacy_generate_col_diag_kern_2nd_order_lpm(self, a0, charge):
         """Partly generates a column in the second order kernel for the diagonal density matrix :math:`W_{dd}^{(2)}`.
         Due to symmetries among the diagrammatic contributions for different matrix elements also contributions to
         other columns are generated. Assumes that the wide band limit is valid.

@@ -24,6 +24,10 @@ from ...specfunc.specfunc import func_pauli
 from ..aprclass import Approach
 from ..kernel_handler import KernelHandlerRTD
 from ..rtd_blocks import FirstOrderTerm
+from ..rtd_diagrams import DIRECT
+from ..rtd_diagrams import GAIN
+from ..rtd_diagrams import first_order_diagrams
+from ..rtd_diagrams import second_order_diagrams
 from ..rtd_blocks import first_order_block_derivative
 from ..rtd_blocks import generate_population_coherence_blocks
 from ..rtd_blocks import zero_field_coherence_correction
@@ -557,6 +561,35 @@ class ApproachPyRTD(Approach):
     def generate_row_1st_order_kernel(self, b, bcharge):
         """Generates a row in the first order diagonal kernel :math:`W_{dd}^{(1)}`.
 
+        Evaluates the two-vertex diagrams of
+        :func:`qmeq.approach.rtd_diagrams.first_order_diagrams` from the
+        golden-rule factors ``paulifct``: a gain diagram from a lower state
+        adds an electron, one from an upper state removes one, and a loss
+        diagram does the reverse on the row's own population.
+
+        Parameters
+        ----------
+        b : int
+            the state (row)
+
+        bcharge : int
+            charge of state b
+
+        self.Wdd : ndarray
+            (Modifies) The kernel connecting diagional density-matrix elements. This Kernel
+            has npauli * npauli entries.
+        """
+        paulifct = self.paulifct
+        Wdd = self.kernel_handler.Wdd
+        for d in first_order_diagrams(self, b, bcharge):
+            if d.kind == GAIN:
+                Wdd[d.lead, d.row, d.column] += paulifct[d.lead, d.pair, 0 if d.lower else 1]
+            else:
+                Wdd[d.lead, d.row, d.row] += -paulifct[d.lead, d.pair, 1 if d.lower else 0]
+
+    def _legacy_generate_row_1st_order_kernel(self, b, bcharge):
+        """Generates a row in the first order diagonal kernel :math:`W_{dd}^{(1)}`.
+
         Parameters
         ----------
         b : int
@@ -721,6 +754,37 @@ class ApproachPyRTD(Approach):
                 kh.set_matrix_element_dd(l, temp, temp, bb, cc, RtdMatrix.WE2)
 
     def generate_col_diag_kern_2nd_order(self, a0, charge):
+        """Partly generates a column in the second order kernel for the diagonal density matrix :math:`W_{dd}^{(2)}`.
+        Due to symmetries among the diagrammatic contributions for different matrix elements also contributions to
+        other columns are generated. Assumes that the wide band limit is valid.
+
+        Parameters
+        ----------
+        a0 : int
+            initial state. Sets the column
+
+        charge : int
+            charge of state a0
+
+        self.Wdd : ndarray
+            (Modifies) diagonal lead-resolved kernel.
+
+        """
+        # Each record is one independent eta0 = +1 diagram; its eta0 = -1
+        # partner is the complex conjugate against the same real integral,
+        # which add_element_2nd_order supplies by doubling the real part.
+        kh = self.kernel_handler
+        b_and_R = self.Ozaki_poles_and_residues
+        for d in second_order_diagrams(self, a0, charge):
+            t = d.tunnel_product
+            if d.topology == DIRECT:
+                value = t * integralD(d.p1, d.eta1, d.E1, d.E2, d.E3, d.T1, d.T2, d.mu1, d.mu2, d.D, b_and_R, _has_significant_imaginary_part(t))
+            else:
+                value = -t * integralX(d.p1, d.eta1, d.E1, d.E2, d.E3, d.T1, d.T2, d.mu1, d.mu2, d.D, b_and_R, _has_significant_imaginary_part(t))
+            kh.add_element_2nd_order(d.lead, value.real, d.initial, d.initial_flipped,
+                                     d.flipped_state, d.flipped_charge, d.final_state, d.final_charge)
+
+    def _legacy_generate_col_diag_kern_2nd_order(self, a0, charge):
         """Partly generates a column in the second order kernel for the diagonal density matrix :math:`W_{dd}^{(2)}`.
         Due to symmetries among the diagrammatic contributions for different matrix elements also contributions to
         other columns are generated. Assumes that the wide band limit is valid.

@@ -129,8 +129,46 @@ so `Tba[l, b, c]*Tba[l, c, b]` is `|Tba[l, b, c]|^2` and the projection removes
 roundoff. Measured on a flux-carrying double dot whose amplitudes have
 `max|Im Tba| = 2e-2`, the product's imaginary part is `4e-21`.
 
-This covers the charge current only. The RTD energy and heat currents are
-filled with `nan` for complex amplitudes, which is a separate, open gap.
+This covers the charge current only. QmeQ does not compute the RTD energy and
+heat currents for complex amplitudes; both are filled with `nan`.
+
+## One diagram enumeration for RTD and RTDnoise
+
+`qmeq.approach.rtd_diagrams` enumerates the population diagrams, and the two
+approaches only evaluate them. `first_order_diagrams` yields one
+`FirstOrderDiagram` per two-vertex diagram of a kernel row, as a gain or a
+loss through a state one charge away. `second_order_diagrams` yields one
+`SecondOrderDiagram` per independent four-vertex diagram of a column. Each
+record carries its topology (direct or exchange), the two leads, `eta1`,
+`p1`, `p2`, the visited states, the four-amplitude product, the propagator
+energies, the lead parameters and its population endpoints. `pyRTD` evaluates
+a record with `integralD`/`integralX` and adds twice its real part.
+`RTDnoise` evaluates it with the counting integrals and their Laplace
+derivatives, keeping its transfer labels.
+
+A record stands for more diagrams than the one it enumerates:
+
+- **outer Keldysh flips** `p0, p3 = +-1` give the four insertions
+  `(final, initial)`, `(flipped, initial)`, `(final, initial_flipped)` and
+  `(flipped, initial_flipped)`, with signs `+, -, +, -`;
+- **the inverted partner** `eta0 = -1` has the complex-conjugate value, the
+  negative complex-conjugate Laplace derivative and the same transfer labels
+  [LeijnseWegewijs2008, Eqs. (B1)-(B3), (D1)-(D3)], [Emary2009, Eq. (31)].
+  `pyRTD` adds it through the real part, and RTDnoise in
+  `_complete_second_order_conjugate_partners`.
+
+`counting_labels` gives the transferred charges `(q0, q1)` of the four
+insertions at the `r0` and `r1` contractions, positive into the dot. Their
+sum equals the charge of the row population minus that of the column, at
+every insertion of every diagram. `test_counting_labels_conserve_charge`
+checks this identity, which does not follow from the label formula alone.
+
+Records are yielded in a fixed order, and both approaches accumulate in that
+order, so the assembled arrays do not depend on which approach consumed the
+stream. The compiled `c_RTD.pyx` enumerates the same diagrams with
+hand-written loops. A change to the enumeration must be applied there too.
+`test_compiled_rtd_matches_the_record_based_python_rtd` and the QmeQ 1.1 RTD
+reference bundle hold the two together.
 
 ## Coherence axis
 

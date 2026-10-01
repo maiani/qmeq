@@ -73,77 +73,49 @@ observable through `clamped_coherences`.
 
 ### B. One RTD diagram traversal, and a compiled RTDnoise
 
-Three hand-written loops enumerate the same second-order population diagrams:
+`qmeq.approach.rtd_diagrams` enumerates the RTD population diagrams as
+immutable records, and `pyRTD`, `pyRTDnoise` and `RTDnoise` evaluate them.
+The compiled `c_RTD.pyx` keeps its hand-written loops, held to the records by
+`test_compiled_rtd_matches_the_record_based_python_rtd`.
 
-- `ApproachPyRTD.generate_col_diag_kern_2nd_order`;
-- its compiled twin in `c_RTD.pyx`; and
-- RTDnoise's counting-resolved `generate_col_diag_kern_2nd_order_lpm`.
+- **B1. Delete the legacy Python loops.** The `_legacy_*` methods of
+  `ApproachPyRTD` and `ApproachPyRTDnoise` keep the nested loops only for
+  `test_rtd_diagram_shadow.py`. That test requires every array assembled from
+  the records to equal the loops' arrays bit for bit, on the seven RTD
+  reference scenarios, the eight RTDnoise live scenarios under both names,
+  and the three arbitrary-system stress cases. Delete the methods and the
+  test together, in a change of their own after the routing change.
+- **B2. Decide whether to compile a record evaluator.** Measured on the record
+  path for a spinful double dot (16 states, four channels):
 
-The first-order rows are duplicated in the same way, as
-`generate_row_1st_order_kernel` and `generate_row_1st_order_kernel_lpm`. These
-loops must agree on branch signs, orientation, integral arguments and fermionic
-signs, and only tests enforce that they do.
+  | approach | solve |
+  |---|---|
+  | `RTD`, compiled loops | 0.007 s |
+  | `pyRTD` | 0.33 s |
+  | `RTDnoise`, compiled scalar integrals | 0.76 s |
+  | `pyRTDnoise` | 3.0 s |
 
-The target is one topology generator in Python, which emits immutable diagram
-records, and one compiled evaluator of those records. Neither step may move a
-result beyond the numerical floor.
-
-- **B1. Diagram records and one Python traversal.**
-  - Each record carries:
-    - the initial and final populations;
-    - the order, and the direct or exchange topology;
-    - the ordered vertices, each with its branch, electron/hole orientation,
-      lead and many-body transition;
-    - the tunnelling product and the fermionic sign;
-    - the propagator energies and the integral kind;
-    - the lead and the signed transferred charge at every reservoir vertex;
-      and
-    - the identity of its `eta0` conjugate partner, so that partners can be
-      audited rather than implied.
-  - Record endpoints are populations only. The first-order
-    population-coherence blocks stay in `rtd_blocks`, which already serves
-    both approaches.
-  - The records have two consumers: the ordinary lead-resolved kernel `Wdd`,
-    and the counting-resolved `Lpm_first`/`Lpm_second` arrays with their
-    `_dz` derivatives. The ordinary kernel is the zero-field sum of the
-    counting-resolved one.
-  - Run the records in shadow mode first, beside the legacy loops. Compare
-    every block per lead, transfer sector and order, for real amplitudes and
-    for generic-flux amplitudes. Only then route `pyRTD`, `RTDnoise` and
-    `pyRTDnoise` through the records. Delete the legacy Python loops in a
-    separate change.
-  - Gate:
-    - the QmeQ 1.1 RTD bundle and the historical RTDnoise counting bundle
-      reproduce;
-    - the complex-flux, rephasing and NEGF residual-order tests pass; and
-    - `c_RTD` agrees with the record-based Python path in fresh
-      forced-backend processes.
-  - The energy-current rows (`generate_row_1st_energy_kernel`,
-    `generate_row_2nd_energy_kernel`) move onto the records only if their
-    present expressions map onto records one to one.
-  - Document the record fields, the partner rule and the transfer labels in
-    `docs/docs/conventions/rtd-kernels.md`.
-- **B2. A compiled evaluator for the records, which gives RTDnoise a compiled
-  path.**
-  - Profile the B1 path first, for RTD and RTDnoise separately: topology
-    generation, the direct and exchange integrals, their `_dz` evaluation,
-    matrix insertion and the solve. Compile the parts that dominate.
-  - Lower the records to a table of typed arrays and integer tags. Test the
-    round trip to the Python records before production uses the table.
-  - Write one compiled evaluator and assembler, parameterised by its output:
-    the ordinary kernel, or the counting-resolved arrays with `_dz`. It holds
-    no topology rules of its own.
-  - Route `RTDnoise` through the evaluator once parity passes in fresh
-    forced-backend processes, per record, per transfer, per order, and for
-    the kernel, stationary state, current and noise. `pyRTDnoise` stays all
-    Python. Confirm the selection with `qmeq.get_backend_status()`.
-  - Route compiled `RTD` through the evaluator too, if benchmarks show it is
-    no slower than `c_RTD`'s hand-written traversal, both serial and with
-    OpenMP, and then delete that traversal. Otherwise keep the traversal,
-    pinned to the records by the B1 parity gate, and record the measurement
-    in `docs/docs/conventions/where-the-time-goes.md`.
-  - OpenMP stays optional through `QMEQ_OPENMP`. Check the serial and
-    threaded builds, and the installed wheel and sdist.
+  Of the 0.76 s, generating the records takes 0.12 s, and the compiled
+  counting integrals take 0.29 s when called from Python: three Ozaki
+  evaluations per diagram, for the value and a centred derivative. The
+  remaining 0.35 s is per-record evaluation, scalar insertion into
+  `Lpm_second`, the first-order and coherence blocks, and the noise solve.
+  - A compiled evaluator of a lowered record table removes most of the last
+    part and the call overhead. Its ceiling is about 2x, and it adds a
+    compiled path to maintain.
+  - The integrals bound any faster path. Compiling the enumeration as well
+    would remove the generation time too, but only by giving the compiled
+    side its own topology rules.
+  - If a compiled evaluator is built: lower the records to typed arrays and
+    test the round trip; write one evaluator, parameterised by its output,
+    with no topology rules of its own; route `RTDnoise` through it once
+    per-record, per-transfer, per-order, kernel, stationary-state, current and
+    noise parity pass in fresh forced-backend processes, keeping
+    `pyRTDnoise` all Python; and check the serial and OpenMP builds and the
+    installed wheel and sdist. Compiled `RTD` stays on its own loops, since
+    generating the records in Python already costs more than its whole solve.
+  - If it is not built, record these measurements in
+    `docs/docs/conventions/where-the-time-goes.md` and close the item.
 
 ### C. Tests
 
@@ -194,14 +166,6 @@ result beyond the numerical floor.
   - what is not graded: interacting systems outside deep blockade, splittings
     `≲ Γ` (where the elimination is invalid by construction), and the energy
     current at complex amplitudes.
-- **D3. Record the paired traversals until B1 removes them.** State in
-  `docs/docs/conventions/rtd-kernels.md` that a fix to one of the three
-  traversals must be applied to the others. Name the tests that pin their
-  agreement:
-  - `test_complex_flux_second_order_kernel_matches_stationary_rtd`;
-  - `test_counting_resolved_coherence_correction_reduces_to_standard_rtd`;
-    and
-  - `test_counted_current_matches_ordinary_current`.
 - **D4. Convergence recipes in place of the dropped helpers.** In the
   approaches guide:
   - a short `dband` sweep for thermal-bias RTD and RTDnoise, including what
@@ -235,8 +199,8 @@ result beyond the numerical floor.
   - regenerating the Cython output;
   - the fast and slow suites, and the documentation build;
   - artifact validation;
-  - the files that must change together when a `.py`/`.pyx` pair, or an RTD
-    traversal, is touched;
+  - the files that must change together when a `.py`/`.pyx` pair, or the RTD
+    diagram enumeration and its compiled twin in `c_RTD.pyx`, is touched;
   - the reference-data policy; and
   - the release procedure: version bump, tag, what each workflow publishes
     where, the trusted publishers, and who receives the scheduled `slow.yml`

@@ -274,7 +274,10 @@ number because 1.1 was wrong there. The cases, each detailed below:
   documented in `get_ind_dm0`; the pure-Python electron-phonon approaches no
   longer bind `si` to an object of a different class; mutable default
   arguments are `None`; `clean.py` resolves paths from its own location and
-  gained `--dry-run`; pytest uses the native `[tool.pytest]` configuration.
+  gained `--dry-run`; pytest uses the native `[tool.pytest]` configuration;
+  `pyRTD` and RTDnoise evaluate one shared enumeration of their population
+  diagrams, `qmeq.approach.rtd_diagrams`, and assemble bitwise the same
+  kernels.
 
 ### Removed
 

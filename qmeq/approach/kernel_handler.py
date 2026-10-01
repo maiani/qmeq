@@ -10,6 +10,9 @@ from ..indexing import StateIndexingDM
 from ..indexing import StateIndexingDMc
 from . import dm_layout
 from .dm_layout import NO_INDEX
+from .rtd_diagrams import DIRECT
+from .rtd_diagrams import EXCHANGE
+from .rtd_diagrams import counting_labels
 
 
 class KernelHandler(object):
@@ -561,6 +564,9 @@ class KernelHandlerRTD(KernelHandler):
             indx += self.imag_offset
         self.Lnn_inv[indx, indx] += fct
 
+_TOPOLOGY_OF_DX = {'d': DIRECT, 'x': EXCHANGE}
+
+
 class KernelHandlerRTDnoise(KernelHandlerNoise, KernelHandlerRTD):
     """Class used for inserting matrix elements into the matrices used in the RTD noise approach."""
 
@@ -640,17 +646,10 @@ class KernelHandlerRTDnoise(KernelHandlerNoise, KernelHandlerRTD):
         indx3 = si.get_ind_dm0(a3, a3, charge3)
         indx4 = si.get_ind_dm0(a4, a4, charge4)
 
-        # calculate counting indices
-        if dx == 'd': # eta0 * (p0 - p3)/2 , eta1 * (p1 - p2)/2
-            cind0 = eta0 * (1 - 1)//2 , eta1 * (p1 - p2)//2 # p0=1,p3=1
-            cind1 = eta0 * (1 + 1)//2 , eta1 * (p1 - p2)//2 # p0=1,p3=-1
-            cind2 = eta0 * (-1 - 1)//2 , eta1 * (p1 - p2)//2 # p0=-1,p3=1
-            cind3 = eta0 * (-1 + 1)//2 , eta1 * (p1 - p2)//2 # p0=-1,p3=-1
-        elif dx == 'x': # eta1 * (p1 - p3)/2 + eta0 * (p0 - p2)/2
-            cind0 = eta0 * (1 - p2)//2 , eta1 * (p1 - 1)//2 # p0=1,p3=1
-            cind1 = eta0 * (1 - p2)//2 , eta1 * (p1 + 1)//2 # p0=1,p3=-1
-            cind2 = eta0 * (-1 - p2)//2 , eta1 * (p1 - 1)//2 # p0=-1,p3=1
-            cind3 = eta0 * (-1 - p2)//2 , eta1 * (p1 + 1)//2 # p0=-1,p3=-1
+        # Transferred charges of the (p0, p3) = (+,+), (+,-), (-,+), (-,-)
+        # insertions, at the r0 and r1 contractions.
+        cind0, cind1, cind2, cind3 = counting_labels(
+            _TOPOLOGY_OF_DX[dx], eta0, eta1, p1, p2)
 
         # add kernel elements
         self.Lpm_second[r0,r1,cind0[0],cind0[1], indx4, indx0] += fct

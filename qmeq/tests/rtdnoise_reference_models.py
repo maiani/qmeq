@@ -354,9 +354,9 @@ _LIVE_FIELD_NAMES = {
 def solve_rtdnoise_scenario(system, scenario):
     """Solve a scenario, silencing one expected and irrelevant warning.
 
-    The complex-amplitude scenarios trip RTD's "complex matrix
-    elements are not supported for the RTD energy current" warning
-    (``qmeq/approach/base/RTD.py:409-420``), because ``RTDnoise.generate_kern``
+    The complex-amplitude scenarios trip RTD's warning that it does not
+    compute the energy and heat currents for complex tunnelling products
+    (``ApproachPyRTD.generate_current``), because ``RTDnoise.generate_kern``
     still populates the energy-current blocks ``WE1``/``WE2`` even though
     none of the fields this bundle captures depend on them (RTDnoise reports
     only the counting cumulants, never ``energy_current``/``heat_current``).
