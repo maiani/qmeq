@@ -158,3 +158,37 @@ def test_2vN_is_covariant_under_eigenstate_rephasing(kerntype):
                 covariant = (reference.phi0[index]
                              * np.exp(-1j*theta[b] + 1j*theta[bp]))
                 assert abs(rephased.phi0[index] - covariant) < 1e-13
+
+
+def _spinless_double_dot_current(coulomb, mulst, kpnt):
+    system = qmeq.Builder(
+        nsingle=2, hsingle={(0, 0): -0.3, (1, 1): 0.4, (0, 1): 0.2},
+        coulomb={(0, 1, 1, 0): coulomb}, nleads=2,
+        tleads={(0, 0): 0.3, (1, 1): 0.3, (0, 1): 0.15, (1, 0): 0.09},
+        mulst=mulst, tlst={0: 1.0, 1: 1.0}, dband={0: 10.0, 1: 10.0},
+        kpnt=kpnt, kerntype='2vN',
+    )
+    system.solve(niter=4)
+    return system.current[0]
+
+
+def test_2vN_equilibrium_current_vanishes_with_the_grid_without_interaction():
+    """At equal chemical potentials and temperatures no current flows.
+
+    Without interaction the 2vN equilibrium current is a discretisation
+    error of the energy grid: each doubling of ``kpnt`` cuts it by more than
+    the factor 4 that second-order convergence in the grid spacing would give
+    (measured: about 10 and 15), towards zero. The model is strongly coupled, Gamma = 2*pi*0.3**2 ~ 0.57 T, and
+    asymmetric between the leads, so nothing forces the current to vanish
+    but equilibrium itself. With ``coulomb=2.0`` the same sequence converges
+    instead, to about -8.6e-5: that remainder is the documented 2vN
+    equilibrium current at finite interaction, not a grid error.
+    """
+    biased = _spinless_double_dot_current(0.0, {0: 0.5, 1: -0.5}, 64)
+    equilibrium = np.array([
+        _spinless_double_dot_current(0.0, {0: 0.0, 1: 0.0}, kpnt)
+        for kpnt in (64, 128, 256)
+    ])
+    reduction = np.abs(equilibrium[:-1]/equilibrium[1:])
+    assert np.all(reduction > 4.0), reduction
+    assert abs(equilibrium[-1]) < 1e-4*abs(biased)

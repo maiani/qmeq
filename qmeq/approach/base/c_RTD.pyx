@@ -344,9 +344,10 @@ cdef class ApproachRTD(Approach):
             self.heat_current.fill(np.nan)
             if not self.printed_warning_ImGamma:
                 warnings.warn(
-                    "Complex matrix elements are not supported for the RTD "
-                    "energy current; energy_current and heat_current were "
-                    "set to NaN.",
+                    "RTD does not compute the energy and heat currents when a "
+                    "product of tunnelling amplitudes is complex; "
+                    "energy_current and heat_current were set to NaN; current "
+                    "is unaffected.",
                     QmeqRuntimeWarning,
                     stacklevel=2,
                 )

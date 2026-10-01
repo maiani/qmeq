@@ -108,6 +108,13 @@ number because 1.1 was wrong there. The cases, each detailed below:
     then exactly zero, so moving `dband` by `1e-9` across a transition energy
     turned a finite current into a silent `0`. Shown once per system; leads
     with no coupling at all are not flagged.
+  - With `bandwidth='infinite'` (`itype` 1 or 3), a `QmeqWarning` names every
+    lead whose band excludes a transition the lead couples to. The band edges
+    remove no transition there, so a symmetric `dband` of `0.01` gave the same
+    current as `1e5` without comment, and an asymmetric one moved the 1vN and
+    Redfield principal parts by tens of percent. A band of exactly `(0, 0)`,
+    the stored value when no `dband` is given, is not flagged; neither are
+    RTD and RTDnoise, which keep `dband` as a regulator.
   - Under `'sz'` or `'ssq'` indexing, a `QmeqWarning` names the lead channels
     and phonon baths that break the symmetry the indexing assumes: a channel
     reaching both spins breaks S_z, and channels sharing a chemical potential,

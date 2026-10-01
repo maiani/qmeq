@@ -62,6 +62,10 @@ class FunctionProperties(object):
     suppress_band_wrn : bool
         Determines whether to warn when a finite band excludes every
         transition a lead couples to; the warning is shown at most once.
+    suppress_wide_band_wrn : bool
+        Determines whether to warn when a wide-band calculation is given a
+        band that excludes transitions a lead couples to; the warning is
+        shown at most once.
     suppress_unphysical_wrn : bool
         Determines whether to warn when a stationary solution is found to be
         unphysical; the warning is shown at most once per approach instance,
@@ -115,6 +119,8 @@ class FunctionProperties(object):
         self.suppress_unphysical_wrn = False
         # Shown once: a finite band that leaves a lead no transition.
         self.suppress_band_wrn = False
+        # Shown once: a wide-band calculation given a band its rates ignore.
+        self.suppress_wide_band_wrn = False
         # Shown once: couplings that break the symmetry of 'sz'/'ssq' indexing.
         self.suppress_symmetry_wrn = False
         #

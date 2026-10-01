@@ -6,9 +6,13 @@ transport approaches:
 `bandwidth`
 :   Selects whether the finite lead bandwidths in `dband` are enforced.
     Use `'finite'` to drop transitions outside the bands or `'infinite'`
-    for the wide-band limit. RTD is an important exception: the option selects
-    wide-band sequential rates, but its published second-order integrals still
-    retain `dband` as a finite regulator.
+    for the wide-band limit. With `'infinite'` the band edges remove no
+    transition, and the wide-band principal parts assume that every edge lies
+    far outside the transition energies. QmeQ therefore warns once per system
+    when a lead's band excludes a transition the lead couples to. RTD is an
+    important exception: the option selects wide-band sequential rates, but
+    its published second-order integrals still retain `dband` as a finite
+    regulator.
 
 `principal_part`
 :   Selects how principal-value contributions are evaluated. Use `'quad'`

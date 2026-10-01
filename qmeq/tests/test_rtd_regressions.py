@@ -69,6 +69,63 @@ def test_RTD_complex_energy_current_emits_runtime_warning(kerntype):
         _roundoff_phase_current(1e-3, kerntype)
 
 
+def _rtd_currents(tleads, nsingle, kerntype):
+    hsingle = {(0, 0): 0.1} if nsingle == 1 else {(0, 0): -0.2, (1, 1): 0.3}
+    coulomb = {} if nsingle == 1 else {(0, 1, 1, 0): 1.0}
+    system = qmeq.Builder(
+        nsingle=nsingle, hsingle=hsingle, coulomb=coulomb, nleads=2,
+        tleads=tleads, mulst={0: 0.6, 1: -0.6}, tlst={0: 0.5, 1: 0.5},
+        dband=1000.0, kerntype=kerntype, itype=1,
+    )
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        system.solve()
+        system.solve()
+    energy_warnings = [
+        w for w in caught if "energy_current and heat_current" in str(w.message)
+    ]
+    return system, energy_warnings
+
+
+@pytest.mark.parametrize("kerntype", ["pyRTD", "RTD"])
+def test_RTD_energy_current_survives_a_gauge_phase(kerntype):
+    """A lead phase on a single level is a gauge choice, not a complex product.
+
+    Every product entering the energy-current kernels is then real, so the
+    energy and heat currents are computed, and all three currents equal the
+    zero-phase result.
+    """
+    real, _ = _rtd_currents({(0, 0): 0.1, (1, 0): 0.1}, 1, kerntype)
+    phased, caught = _rtd_currents(
+        {(0, 0): 0.1, (1, 0): 0.1*np.exp(0.7j)}, 1, kerntype,
+    )
+    assert caught == []
+    for name in ("current", "energy_current", "heat_current"):
+        np.testing.assert_allclose(
+            getattr(phased, name), getattr(real, name), rtol=1e-12, atol=0,
+        )
+
+
+def test_RTD_flux_leaves_only_the_energy_and_heat_currents_undefined():
+    """A flux through a two-orbital loop makes a product genuinely complex.
+
+    The energy and heat currents are NaN and warn once per approach, while
+    ``current`` is still computed, identically by both implementations.
+    """
+    tleads = {(0, 0): 0.05, (0, 1): 0.04, (1, 0): 0.03,
+              (1, 1): 0.05*np.exp(0.7j)}
+    results = {}
+    for kerntype in ("pyRTD", "RTD"):
+        system, caught = _rtd_currents(tleads, 2, kerntype)
+        assert len(caught) == 1
+        assert issubclass(caught[0].category, qmeq.QmeqRuntimeWarning)
+        assert np.all(np.isnan(system.energy_current))
+        assert np.all(np.isnan(system.heat_current))
+        assert np.all(np.isfinite(system.current))
+        results[kerntype] = system.current
+    np.testing.assert_allclose(results["RTD"], results["pyRTD"], rtol=1e-10, atol=0)
+
+
 @pytest.mark.parametrize("kerntype", ["pyRTD", "RTD"])
 def test_RTD_missing_single_particle_amplitudes_warns(kerntype):
     reference = qmeq.Builder(

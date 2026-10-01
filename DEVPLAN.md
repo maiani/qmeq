@@ -35,7 +35,7 @@ beyond the numerical floor and the path being replaced serves as the gate.
 | Item | What 1.2 ships instead |
 |---|---|
 | Full-coherence RTD: `L0+W1` and `L0+W1+W2` on the complete `dm0`, with coherent counting | RTD and RTDnoise eliminate same-charge coherences. `RTDCoherenceWarning` and `rtd_coherence_diagnostics`, including `clamped_coherences`, flag where the elimination fails |
-| RTD energy and heat currents for complex tunnel amplitudes | `nan` with a warning. The particle current is unaffected (A3) |
+| RTD energy and heat currents for complex tunnel amplitudes | `nan` with a warning. The particle current is unaffected |
 | A helper that sweeps `dband` for thermal-bias RTD | A documented convergence recipe (D4) |
 | A 2vN `kpnt` convergence check | The documented `kpnt`/`niter` requirement, with a measured example (D4) |
 | A public non-interacting reference solver | The NEGF solver stays test-only, in `qmeq/tests/noninteracting_negf_solver.py` |
@@ -70,46 +70,6 @@ observable through `clamped_coherences`.
   `AUTHORS.md`, `README.md` and the publishing configuration are written once.
 
 ## 4. Open work
-
-### A. Correctness and diagnostics
-
-- **A1. Warn when `dband` is ignored.** With `bandwidth='infinite'` (`itype` 1
-  or 3), Pauli, Lindblad, Redfield and 1vN drop the cutoff. Their current is
-  identical to six digits from `dband=1e5` down to `dband=0.01`, a band far
-  narrower than both the bias window and the level energies, and nothing says
-  so.
-  - Warn once per system when an explicitly supplied `dband` falls inside the
-    transition window under the wide-band options. Raise the warning from the
-    shared solve, beside `check_band_coverage`.
-  - Exclude RTD and RTDnoise. There `dband` regulates the unequal-temperature
-    integrals and is not ignored.
-  - Stay silent when the caller did not supply `dband`.
-  - Test both the warning and its silence, next to
-    `test_a_band_that_excludes_every_transition_warns`.
-- **A2. Characterise the 2vN equilibrium current at finite interaction.**
-  - What is measured: at `mu_L = mu_R` and equal temperatures, 2vN carries a
-    current of about 2% of the biased current at `U = 2` on a spinless double
-    dot, and about `5e-8` at `U = 0`. The value does not depend on `dband` or
-    `kpnt`. Successive halvings of the tunnelling amplitude take the ratio
-    from `1.4e-2` to `7.5e-4`, `2e-5` and `1.7e-6`, so the current is of high
-    order in the coupling.
-  - Next step: measure how the current depends on `niter`, the one control
-    not yet varied.
-  - If it converges away, document the `niter` it needs. If it is a property
-    of the 2vN truncation, document it under 2vN in
-    `docs/docs/guide/approaches.md` as a known failure mode, with the measured
-    scaling. If a diagnosis would need a new derivation, document the
-    behaviour as open.
-  - In every case, pin the `U = 0` equilibrium current at the numerical floor.
-    2vN is exact there.
-- **A3. State the complex-amplitude energy-current limitation in the code.**
-  RTD's `WE1`/`WE2` assembly keeps only `gamma.real`, fills `energy_current`
-  and `heat_current` with `nan`, and warns.
-  - Delete the commented-out `gamma.imag` terms in
-    `qmeq/approach/base/RTD.py`. The Cython twin has none.
-  - Make the warning and the RTD docstrings say that QmeQ does not compute
-    these currents for complex amplitudes, without implying an unfinished
-    derivation.
 
 ### B. One RTD diagram traversal, and a compiled RTDnoise
 
@@ -339,6 +299,8 @@ result beyond the numerical floor.
   splittings `≲ Γ`. The diagnostics flag this case.
 - RTD energy and heat currents are `nan` for complex tunnel amplitudes.
 - Thermal-bias RTD needs a `dband` convergence check.
+- At finite interaction 2vN carries an equilibrium current of order
+  `Gamma^3`.
 - Counting statistics cover the first two zero-frequency particle-current
   cumulants. There is no counting for 2vN, the electron-phonon approaches or
   matrix-free solving.

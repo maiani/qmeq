@@ -108,7 +108,28 @@ checks certifies the *physical* accuracy of the second-order expansion
 itself: tutorial 6 notes that "a converged 2vN result at $\Gamma\sim T$ is a
 precisely computed approximation, not a precise answer."
 
-**Known failure mode:** neither `bandwidth` nor `principal_part` is used by
+**Known failure mode: an equilibrium current at finite interaction.** At
+equal chemical potentials and temperatures, 2vN carries a small current when
+$U\neq0$. It is not a numerical error. On a spinless double dot with
+$\Gamma=2\pi t^2\approx0.57\,T$ and $U=2T$, the current:
+
+- is converged in `niter` (by 8 iterations), in `kpnt` (it changes by 0.2%
+  when the grid doubles) and in `dband` (it approaches its limit as
+  $1/$`dband`);
+- grows from zero with $U$; and
+- without interaction falls to zero as the grid is refined, which
+  `test_2vN_equilibrium_current_vanishes_with_the_grid_without_interaction`
+  checks.
+
+It scales as $\Gamma^3$, against $\Gamma$ for the biased current. In that
+model it is $4.3\times10^{-3}$ of the current at a bias of $T$, and the ratio
+falls by 12.8, 15.6 and 15.9, approaching 16, for successive factors of 4 in
+$\Gamma$. It is therefore attributed to the 2vN truncation at finite
+interaction. The attribution rests on these measurements, not on a
+derivation. 2vN does not resolve a current that is not large compared with the
+equilibrium current of the same model.
+
+**Supported options:** neither `bandwidth` nor `principal_part` is used by
 2vN (`resolve_transport_options` raises `ValueError` if either is supplied
 explicitly for `kerntype='2vN'`); indexing is restricted to `'Lin'` or
 `'charge'` (`validate_indexing`, `qmeq/builder/validation.py`).

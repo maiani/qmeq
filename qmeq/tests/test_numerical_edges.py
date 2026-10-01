@@ -257,6 +257,74 @@ def test_the_band_warning_ignores_wide_band_and_uncoupled_leads():
     assert _band_warnings(caught) == []
 
 
+def _wide_band_warnings(caught):
+    return [w for w in caught if "do not remove transitions" in str(w.message)]
+
+
+@pytest.mark.parametrize(
+    ("kerntype", "itype"),
+    [
+        ("Pauli", 1), ("pyPauli", 3), ("1vN", 1), ("py1vN", 3),
+        ("Redfield", 1), ("pyRedfield", 3), ("Lindblad", 1),
+    ],
+)
+def test_a_wide_band_given_a_band_inside_the_transitions_warns(kerntype, itype):
+    """Under the wide-band options a band edge inside the transitions is not applied.
+
+    The rates keep every transition, so a symmetric band far narrower than
+    every transition energy gives the current of a band of 1e5 exactly,
+    and only this warning reports that the band was not applied. It is
+    shown once per system.
+    """
+    def solve(dband):
+        system = _system(dband=dband, kerntype=kerntype, itype=itype)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            system.solve()
+            system.solve()
+        return system, _wide_band_warnings(caught)
+
+    narrow, caught = solve(0.01)
+    assert len(caught) == 1
+    assert issubclass(caught[0].category, qmeq.QmeqWarning)
+    assert "lead 0" in str(caught[0].message) and "lead 1" in str(caught[0].message)
+
+    wide, caught = solve(1e5)
+    assert caught == []
+    np.testing.assert_allclose(narrow.current, wide.current, rtol=1e-12, atol=0)
+
+
+def test_the_wide_band_warning_ignores_an_unset_band_rtd_and_finite_bands():
+    """Three narrow-looking bands are not a wide band ignoring its edges.
+
+    Without ``dband`` every band is stored as exactly ``(0, 0)``, which
+    Lindblad's default infinite band never reads. RTD keeps ``dband`` as the
+    regulator of its second-order integrals. A finite band applies its edges,
+    and ``check_band_coverage`` reports the case where they cut off a lead.
+    """
+    unset = qmeq.Builder(
+        nsingle=1, hsingle={(0, 0): 0.1}, nleads=2,
+        tleads={(0, 0): 0.1, (1, 0): 0.1}, mulst={0: 0.3, 1: -0.3},
+        tlst={0: 1.0, 1: 1.0}, kerntype="Lindblad", principal_part="digamma",
+    )
+    systems = [unset]
+    for kerntype in ("pyRTD", "RTD"):
+        rtd = _single_level(kerntype)
+        rtd.change(dlst={0: 0.05, 1: 0.05})
+        systems.append(rtd)
+    finite = _single_level("Pauli")
+    finite.change(dlst={0: 0.05, 1: 0.05})
+    finite.itype = 0
+    systems.append(finite)
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        for system in systems:
+            system.solve()
+    assert np.asarray(unset.leads.dlst).tolist() == [[0.0, 0.0], [0.0, 0.0]]
+    assert _wide_band_warnings(caught) == []
+
+
 def test_itype0_accepts_a_band_edge_next_to_a_transition_energy():
     """Only exact coincidence is refused; a neighbouring cutoff still solves.
 

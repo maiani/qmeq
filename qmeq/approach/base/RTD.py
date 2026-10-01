@@ -467,6 +467,11 @@ class ApproachPyRTD(Approach):
 
         Heat current for reservoir r is evaluated as :math:`Q^r = E^r - \mu_r\cdot I^r`.
 
+        QmeQ does not compute the energy and heat currents when a tunnelling
+        product entering :math:`W_{E,1}` or :math:`W_{E,2}` is complex, as with
+        a flux or interference: both are then NaN, and a
+        ``QmeqRuntimeWarning`` is raised once. ``current`` is unaffected.
+
         Parameters
         ----------
         self.current : array
@@ -499,9 +504,10 @@ class ApproachPyRTD(Approach):
             self.heat_current.fill(np.nan)
             if not self.printed_warning_ImGamma:
                 warnings.warn(
-                    "Complex matrix elements are not supported for the RTD "
-                    "energy current; energy_current and heat_current were "
-                    "set to NaN.",
+                    "RTD does not compute the energy and heat currents when a "
+                    "product of tunnelling amplitudes is complex; "
+                    "energy_current and heat_current were set to NaN; current "
+                    "is unaffected.",
                     QmeqRuntimeWarning,
                     stacklevel=2,
                 )
@@ -591,7 +597,8 @@ class ApproachPyRTD(Approach):
          is obtained from a diagram of the form
          :math:`L_{T,r}^+  L_{T, r_2}^-  (z-L_{dot} - L_r )^{-1}  L_T  (z-L_{dot} - L_r )^{-1} L_T \phi_0`,
          when contracting the first and third, as well as second and fourth, reservoir superoperators. Assumes
-         that the wide-band limit is valid and that all products of tunnel matrix elements are real.
+         the wide-band limit. Only the real part of each tunnelling product enters; a complex product
+         sets ``ImGamma``, and :meth:`generate_current` then reports NaN energy and heat currents.
 
          Parameters
          ----------
@@ -628,8 +635,6 @@ class ApproachPyRTD(Approach):
                 temp += gamma.real * phi(-(dE - mu) / Tr, dlst[l, 0] / Tr, dlst[l, 1] / Tr)
                 if abs(gamma.imag) > t_cutoff:
                     self.ImGamma = True
-                    #temp += gamma.imag * fermi_func((dE - mu) / Tr)*np.pi
-                    #temp += gamma.imag * fermi_func(-(dE - mu) / Tr) * np.pi
 
                 temp *= np.pi
                 kh.set_matrix_element_dd(l, temp, temp, bb, aa, RtdMatrix.WE1)
@@ -648,8 +653,6 @@ class ApproachPyRTD(Approach):
                 temp += gamma.real * phi(-(dE - mu) / Tr, dlst[l, 0] / Tr, dlst[l, 1] / Tr)
                 if abs(gamma.imag) > t_cutoff:
                     self.ImGamma = True
-                    #temp += gamma.imag * fermi_func((dE - mu) / Tr) * np.pi
-                    #temp += gamma.imag * fermi_func(-(dE - mu) / Tr) * np.pi
 
                 temp *= np.pi
                 kh.set_matrix_element_dd(l, temp, temp, bb, cc, RtdMatrix.WE1)
@@ -659,7 +662,8 @@ class ApproachPyRTD(Approach):
         This kernel is obatined from a diagram of the form
         :math:`L_{T,r}^+  L_{T, r_2}^-  (z-L_{dot} - L_r )^{-1}  L_T  (z-L_{dot} - L_r )^{-1} L_T \phi_0`,
         when contracting the first and fourth, as well as second and third, reservoir superoperators. Assumes
-        that the wide-band limit is valid and that all products of tunnel matrix elements are real.
+        the wide-band limit. Only the real part of each tunnelling product enters; a complex product
+        sets ``ImGamma``, and :meth:`generate_current` then reports NaN energy and heat currents.
 
         Parameters
         ----------
@@ -691,15 +695,11 @@ class ApproachPyRTD(Approach):
                         mu, Tr, gamma = mulst[lp], tlst[lp], 0.0
                         for n1 in range(nsingle):
                             gamma += Tba[l, a, b] * Tba[lp, a, b].conj() * tleads[l, n1] * tleads[lp, n1].conj()
-                        if abs(gamma.imag) > t_cutoff:
-                            self.ImGamma = True
                         dE = E[b] - E[a]
                         temp += gamma.real * phi((dE - mu) / Tr, dlst[lp, 0] / Tr, dlst[lp, 1] / Tr)
                         temp += gamma.real * phi(-(dE - mu) / Tr, dlst[lp, 0] / Tr, dlst[lp, 1] / Tr)
                         if abs(gamma.imag) > t_cutoff:
                             self.ImGamma = True
-                            #temp += gamma.imag * fermi_func((dE - mu) / Tr) * np.pi
-                            #temp += gamma.imag * fermi_func(-(dE - mu) / Tr) * np.pi
                 temp *= np.pi
                 kh.set_matrix_element_dd(l, temp, temp, bb, aa, RtdMatrix.WE2)
 
@@ -717,8 +717,6 @@ class ApproachPyRTD(Approach):
                         temp += gamma.real * phi(-(dE - mu) / Tr, dlst[lp, 0] / Tr, dlst[lp, 1] / Tr)
                         if abs(gamma.imag) > t_cutoff:
                             self.ImGamma = True
-                            #temp += gamma.imag * fermi_func((dE - mu) / Tr) * np.pi
-                            #temp += gamma.imag * fermi_func(-(dE - mu) / Tr) * np.pi
                 temp *= np.pi
                 kh.set_matrix_element_dd(l, temp, temp, bb, cc, RtdMatrix.WE2)
 

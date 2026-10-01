@@ -173,23 +173,15 @@ def check_stationary_solution(appr, warn=True):
     return diag
 
 
-def check_band_coverage(appr):
-    """Warn once when a finite band leaves a lead no transition to tunnel through.
+def _coupled_transitions_by_lead(appr):
+    """Yield, per lead, the transitions it couples to and those inside its band.
 
-    With a finite band (``itype`` 0 or 2) a rate is kept only for a
-    transition energy ``E_c - E_b`` strictly inside the lead's band
-    ``(dlst[l, 0], dlst[l, 1])``, so a lead whose every coupled transition
-    lies outside it has all its rates zero and carries no current. Moving
-    ``dband`` by a hair across the transition energy is then the difference
-    between a finite current and an exact, silent zero. Leads with no coupled
-    transition at all are not flagged: that is the model, not the band.
-
-    The warning is shown once per system and the check is skipped for the
-    wide-band ``itype`` values 1 and 3, which ignore the band.
+    A transition ``c <- b`` adds one electron at energy ``E_c - E_b``; a
+    finite band keeps it only strictly inside ``(dlst[l, 0], dlst[l, 1])``.
+    Yields ``(lead, coupled, inside)`` with two boolean matrices over the
+    carried states, rows ``c`` and columns ``b``, and skips leads that couple
+    to no transition at all.
     """
-    funcp = appr.funcp
-    if funcp.itype not in (0, 2) or funcp.suppress_band_wrn:
-        return
     si = appr.si
     states = [b for sector in si.statesdm for b in sector]
     if not states:
@@ -201,25 +193,50 @@ def check_band_coverage(appr):
         charge[offset:offset + len(sector)] = n
         offset += len(sector)
     energy = np.asarray(appr.qd.Ea)[states]
-    # Transition c <- b adds one electron: rows c, columns b.
     adds_one = charge[:, None] == charge[None, :] + 1
     transition = energy[:, None] - energy[None, :]
     Tba, dlst = np.asarray(appr.leads.Tba), np.asarray(appr.leads.dlst)
 
-    silenced = []
     for lead in range(si.nleads):
         coupled = adds_one & (np.abs(Tba[lead][np.ix_(states, states)]) > 0.0)
         if not coupled.any():
             continue
         inside = (dlst[lead, 0] < transition) & (transition < dlst[lead, 1])
-        if not (coupled & inside).any():
-            silenced.append(lead)
+        yield lead, coupled, inside
+
+
+def _listed_bands(appr, leads):
+    dlst = np.asarray(appr.leads.dlst)
+    return ", ".join(
+        f"lead {lead} (band {dlst[lead, 0]:g} to {dlst[lead, 1]:g})"
+        for lead in leads
+    )
+
+
+def check_band_coverage(appr):
+    """Warn once when a finite band leaves a lead no transition to tunnel through.
+
+    With a finite band (``itype`` 0 or 2) a rate is kept only for a
+    transition energy ``E_c - E_b`` strictly inside the lead's band
+    ``(dlst[l, 0], dlst[l, 1])``, so a lead whose every coupled transition
+    lies outside it has all its rates zero and carries no current. Moving
+    ``dband`` by a hair across the transition energy is then the difference
+    between a finite current and an exact, silent zero. Leads with no coupled
+    transition at all are not flagged: that is the model, not the band.
+
+    The warning is shown once per system. The wide-band ``itype`` values 1
+    and 3 are covered by :func:`check_wide_band_edges` instead.
+    """
+    funcp = appr.funcp
+    if funcp.itype not in (0, 2) or funcp.suppress_band_wrn:
+        return
+    silenced = [
+        lead for lead, coupled, inside in _coupled_transitions_by_lead(appr)
+        if not (coupled & inside).any()
+    ]
 
     if silenced:
-        listed = ", ".join(
-            f"lead {lead} (band {dlst[lead, 0]:g} to {dlst[lead, 1]:g})"
-            for lead in silenced
-        )
+        listed = _listed_bands(appr, silenced)
         warnings.warn(
             "With a finite band (itype=%d) no transition these leads couple to "
             "lies inside their band: %s. Their tunnelling rates are all zero, "
@@ -230,6 +247,56 @@ def check_band_coverage(appr):
             stacklevel=3,
         )
         funcp.suppress_band_wrn = True
+
+
+_BAND_REGULATED_KERNTYPES = frozenset({'RTD', 'pyRTD', 'RTDnoise', 'pyRTDnoise'})
+"""Approaches whose wide-band integrals keep ``dband`` as a finite regulator.
+
+Their bandwidth requirement is checked by the RTD diagnostics instead."""
+
+
+def check_wide_band_edges(appr):
+    """Warn once when a wide-band calculation is given a band its rates ignore.
+
+    With ``bandwidth='infinite'`` (``itype`` 1 or 3) the rates keep every
+    transition, wherever the band edges lie, and the wide-band forms of the
+    principal parts assume that every edge lies far outside the transition
+    energies. A band that excludes a transition the lead couples to therefore
+    does not act as a band. For a symmetric band the current is unchanged
+    when ``dband`` shrinks below the transition energies. For an asymmetric
+    one, the ``log|D_-/D_+|`` term of the digamma principal part changes it,
+    in a regime where that form does not hold.
+
+    A lead whose band is exactly ``(0, 0)`` is not flagged: that is the
+    stored value when no ``dband`` was given. RTD and RTDnoise are skipped,
+    because there ``dband`` is the regulator of the second-order integrals.
+    The warning is shown once per system.
+    """
+    funcp = appr.funcp
+    if funcp.itype not in (1, 3) or funcp.suppress_wide_band_wrn:
+        return
+    if appr.kerntype in _BAND_REGULATED_KERNTYPES:
+        return
+    dlst = np.asarray(appr.leads.dlst)
+    ignored = [
+        lead for lead, coupled, inside in _coupled_transitions_by_lead(appr)
+        if not (dlst[lead, 0] == 0.0 and dlst[lead, 1] == 0.0)
+        and (coupled & ~inside).any()
+    ]
+
+    if ignored:
+        warnings.warn(
+            "With bandwidth='infinite' (itype=%d) the band edges do not remove "
+            "transitions from the rates, and the wide-band principal parts "
+            "assume every edge lies far outside the transition energies. "
+            "These leads couple to transitions outside their band: %s. Use "
+            "bandwidth='finite' if the band edges are meant to cut those "
+            "transitions off, or widen dband. This warning is shown once per "
+            "system." % (funcp.itype, _listed_bands(appr, ignored)),
+            QmeqWarning,
+            stacklevel=3,
+        )
+        funcp.suppress_wide_band_wrn = True
 
 
 SYMMETRY_TOL = 1e-10
