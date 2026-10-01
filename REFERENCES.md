@@ -178,6 +178,23 @@ symmetric coupling the two differ as `2.5 Omega^2` against `3 Omega^2` in the
 denominator. Recorded to fix which of the two QmeQ's spinless two-orbital
 tutorial model reproduces; it is the Stoof-Nazarov form.
 
+### `SukhorukovBurkardLoss2001`
+
+E. V. Sukhorukov, G. Burkard, and D. Loss, “Noise of a quantum-dot system in
+the cotunneling regime,” *Physical Review B* **63**, 125315 (2001).
+[DOI](https://doi.org/10.1103/PhysRevB.63.125315) ·
+[arXiv](https://arxiv.org/abs/cond-mat/0010458)
+
+Equation (3.21) of the arXiv version is a non-equilibrium
+fluctuation-dissipation theorem for a dot in the weak-cotunnelling regime,
+`S(w, dmu) = (e/2) sum_{+-} coth[(dmu +- w)/(2 k_B T)] I(dmu +- w)`, so
+`S = coth(dmu/2 k_B T) I` at zero frequency, with `S = e I` in the Poisson
+limit as in QmeQ's noise convention. Section IV extends the analysis to strong
+cotunnelling, where the dot does not relax between events: elastic
+cotunnelling stays Poissonian (`F = 1`), and only inelastic cotunnelling can
+be super-Poissonian. Used for the noise of the spin-degenerate Anderson dot in
+deep blockade, whose cotunnelling is purely elastic.
+
 ## Special functions
 
 ### `Ozaki2007`

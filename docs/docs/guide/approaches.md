@@ -277,17 +277,20 @@ residual rather than by a tolerance:
 With interaction, a particle-hole-symmetric, spin-degenerate Anderson dot deep
 in Coulomb blockade reproduces the elastic-cotunnelling current within
 $2\times10^{-3}$
-(`test_interacting_deep_blockade_matches_elastic_cotunnelling_current`). Its
-noise is only checked to be finite: without an intrinsic spin-relaxation
-bath the dot is in the strong-cotunnelling regime, where no Poisson identity
-applies. Structural identities (column sums, conservation, equilibrium,
+(`test_interacting_deep_blockade_matches_elastic_cotunnelling_current`), and
+its noise obeys the cotunnelling fluctuation-dissipation theorem
+$S=\coth(V/2T)\,I$ [SukhorukovBurkardLoss2001], with a residual that vanishes
+linearly in the coupling
+(`test_interacting_deep_blockade_noise_obeys_the_cotunnelling_fdt`). The
+cotunnelling there is purely elastic, which keeps the noise Poissonian although
+the dot has no intrinsic relaxation. Structural identities (column sums, conservation, equilibrium,
 symmetric covariances, charge conservation of the counting labels) hold on
 interacting and multi-lead systems (`test_rtdnoise_structural_invariants.py`,
 `test_rtd_diagrams.py`).
 
-Not graded: interacting systems outside deep blockade, splittings of order
-$\Gamma$ or below (where the elimination is invalid by construction), noise
-values at finite interaction, and the energy current for complex amplitudes.
+Not graded: interacting systems outside deep blockade, current or noise;
+splittings of order $\Gamma$ or below, where the elimination is invalid by
+construction; and the energy current for complex amplitudes.
 
 ### Checking `dband` convergence at a thermal bias
 

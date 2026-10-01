@@ -526,21 +526,14 @@ def test_complex_flux_second_order_kernel_matches_stationary_rtd():
     )
 
 
-def test_interacting_deep_blockade_matches_elastic_cotunnelling_current():
-    """Current approaches the symmetric-Anderson cotunnelling limit.
+def _deep_blockade_cumulants(gamma):
+    """Current and noise of the spin-degenerate Anderson dot in deep blockade.
 
-    At particle-hole symmetry, elastic potential and exchange cotunnelling of
-    the spin-degenerate Anderson dot give three equal squared-denominator
-    contributions.
-
-    No Poisson noise identity is imposed here. The QmeQ model has no intrinsic
-    spin-relaxation bath and is therefore in the strong-cotunnelling regime of
-    Sukhorukov, Burkard, and Loss, where the dot state retains memory between
-    events. Their weak-cotunnelling identity ``S/I = coth(bias/(2*T))`` requires
-    an intrinsic relaxation rate larger than the cotunnelling rate and does not
-    apply to this model.
+    The level sits at ``-U/2`` (particle-hole symmetry) with the bias and
+    temperature far below the addition energies, so sequential tunnelling is
+    exponentially suppressed and transport is cotunnelling. Both spins of the
+    left lead are counted.
     """
-    gamma = DEEP_BLOCKADE_GAMMA
     epsilon = DEEP_BLOCKADE_LEVEL_ENERGY
     interaction = DEEP_BLOCKADE_INTERACTION
     bias = DEEP_BLOCKADE_BIAS
@@ -570,15 +563,48 @@ def test_interacting_deep_blockade_matches_elastic_cotunnelling_current():
     # full, uniquely stationary cotunnelling observables under test.
     system.solve(currentq=False)
     system.appr.generate_current_noise()
-    system.appr.generate_current()
+    current, noise = system.current_noise
+    return current.real, noise.real
 
+
+def test_interacting_deep_blockade_matches_elastic_cotunnelling_current():
+    """Current approaches the symmetric-Anderson cotunnelling limit.
+
+    At particle-hole symmetry, elastic potential and exchange cotunnelling of
+    the spin-degenerate Anderson dot give three equal squared-denominator
+    contributions.
+    """
+    gamma = DEEP_BLOCKADE_GAMMA
+    epsilon = DEEP_BLOCKADE_LEVEL_ENERGY
+    interaction = DEEP_BLOCKADE_INTERACTION
+    current, _ = _deep_blockade_cumulants(gamma)
     denominator = 1.0 / epsilon**2 + 1.0 / (epsilon + interaction) ** 2
-    expected_current = 3.0 * gamma**2 * bias * denominator / (2.0 * np.pi)
+    expected_current = 3.0 * gamma**2 * DEEP_BLOCKADE_BIAS * denominator / (2.0 * np.pi)
     np.testing.assert_allclose(
-        system.current_noise[0].real, expected_current,
-        rtol=DEEP_BLOCKADE_CURRENT_RTOL, atol=0.0,
+        current, expected_current, rtol=DEEP_BLOCKADE_CURRENT_RTOL, atol=0.0,
     )
-    assert np.isfinite(system.current_noise[1])
+
+
+def test_interacting_deep_blockade_noise_obeys_the_cotunnelling_fdt():
+    """``S = coth(bias / 2T) I`` holds for the elastic cotunnelling noise.
+
+    [SukhorukovBurkardLoss2001, Eq. (3.21)] gives this non-equilibrium
+    fluctuation-dissipation theorem at zero frequency. The dot here has no
+    intrinsic relaxation, but at zero field every cotunnelling process is
+    elastic, and their Sec. IV keeps elastic cotunnelling Poissonian in that
+    regime too. The relation holds at the first non-vanishing order in the
+    tunnelling, so the residual must vanish linearly in the coupling; the
+    fitted order is asserted rather than a tolerance at one coupling.
+    """
+    gammas = np.array([0.02, 0.01, 0.005])
+    residuals = []
+    for gamma in gammas:
+        current, noise = _deep_blockade_cumulants(gamma)
+        fdt = current / np.tanh(DEEP_BLOCKADE_BIAS / (2.0 * DEEP_BLOCKADE_TEMPERATURE))
+        residuals.append(abs(noise / fdt - 1.0))
+    order = _log_slope(gammas, residuals)
+    assert 0.85 < order < 1.15, (order, residuals)
+    assert residuals[-1] < 1e-2, residuals
 
 
 def _rescaled_inputs(lam: float) -> dict[str, object]:

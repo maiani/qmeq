@@ -25,7 +25,8 @@ QmeQ also provides:
 * zero-frequency counting statistics, the mean current and its noise resolved
   by lead, for Pauli, Lindblad, Redfield, 1vN and RTD (`RTDnoise`). They follow
   [Emary's formulation](https://arxiv.org/abs/0902.3544) and were developed by
-  Simon Wozny in his [QmeQ fork](https://github.com/si8881wo/qmeq);
+  Simon Wozny in his [QmeQ fork](https://github.com/si8881wo/qmeq), with an
+  [example notebook](https://github.com/si8881wo/qmeq-noise-example);
 * diagnostics that warn when a stationary state is unphysical or an approach
   is used outside its regime; and
 * compiled (Cython) and pure-Python implementations of the same approaches.
