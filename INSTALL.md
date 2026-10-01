@@ -20,7 +20,7 @@ documentation and whose results differ in the cases listed at the top of
   build a tag from source (this needs a C compiler; see below):
 
   ```bash
-  $ pip install "qmeq @ git+https://github.com/qmeq/qmeq.git@v1.2.0.dev11"
+  $ pip install "qmeq @ git+https://github.com/qmeq/qmeq.git@v1.2.0.dev12"
   ```
 
   A project that must reproduce its results should pin a tag like this rather
