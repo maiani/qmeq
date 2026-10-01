@@ -179,7 +179,8 @@ number because 1.1 was wrong there. The cases, each detailed below:
     decomposition, trace, conservation laws, equilibrium and structural zeros.
   - An exact non-interacting (NEGF) transport reference for grading currents
     and noise at the retained order.
-  - A narrowly scoped Ruff correctness gate for Python files and notebooks.
+  - A Ruff gate on Ruff's default rule set, except `E741`, for Python files
+    and notebooks.
 - **Packaging and release.** A source-based Conda recipe for compiled Python
   3.11-3.14 on Linux x86-64 and aarch64 and on Intel and Apple Silicon macOS,
   published to a prefix.dev channel only after every variant builds and passes
