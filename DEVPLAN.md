@@ -18,7 +18,7 @@ The 1.2 feature set is the one in 1.2.0.dev11. The remaining work finishes and
 polishes that set:
 
 - correctness fixes in shipped features;
-- consolidation of RTD code paths that already exist (group B);
+- consolidation of RTD code paths that already exist;
 - diagnostics that make a silent limitation visible;
 - tests that pin behaviour so far verified only by hand;
 - documentation of what each approach computes, where it fails, and how to
@@ -40,6 +40,7 @@ beyond the numerical floor and the path being replaced serves as the gate.
 | A 2vN `kpnt` convergence check | The documented `kpnt`/`niter` requirement, with a measured example (D4) |
 | A public non-interacting reference solver | The NEGF solver stays test-only, in `qmeq/tests/noninteracting_negf_solver.py` |
 | Higher cumulants, energy-current noise, finite-frequency noise | The first two zero-frequency particle-current cumulants |
+| A compiled RTDnoise traversal or record evaluator | A Python traversal over the shared diagram records, with compiled scalar integrals. A compiled evaluator would gain at most about 2x; see `docs/docs/conventions/where-the-time-goes.md` |
 
 The groundwork that landed for full-coherence RTD **stays**. It specifies and
 tests the packed layout that every shipped approach already uses, and none of
@@ -70,45 +71,6 @@ observable through `clamped_coherences`.
   `AUTHORS.md`, `README.md` and the publishing configuration are written once.
 
 ## 4. Open work
-
-### B. One RTD diagram traversal, and a compiled RTDnoise
-
-`qmeq.approach.rtd_diagrams` enumerates the RTD population diagrams as
-immutable records, and `pyRTD`, `pyRTDnoise` and `RTDnoise` evaluate them.
-The compiled `c_RTD.pyx` keeps its hand-written loops, held to the records by
-`test_compiled_rtd_matches_the_record_based_python_rtd`.
-
-- **B2. Decide whether to compile a record evaluator.** Measured on the record
-  path for a spinful double dot (16 states, four channels):
-
-  | approach | solve |
-  |---|---|
-  | `RTD`, compiled loops | 0.007 s |
-  | `pyRTD` | 0.33 s |
-  | `RTDnoise`, compiled scalar integrals | 0.76 s |
-  | `pyRTDnoise` | 3.0 s |
-
-  Of the 0.76 s, generating the records takes 0.12 s, and the compiled
-  counting integrals take 0.29 s when called from Python: three Ozaki
-  evaluations per diagram, for the value and a centred derivative. The
-  remaining 0.35 s is per-record evaluation, scalar insertion into
-  `Lpm_second`, the first-order and coherence blocks, and the noise solve.
-  - A compiled evaluator of a lowered record table removes most of the last
-    part and the call overhead. Its ceiling is about 2x, and it adds a
-    compiled path to maintain.
-  - The integrals bound any faster path. Compiling the enumeration as well
-    would remove the generation time too, but only by giving the compiled
-    side its own topology rules.
-  - If a compiled evaluator is built: lower the records to typed arrays and
-    test the round trip; write one evaluator, parameterised by its output,
-    with no topology rules of its own; route `RTDnoise` through it once
-    per-record, per-transfer, per-order, kernel, stationary-state, current and
-    noise parity pass in fresh forced-backend processes, keeping
-    `pyRTDnoise` all Python; and check the serial and OpenMP builds and the
-    installed wheel and sdist. Compiled `RTD` stays on its own loops, since
-    generating the records in Python already costs more than its whole solve.
-  - If it is not built, record these measurements in
-    `docs/docs/conventions/where-the-time-goes.md` and close the item.
 
 ### C. Tests
 
@@ -258,6 +220,8 @@ The compiled `c_RTD.pyx` keeps its hand-written loops, held to the records by
 - Thermal-bias RTD needs a `dband` convergence check.
 - At finite interaction 2vN carries an equilibrium current of order
   `Gamma^3`.
+- RTDnoise traverses its diagrams in Python; only its scalar integrals are
+  compiled.
 - Counting statistics cover the first two zero-frequency particle-current
   cumulants. There is no counting for 2vN, the electron-phonon approaches or
   matrix-free solving.

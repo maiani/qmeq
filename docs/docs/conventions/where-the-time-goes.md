@@ -63,6 +63,38 @@ Three and a half million scalar `phi` evaluations for a five-orbital dot. This i
 why the Cython twins exist: it is a scalar-loop problem, and no linear-algebra
 library can help with it.
 
+## RTDnoise is bounded by its counting integrals
+
+A spinful double dot with 16 many-body states and four lead channels, at equal
+temperatures, compiled backend, best of two solves:
+
+| kerntype | traversal | scalar integrals | solve |
+|---|---|---|---|
+| `RTD` | compiled | compiled | 0.007 s |
+| `pyRTD` | Python | Python | 0.33 s |
+| `RTDnoise` | Python | compiled | 0.76 s |
+| `pyRTDnoise` | Python | Python | 3.0 s |
+
+The `RTDnoise` solve evaluates 22 016 independent four-vertex diagrams. Its
+time splits as follows:
+
+| part | time |
+|---|---|
+| generating the diagram records of `qmeq.approach.rtd_diagrams` | 0.12 s |
+| the compiled counting integrals, called from Python | 0.29 s |
+| per-record evaluation, scalar insertion into `Lpm_second`, the first-order and coherence blocks, and the noise solve | 0.35 s |
+
+Each diagram needs three evaluations of a counting integral, for its value and
+a centred Laplace derivative, where `RTD` needs one real-valued evaluation.
+Those integrals are already compiled and set the floor.
+
+A compiled evaluator of the record stream could remove the per-record and
+insertion cost and the call overhead, which caps its gain at about a factor of
+two. Removing the generation time as well would need a compiled copy of the
+diagram enumeration, a second set of topology rules beside the records. For
+that reason `RTDnoise` keeps its Python traversal with compiled scalar
+integrals.
+
 ## Why loops rather than NumPy
 
 The assembly code is nested `for` loops over many-body states, which invites the
