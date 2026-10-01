@@ -181,8 +181,3 @@ The levers, in the order the profile suggests:
     1.3\,\mathrm{GB}$, and RTD additionally allocates `Wdd2` with a
     per-thread axis. Memory is reached before flops become the limit, and
     because the matrix is 99 % dense there is no sparse escape.
-
-For future coherence-retaining RTD work, record diagram counts, generation
-time, integral time, assembly time, memory, and solve time against this
-baseline. The data already show that the dominant cost will be integrals and
-enumeration, not linear algebra.

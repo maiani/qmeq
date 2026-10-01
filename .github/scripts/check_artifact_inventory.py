@@ -49,8 +49,7 @@ SDIST_REQUIRED = [
 SDIST_FORBIDDEN = [
     ("agent guidance", "AGENTS.md"),
     ("agent guidance alias", "CLAUDE.md"),
-    ("issue tracker", "TODO.md"),
-    ("development plans", "*_devplan.md"),
+    ("development plan", "DEVPLAN.md"),
     ("MkDocs build output", "docs/site/*"),
     ("removed legacy documentation", "legacy_docs/*"),
     ("notebook symlink duplicate", "docs/docs/notebooks/*"),

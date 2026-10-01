@@ -182,7 +182,7 @@ number because 1.1 was wrong there. The cases, each detailed below:
   from installed wheels and sdists on both forced backends. Optional extras
   `test`, `docs` and `dev`.
 - `AUTHORS.md`, recording the scientific authors, major contributors, source
-  forks and integration work, and a prioritised roadmap in `TODO.md`.
+  forks and integration work.
 
 ### Changed
 

@@ -142,8 +142,9 @@ else — and only `indexing='charge'`.
   integrals use `dband` as a finite wide-band *regulator* even though
   `bandwidth='infinite'` is selected. With unequal lead temperatures, QmeQ
   warns (`RTDBandwidthWarning`) when the smallest cutoff is below 1000x the
-  largest transport scale, but the fix is "rerun with larger `dband` and check
-  convergence" — there is no automated convergence answer yet.
+  largest transport scale. The warning does not supply the converged answer:
+  rerun with increasing `dband` until the observables stop changing. QmeQ does
+  not automate that sweep.
 - **Near-degenerate same-charge states.** RTD warns (`RTDCoherenceWarning`)
   when the closest same-charge splitting is within a factor of 5 of the
   Fermi-weighted sequential escape broadening. The diagnostic also reports
@@ -151,10 +152,10 @@ else — and only `indexing='charge'`.
   but does not warn from that deliberately conservative bound. Separately,
   `RTDNoBroadeningWarning` reports when no sequential escape broadening exists
   for the active states — in that case the stationary kernel may be singular.
-- **Complex tunnel amplitudes.** The energy and heat currents are filled with
-  `nan` (with a warning) for models with flux or interference, because the
-  derivation is unfinished (commented-out terms exist in `RTD.py`). The
-  particle current is unaffected.
+- **Complex tunnel amplitudes.** RTD does not compute the energy and heat
+  currents for models with complex tunnel amplitudes, such as models with a
+  flux or with interference. Both are filled with `nan`, and a warning is
+  raised. The particle current is unaffected.
 - **Discarded imaginary parts.** The population kernel assembly discards the
   imaginary part of a four-amplitude product at several sites. For the
   *particle* current this is benign: against an exact non-interacting result at

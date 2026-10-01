@@ -7,14 +7,14 @@ features, installation, examples, authorship, and citation information, use
 
 ## Start with the sources of truth
 
-- [TODO.md](TODO.md) owns priorities and open implementation work.
+- [DEVPLAN.md](DEVPLAN.md) owns scope, priorities, and open work. QmeQ takes
+  no new features: its section 1 sets what belongs here and its section 2
+  lists what was dropped. It is a coordination document, so production code,
+  tests, fixtures, and permanent documentation must state durable conventions
+  and provenance directly rather than link to it or copy its item labels.
 - [CHANGELOG.md](CHANGELOG.md) owns user-visible changes under `[Unreleased]`.
 - [REFERENCES.md](REFERENCES.md) owns stable keys for external literature used
   by the implementation. The README remains the source for citing QmeQ itself.
-- Root `*_devplan.md` files are temporary coordination documents. They may
-  guide implementation, but production code, tests, fixtures, and permanent
-  documentation must state durable conventions and provenance directly rather
-  than link to a development plan or copy its phase labels.
 - [docs/README.md](docs/README.md) describes documentation ownership and build
   status. The complete documentation tree is [docs/](docs/).
 
@@ -127,8 +127,7 @@ Documentation is part of a behavior change:
 - derivations: `docs/docs/theory/`;
 - internal index, sign, layout, and sentinel contracts:
   `docs/docs/conventions/`;
-- findings, open questions, and planned work: `TODO.md` or the relevant
-  root development plan; and
+- findings, open questions, and planned work: `DEVPLAN.md`; and
 - user-visible release notes: `CHANGELOG.md`.
 
 Do not leave project-management notes in production source or user pages. A

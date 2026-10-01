@@ -1,0 +1,344 @@
+# QmeQ 1.2 development plan
+
+This file owns QmeQ's open work: what remains before 1.2.0, what has been
+dropped, and what maintenance after 1.2 covers. Changes already made are in
+[CHANGELOG.md](CHANGELOG.md) under `[Unreleased]`. This file is not a history:
+a finished item is deleted, not ticked.
+
+It is a coordination document. Production code, tests, fixtures and the
+documentation tree state their conventions and provenance directly and never
+link here or copy its item labels.
+
+## 1. Scope
+
+QmeQ 1.2 is the last release under the current maintainer. After it the
+project passes to a new maintainer for maintenance. QmeQ takes no new features.
+
+The 1.2 feature set is the one in 1.2.0.dev11. The remaining work finishes and
+polishes that set:
+
+- correctness fixes in shipped features;
+- consolidation of RTD code paths that already exist (group B);
+- diagnostics that make a silent limitation visible;
+- tests that pin behaviour so far verified only by hand;
+- documentation of what each approach computes, where it fails, and how to
+  check convergence; and
+- packaging, publishing and the handoff.
+
+**Rule for borderline items.** If finishing an item needs a new derivation or a
+new public function, it is out of scope. Document the limitation instead.
+Consolidating paths that already exist is in scope, provided no result moves
+beyond the numerical floor and the path being replaced serves as the gate.
+
+## 2. Dropped
+
+| Item | What 1.2 ships instead |
+|---|---|
+| Full-coherence RTD: `L0+W1` and `L0+W1+W2` on the complete `dm0`, with coherent counting | RTD and RTDnoise eliminate same-charge coherences. `RTDCoherenceWarning` and `rtd_coherence_diagnostics`, including `clamped_coherences`, flag where the elimination fails |
+| RTD energy and heat currents for complex tunnel amplitudes | `nan` with a warning. The particle current is unaffected (A3) |
+| A helper that sweeps `dband` for thermal-bias RTD | A documented convergence recipe (D4) |
+| A 2vN `kpnt` convergence check | The documented `kpnt`/`niter` requirement, with a measured example (D4) |
+| A public non-interacting reference solver | The NEGF solver stays test-only, in `qmeq/tests/noninteracting_negf_solver.py` |
+| Higher cumulants, energy-current noise, finite-frequency noise | The first two zero-frequency particle-current cumulants |
+
+The groundwork that landed for full-coherence RTD **stays**. It specifies and
+tests the packed layout that every shipped approach already uses, and none of
+it depends on the dropped solver. It covers:
+
+- `qmeq.approach.dm_layout`, with rules L1-L9, `LiouvilleState` and the
+  reference `DensityMatrixLayout`;
+- `NO_INDEX`, `QMEQ_STRICT_INDEX` and `RtdMatrix`;
+- `get_ind_dm0_bool` and `get_ind_dm0_conj`; and
+- the first-order population-coherence blocks in `qmeq.approach.rtd_blocks`,
+  which RTD and RTDnoise share.
+
+The near-degeneracy clamp in the coherence elimination also stays. It is
+observable through `clamped_coherences`.
+
+## 3. Distribution and hosting
+
+- **Name.** The package stays `qmeq`. Ask the original author for publish
+  rights to the existing PyPI project, so that 1.2 reaches every existing user
+  as an ordinary upgrade (E1).
+- **Repository.** 1.2 is released from `maiani/qmeq`. After the handoff the
+  repository moves to a GitHub organisation. A transfer redirects repository
+  links, but not GitHub Pages URLs (E3).
+- **Conda.** 1.2 ships on the prefix.dev channel `andmai/science`. A
+  conda-forge feedstock, built from the PyPI sdist, follows after 1.2.0
+  (section 6).
+- **Still open: the next maintainer.** Name them before E5, so that
+  `AUTHORS.md`, `README.md` and the publishing configuration are written once.
+
+## 4. Open work
+
+### A. Correctness and diagnostics
+
+- **A1. Warn when `dband` is ignored.** With `bandwidth='infinite'` (`itype` 1
+  or 3), Pauli, Lindblad, Redfield and 1vN drop the cutoff. Their current is
+  identical to six digits from `dband=1e5` down to `dband=0.01`, a band far
+  narrower than both the bias window and the level energies, and nothing says
+  so.
+  - Warn once per system when an explicitly supplied `dband` falls inside the
+    transition window under the wide-band options. Raise the warning from the
+    shared solve, beside `check_band_coverage`.
+  - Exclude RTD and RTDnoise. There `dband` regulates the unequal-temperature
+    integrals and is not ignored.
+  - Stay silent when the caller did not supply `dband`.
+  - Test both the warning and its silence, next to
+    `test_a_band_that_excludes_every_transition_warns`.
+- **A2. Characterise the 2vN equilibrium current at finite interaction.**
+  - What is measured: at `mu_L = mu_R` and equal temperatures, 2vN carries a
+    current of about 2% of the biased current at `U = 2` on a spinless double
+    dot, and about `5e-8` at `U = 0`. The value does not depend on `dband` or
+    `kpnt`. Successive halvings of the tunnelling amplitude take the ratio
+    from `1.4e-2` to `7.5e-4`, `2e-5` and `1.7e-6`, so the current is of high
+    order in the coupling.
+  - Next step: measure how the current depends on `niter`, the one control
+    not yet varied.
+  - If it converges away, document the `niter` it needs. If it is a property
+    of the 2vN truncation, document it under 2vN in
+    `docs/docs/guide/approaches.md` as a known failure mode, with the measured
+    scaling. If a diagnosis would need a new derivation, document the
+    behaviour as open.
+  - In every case, pin the `U = 0` equilibrium current at the numerical floor.
+    2vN is exact there.
+- **A3. State the complex-amplitude energy-current limitation in the code.**
+  RTD's `WE1`/`WE2` assembly keeps only `gamma.real`, fills `energy_current`
+  and `heat_current` with `nan`, and warns.
+  - Delete the commented-out `gamma.imag` terms in
+    `qmeq/approach/base/RTD.py`. The Cython twin has none.
+  - Make the warning and the RTD docstrings say that QmeQ does not compute
+    these currents for complex amplitudes, without implying an unfinished
+    derivation.
+
+### B. One RTD diagram traversal, and a compiled RTDnoise
+
+Three hand-written loops enumerate the same second-order population diagrams:
+
+- `ApproachPyRTD.generate_col_diag_kern_2nd_order`;
+- its compiled twin in `c_RTD.pyx`; and
+- RTDnoise's counting-resolved `generate_col_diag_kern_2nd_order_lpm`.
+
+The first-order rows are duplicated in the same way, as
+`generate_row_1st_order_kernel` and `generate_row_1st_order_kernel_lpm`. These
+loops must agree on branch signs, orientation, integral arguments and fermionic
+signs, and only tests enforce that they do.
+
+The target is one topology generator in Python, which emits immutable diagram
+records, and one compiled evaluator of those records. Neither step may move a
+result beyond the numerical floor.
+
+- **B1. Diagram records and one Python traversal.**
+  - Each record carries:
+    - the initial and final populations;
+    - the order, and the direct or exchange topology;
+    - the ordered vertices, each with its branch, electron/hole orientation,
+      lead and many-body transition;
+    - the tunnelling product and the fermionic sign;
+    - the propagator energies and the integral kind;
+    - the lead and the signed transferred charge at every reservoir vertex;
+      and
+    - the identity of its `eta0` conjugate partner, so that partners can be
+      audited rather than implied.
+  - Record endpoints are populations only. The first-order
+    population-coherence blocks stay in `rtd_blocks`, which already serves
+    both approaches.
+  - The records have two consumers: the ordinary lead-resolved kernel `Wdd`,
+    and the counting-resolved `Lpm_first`/`Lpm_second` arrays with their
+    `_dz` derivatives. The ordinary kernel is the zero-field sum of the
+    counting-resolved one.
+  - Run the records in shadow mode first, beside the legacy loops. Compare
+    every block per lead, transfer sector and order, for real amplitudes and
+    for generic-flux amplitudes. Only then route `pyRTD`, `RTDnoise` and
+    `pyRTDnoise` through the records. Delete the legacy Python loops in a
+    separate change.
+  - Gate:
+    - the QmeQ 1.1 RTD bundle and the historical RTDnoise counting bundle
+      reproduce;
+    - the complex-flux, rephasing and NEGF residual-order tests pass; and
+    - `c_RTD` agrees with the record-based Python path in fresh
+      forced-backend processes.
+  - The energy-current rows (`generate_row_1st_energy_kernel`,
+    `generate_row_2nd_energy_kernel`) move onto the records only if their
+    present expressions map onto records one to one.
+  - Document the record fields, the partner rule and the transfer labels in
+    `docs/docs/conventions/rtd-kernels.md`.
+- **B2. A compiled evaluator for the records, which gives RTDnoise a compiled
+  path.**
+  - Profile the B1 path first, for RTD and RTDnoise separately: topology
+    generation, the direct and exchange integrals, their `_dz` evaluation,
+    matrix insertion and the solve. Compile the parts that dominate.
+  - Lower the records to a table of typed arrays and integer tags. Test the
+    round trip to the Python records before production uses the table.
+  - Write one compiled evaluator and assembler, parameterised by its output:
+    the ordinary kernel, or the counting-resolved arrays with `_dz`. It holds
+    no topology rules of its own.
+  - Route `RTDnoise` through the evaluator once parity passes in fresh
+    forced-backend processes, per record, per transfer, per order, and for
+    the kernel, stationary state, current and noise. `pyRTDnoise` stays all
+    Python. Confirm the selection with `qmeq.get_backend_status()`.
+  - Route compiled `RTD` through the evaluator too, if benchmarks show it is
+    no slower than `c_RTD`'s hand-written traversal, both serial and with
+    OpenMP, and then delete that traversal. Otherwise keep the traversal,
+    pinned to the records by the B1 parity gate, and record the measurement
+    in `docs/docs/conventions/where-the-time-goes.md`.
+  - OpenMP stays optional through `QMEQ_OPENMP`. Check the serial and
+    threaded builds, and the installed wheel and sdist.
+
+### C. Tests
+
+- **C1. Pin the numerical edge cases that no test covers.** The cases that
+  were verified only by hand are:
+  - exact and near degeneracies;
+  - complex amplitudes, on every approach;
+  - `remove_states`;
+  - empty spin sectors;
+  - very hot and very cold leads; and
+  - the special functions at their limits.
+
+  Some now have tests: the lead-temperature limits in `test_numerical_edges.py`
+  and `remove_states` on many-body input. Map the suite first and add only the
+  uncovered cases. Each new test asserts an invariant or an independent value,
+  such as rephasing covariance for complex amplitudes or a limiting form for a
+  special function. It never asserts the code's current output.
+
+### D. Documentation
+
+- **D1. Correct statements that contradict the code.**
+  - `docs/docs/theory/counting-statistics.md` calls `kerntype='RTDnoise'` an
+    alias of the pure-Python implementation. In fact `ApproachRTDnoise`
+    selects compiled scalar integrals on the Cython backend, as
+    `approaches.md` says.
+  - Tutorial 7's validity table says that RTD off-diagonal counting
+    corrections are not implemented. `off_diag_corrections=True` is supported,
+    and it is the default.
+  - `CHANGELOG.md` claims Conda packages for Intel macOS, but `release.yml`
+    builds only `linux-64`, `linux-aarch64` and `osx-arm64`. Either build
+    `osx-64` or correct the claim.
+  - The URLs in `pyproject.toml` point at `gedaskir/qmeq`; point them at
+    `maiani/qmeq`.
+  - The changelog compare links resolve only in `gedaskir/qmeq`, because
+    `maiani/qmeq` has no `1.1` tag. Push that tag to the fork at the upstream
+    commit, or keep the 1.1 links pointing at upstream.
+- **D2. Write the RTD validation envelope into the permanent documentation.**
+  Put it on the counting-statistics page and under RTD/RTDnoise in the
+  approaches guide, citing test names. It should state:
+  - what is graded at `U = 0`, against the exact NEGF solver: with
+    `off_diag_corrections=True`, the current and noise residuals are cubic in
+    the coupling, and without the correction they are quadratic; this holds
+    for real amplitudes and for generic plaquette flux; the observables are
+    invariant under orbital rephasing and `2π`-periodic in the flux;
+  - what is graded at `U ≠ 0`: in a deep-blockade Anderson dot, the
+    elastic-cotunnelling current within 0.02% and the bidirectional-Poisson
+    noise within 1%;
+  - what is not graded: interacting systems outside deep blockade, splittings
+    `≲ Γ` (where the elimination is invalid by construction), and the energy
+    current at complex amplitudes.
+- **D3. Record the paired traversals until B1 removes them.** State in
+  `docs/docs/conventions/rtd-kernels.md` that a fix to one of the three
+  traversals must be applied to the others. Name the tests that pin their
+  agreement:
+  - `test_complex_flux_second_order_kernel_matches_stationary_rtd`;
+  - `test_counting_resolved_coherence_correction_reduces_to_standard_rtd`;
+    and
+  - `test_counted_current_matches_ordinary_current`.
+- **D4. Convergence recipes in place of the dropped helpers.** In the
+  approaches guide:
+  - a short `dband` sweep for thermal-bias RTD and RTDnoise, including what
+    "converged" means for the current and for each noise entry; and
+  - the measured 2vN example: at `dband=10` and `niter=3` the current moves
+    from `3.90e-05` at `kpnt=2**9` to `1.71e-05` at `kpnt=2**5`.
+
+### E. Distribution and handoff
+
+- **E1. Publish to PyPI as `qmeq`.**
+  - Once the original author grants publish rights, configure Trusted
+    Publishing for the `build_wheels.yml` publish job, with no stored token.
+    Make the next maintainer an owner of the project.
+  - Rewrite the install instructions in `INSTALL.md` and `README.md`, and
+    remove the warning that `pip install qmeq` installs 1.1.
+  - Install from PyPI into a clean environment and check
+    `qmeq.get_backend_status()`.
+- **E2. Confirm the Conda channel.** The channel was last confirmed at
+  1.2.0.dev9, and the dev10 upload predates the OIDC publishing change. Check
+  whether dev11 arrived, and confirm that the release candidate reaches
+  `andmai/science`.
+- **E3. Publish the built documentation** from CI on a tag. A GitHub Pages
+  site under `maiani` stops resolving when the repository moves to the
+  organisation. Either host the site at its final address from the start, or
+  plan the link update as a 1.2.x change. Point the `README.md` and
+  `pyproject.toml` documentation links at the published site. Notebook
+  execution stays in the example test jobs, not in the documentation build.
+- **E4. Write the development and release guide** as `CONTRIBUTING.md`. It
+  covers:
+  - editable installs, and backend and OpenMP selection;
+  - regenerating the Cython output;
+  - the fast and slow suites, and the documentation build;
+  - artifact validation;
+  - the files that must change together when a `.py`/`.pyx` pair, or an RTD
+    traversal, is touched;
+  - the reference-data policy; and
+  - the release procedure: version bump, tag, what each workflow publishes
+    where, the trusted publishers, and who receives the scheduled `slow.yml`
+    failures.
+
+  `AGENTS.md` keeps only the rules specific to agents, and links to the guide
+  instead of repeating it.
+- **E5. Hand off.**
+  - Add a maintenance-status paragraph to `README.md`, and the next maintainer
+    to `AUTHORS.md`.
+  - Give the next maintainer administration of the repository, ownership of
+    the PyPI project, the Conda channel and the documentation hosting.
+  - Check that the next maintainer can cut a release without the current
+    maintainer's accounts.
+
+## 5. Release gate
+
+1.2.0 is ready only when all of the following hold:
+
+- [ ] Every item in section 4 is closed, or is a documented limitation listed
+      in section 6.
+- [ ] A release candidate, `v1.2.0rc1`, has passed through every publishing
+      path: the GitHub release with wheels and sdist, PyPI, the Conda channel
+      and the documentation site. Pre-release tags build only `linux-64` for
+      Conda, so run `release.yml` with `full-matrix: true`.
+- [ ] The fast pure-Python and compiled suites pass across the CI matrix.
+- [ ] The `--runslow` example and notebook suites pass (`slow.yml`).
+- [ ] The documentation builds strictly from a clean checkout.
+- [ ] The wheel and sdist contents have been inspected, and both artifacts have
+      been installed outside the source tree. The installed-copy tests pass on
+      both forced backends, and `qmeq.get_backend_status()` reports the
+      expected implementation.
+- [ ] `[Unreleased]` in `CHANGELOG.md` is one coherent `[1.2.0]` section, and
+      its upgrade notes from 1.1 are complete.
+- [ ] The package, documentation and tag versions agree.
+- [ ] The release artifacts come from the tested revision, and are published
+      only after these checks pass.
+
+## 6. Maintenance after 1.2
+
+**In scope:**
+
+- fixes to shipped features, each with a test that fails without the fix;
+- compatibility with new Python, NumPy, SciPy and Cython releases;
+- CI and packaging upkeep; and
+- `1.2.x` patch releases through the same gate.
+
+**Out of scope:** new approaches, observables or public API.
+
+**Planned after 1.2.0:**
+
+- a conda-forge feedstock built from the PyPI sdist; and
+- moving the repository to a GitHub organisation, then updating every link
+  that a transfer does not redirect.
+
+**Known limitations that stay.** Each is documented in
+`docs/docs/guide/approaches.md`.
+
+- RTD and RTDnoise eliminate same-charge coherences, so they are invalid for
+  splittings `≲ Γ`. The diagnostics flag this case.
+- RTD energy and heat currents are `nan` for complex tunnel amplitudes.
+- Thermal-bias RTD needs a `dband` convergence check.
+- Counting statistics cover the first two zero-frequency particle-current
+  cumulants. There is no counting for 2vN, the electron-phonon approaches or
+  matrix-free solving.
